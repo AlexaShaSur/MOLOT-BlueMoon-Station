@@ -17,10 +17,10 @@
 //	name = "Syndicate Listening Outpost"
 //	description = "A syndicate listening outpost cleverly disguised as an asteroid"
 
-/datum/map_template/ruin/space/spacehotelsplurt
+/datum/map_template/ruin/space/spacehotelalexis
 	prefix = "modular_splurt/_maps/RandomRuins/SpaceRuins/"
-	id = "spacehotelsplurt"
-	suffix = "spacehotelsplurt.dmm"
+	id = "spacehotelalexis"
+	suffix = "spacehotelalexis.dmm"
 	name = "Twin Spires Hotel and Club"
 	description = "A Nanotrasen-partnered interstellar hotel and stripclub"
 	always_place = TRUE
