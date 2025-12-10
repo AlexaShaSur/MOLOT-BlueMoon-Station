@@ -169,9 +169,10 @@
 /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden/layer3{
 	dir = 8
 	},
-/obj/item/stack/sheet/mineral/silver{
-	amount = 10
+/obj/item/clipboard{
+	pixel_y = 3
 	},
+/obj/item/pen,
 /turf/open/floor/carpet/blackred,
 /area/ruin/space/has_grav/bluemoon/hotel/workroom)
 "bj" = (
@@ -1987,9 +1988,9 @@
 	pixel_y = 8
 	},
 /obj/item/reagent_containers/food/drinks/bottle/whiskey{
-	pixel_x = 3
+	pixel_x = 9;
+	pixel_y = 7
 	},
-/obj/item/reagent_containers/food/drinks/drinkingglass,
 /obj/machinery/atmospherics/pipe/simple/supply/hidden/layer1,
 /obj/machinery/atmospherics/pipe/manifold/scrubbers/hidden/layer3{
 	dir = 8
@@ -1997,7 +1998,7 @@
 /obj/structure/cable{
 	icon_state = "4-8"
 	},
-/obj/item/stack/spacecash/c1000,
+/obj/item/reagent_containers/food/drinks/drinkingglass,
 /turf/open/floor/carpet/blackred,
 /area/ruin/space/has_grav/bluemoon/hotel/workroom)
 "lE" = (
@@ -3101,9 +3102,6 @@
 /area/ruin/space/has_grav/bluemoon/hotel/security)
 "rX" = (
 /obj/structure/table/wood,
-/obj/item/clipboard{
-	pixel_y = 3
-	},
 /obj/item/hand_labeler,
 /obj/item/stack/packageWrap,
 /obj/item/stamp{
@@ -7963,6 +7961,13 @@
 	},
 /turf/open/floor/plasteel/dark/textured/large,
 /area/ruin/space/has_grav/bluemoon/hotel/bar)
+"Uh" = (
+/obj/effect/decal/cleanable/dirt/dust,
+/obj/structure/table,
+/obj/item/paper_bin,
+/obj/item/pen,
+/turf/open/floor/plating,
+/area/ruin/space/has_grav/bluemoon/hotel/workroom)
 "Ui" = (
 /obj/machinery/light{
 	dir = 8
@@ -8702,6 +8707,11 @@
 	pixel_y = -11;
 	pixel_x = 6;
 	desc = "In case of a window breach, press this."
+	},
+/obj/item/stack/spacecash/c1000,
+/obj/item/stack/sheet/mineral/silver{
+	amount = 10;
+	pixel_y = 5
 	},
 /turf/open/floor/carpet/blackred,
 /area/ruin/space/has_grav/bluemoon/hotel/workroom)
@@ -9554,7 +9564,7 @@ zr
 VT
 Uw
 Rb
-ZP
+Uh
 ww
 or
 qN
