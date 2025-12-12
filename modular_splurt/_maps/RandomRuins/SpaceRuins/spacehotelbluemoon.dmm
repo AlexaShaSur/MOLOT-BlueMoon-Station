@@ -3,9 +3,8 @@
 /obj/structure/window/reinforced/tinted{
 	dir = 4
 	},
-/obj/structure/sink/kitchen{
-	dir = 8;
-	pixel_x = 5
+/obj/structure/closet/secure_closet/freezer/kitchen{
+	req_access = null
 	},
 /turf/open/floor/plasteel/showroomfloor,
 /area/ruin/space/has_grav/bluemoon/hotel/bar)
@@ -1876,13 +1875,6 @@
 /obj/machinery/atmospherics/pipe/simple/supply/hidden/layer1,
 /turf/open/floor/wood/wood_tiled,
 /area/ruin/space/has_grav/bluemoon/hotel/guestroom)
-"kR" = (
-/obj/structure/chair/sofa/corp/left{
-	dir = 1
-	},
-/obj/structure/closet/secure_closet/freezer/kitchen,
-/turf/open/floor/carpet/royalblack,
-/area/ruin/space/has_grav/bluemoon/hotel/bar)
 "kV" = (
 /obj/machinery/vending/autodrobe/all_access,
 /obj/machinery/light,
@@ -11453,7 +11445,7 @@ FV
 ao
 nr
 pV
-kR
+Wr
 ao
 mY
 ao
