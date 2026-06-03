@@ -161,18 +161,19 @@
 
 	return winners
 
-// Прок-хелпер для examine-string'а материалов. Нужен по большей части для бэкапа неучтённых словарём материалов, а также если будут новые материалы.
+/**
+ * Прок обращения к ассоциативному листу-словарю для получения русскоязычного названия слова
+ *
+ * Аргументы:
+ * * assoc_vocabulary - ассоциативный лист-словарь, откуда берётся ключ
+ * * word_name - слово, обычно формата переменной, для перевода
+ *
+ * Возвращает русскоязычное название слова, если оно есть в словаре, иначе возвращает исходное слово
+ *
+*/
+/proc/vocabulary_to_ru(assoc_vocabulary, word_name)
+	if(!assoc_vocabulary || !word_name)
+		return word_name
 
-/proc/material_to_ru_nominative(mat_name)
-	var/ru_mat_name = GLOB.mat_ru_nominative[lowertext(mat_name)]
-	if(ru_mat_name)
-		return ru_mat_name
-
-	return mat_name
-
-/proc/material_to_ru_genitive(mat_name)
-	var/ru_mat_name = GLOB.mat_ru_genitive[lowertext(mat_name)]
-	if(ru_mat_name)
-		return ru_mat_name
-
-	return mat_name
+	var/ru_name = assoc_vocabulary[lowertext(word_name)]
+	return ru_name ? ru_name : word_name

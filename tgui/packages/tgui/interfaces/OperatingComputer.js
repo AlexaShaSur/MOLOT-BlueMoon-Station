@@ -1,7 +1,7 @@
 import { Fragment } from 'inferno';
 
 import { useBackend, useSharedState } from '../backend';
-import { AnimatedNumber, Button, LabeledList, NoticeBox, ProgressBar, Section, Tabs, Divider } from '../components';
+import { AnimatedNumber, Button, Divider, LabeledList, NoticeBox, ProgressBar, Section, Tabs } from '../components';
 import { Window } from '../layouts';
 
 const damageTypes = [
@@ -21,7 +21,7 @@ const damageTypes = [
     color: 'green',
   },
   {
-    label: 'Дыхание',
+    label: 'Гипоксия',
     type: 'oxyLoss',
     color: 'blue',
   },
@@ -158,6 +158,12 @@ const PatientStateView = (props, context) => {
           </LabeledList>
         </Section>
       ))}
+      {patient && patient.special_condition ? (
+      <Section title="Особенности пациента" preserveWhitespace>
+        {patient.special_condition}
+      </Section>
+      ) : ""
+      }
     </Fragment>
   );
 };

@@ -106,7 +106,7 @@
 				for(var/J in 1 to components_of_type.len)
 					var/datum/component/C = components_of_type[J]
 					if(C.type != our_type) //but not over other exact matches
-						components_of_type.Insert(J, I)
+						components_of_type.Insert(J, src)
 						inserted = TRUE
 						break
 				if(!inserted)
@@ -128,7 +128,9 @@
 		var/list/components_of_type = dc[I]
 		if(length(components_of_type))	//
 			var/list/subtracted = components_of_type - src
-			if(subtracted.len == 1)	//only 1 guy left
+			if(!subtracted.len)
+				dc -= I
+			else if(subtracted.len == 1)	//only 1 guy left
 				dc[I] = subtracted[1]	//make him special
 			else
 				dc[I] = subtracted
@@ -219,6 +221,8 @@
   * * sig_typeor_types Signal string key or list of signal keys to stop listening to specifically
   */
 /datum/proc/UnregisterSignal(datum/target, sig_type_or_types)
+	if(!target)
+		return
 	var/list/lookup = target.comp_lookup
 	if(!signal_procs || !signal_procs[target] || !lookup)
 		return
@@ -308,16 +312,28 @@
 	var/target = comp_lookup[sigtype]
 	if(!length(target))
 		var/datum/C = target
-		if(!C.signal_enabled)
+		if(!istype(C) || !C.signal_enabled)
 			return NONE
-		var/proctype = C.signal_procs[src][sigtype]
+		var/list/src_procs = C.signal_procs[src]
+		if(!src_procs)
+			return NONE
+		var/proctype = src_procs[sigtype]
+		if(!proctype)
+			stack_trace("Signal [sigtype] has null proc registered on [C.type] (listener). Emitter=[src.type].")
+			return NONE
 		return NONE | CallAsync(C, proctype, arguments)
 	. = NONE
 	for(var/I in target)
 		var/datum/C = I
-		if(!C.signal_enabled)
+		if(!istype(C) || !C.signal_enabled)
 			continue
-		var/proctype = C.signal_procs[src][sigtype]
+		var/list/src_procs = C.signal_procs[src]
+		if(!src_procs)
+			continue
+		var/proctype = src_procs[sigtype]
+		if(!proctype)
+			stack_trace("Signal [sigtype] has null proc registered on [C.type] (listener). Emitter=[src.type].")
+			continue
 		. |= CallAsync(C, proctype, arguments)
 
 // The type arg is casted so initial works, you shouldn't be passing a real instance into this
@@ -349,19 +365,18 @@
   */
 /datum/proc/GetExactComponent(datum/component/c_type)
 	RETURN_TYPE(c_type)
-	if(initial(c_type.dupe_mode) == COMPONENT_DUPE_ALLOWED || initial(c_type.dupe_mode) == COMPONENT_DUPE_SELECTIVE)
+	var/initial_type_mode = initial(c_type.dupe_mode)
+	if(initial_type_mode == COMPONENT_DUPE_ALLOWED || initial_type_mode == COMPONENT_DUPE_SELECTIVE)
 		stack_trace("GetComponent was called to get a component of which multiple copies could be on an object. This can easily break and should be changed. Type: \[[c_type]\]")
-	var/list/dc = datum_components
-	if(!dc)
+	var/list/all_components = datum_components
+	if(!all_components)
 		return null
-	var/datum/component/C = dc[c_type]
-	if(C)
-		if(length(C))
-			C = C[1]
-		if(C.type == c_type)
-			return C
+	var/datum/component/potential_component
+	if(length(all_components))
+		potential_component = all_components[c_type]
+	if(potential_component?.type == c_type)
+		return potential_component
 	return null
-
 /**
   * Get all components of a given type that are attached to this datum
   *

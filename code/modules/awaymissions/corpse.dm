@@ -132,13 +132,6 @@
 
 	if(ckey)
 		M.ckey = ckey
-		if(ishuman(M) && load_character)
-			var/mob/living/carbon/human/H = M
-			if (H.client)
-				if (loadout_enabled == TRUE)
-					SSjob.equip_loadout(null, H)
-					SSjob.post_equip_loadout(null, H)
-			H.load_client_appearance(H.client)
 		//splurt change
 		if(jobban_isbanned(M, "pacifist")) //do you love repeat code? i sure do
 			to_chat(M, "<span class='cult'>You are pacification banned. Pacifist has been force applied.</span>")
@@ -152,7 +145,8 @@
 				output_message += "<p>[flavour_text]</p>"
 			if(important_info != "")
 				output_message += "<span class='warning'>[important_info]</span>"
-			output_message += "\n<span class='boldwarning'>В режим игры Extended станцию посещать допустимо, в Dynamic — запрещено!</span>"
+			if(addition_warning)
+				output_message += "\n\n[addition_warning]"
 			to_chat(M, examine_block(output_message))
 		// BLUEMOON EDIT END
 		var/datum/mind/MM = M.mind
@@ -172,13 +166,27 @@
 		// BLUEMOON EDIT END
 		if(assignedrole)
 			M.mind.assigned_role = assignedrole
-		special(M, name)
+		if(ishuman(M) && load_character)
+			var/mob/living/carbon/human/H = M
+			if (H.client)
+				H.load_client_appearance(H.client, quirks = FALSE)
+				if (loadout_enabled == TRUE)
+					SSjob.equip_loadout(null, H)
+					SSjob.post_equip_loadout(null, H)
+				H.load_client_quirks(H.client) // Грузим квирки после лодаута, если он есть, из-за квирка семейная реликвия
+		// BLUEMOON ADD START - загрузка татуировок для гост-ролей без загрузки внешности
+		else if(ishuman(M) && can_load_appearance)
+			var/mob/living/carbon/human/H = M
+			if(H.client?.prefs)
+				H.client.prefs.apply_tattoos_to_human(H)
+		// BLUEMOON ADD END
 		MM.name = M.real_name
 		if(make_bank_account)
 			handlebank(M, starting_money)
 		special_post_appearance(M, name) // BLUEMOON ADD
 		if(M.client && ishuman(M) && load_character)
 			SSlanguage.AssignLanguage(M, M.client)
+		special(M, name)
 	if(uses > 0)
 		uses--
 	if(!permanent && !uses)
@@ -306,7 +314,7 @@
 		H.equipOutfit(outfit)
 		if(disable_pda)
 			// We don't want corpse PDAs to show up in the messenger list.
-			var/obj/item/pda/PDA = locate(/obj/item/pda) in H
+			var/obj/item/modular_computer/pda/PDA = locate(/obj/item/modular_computer/pda) in H
 			if(PDA)
 				PDA.toff = TRUE
 		if(disable_sensors)
@@ -453,7 +461,7 @@
 /obj/effect/mob_spawn/human/doctor/alive/equip(mob/living/carbon/human/H)
 	..()
 	// Remove radio and PDA so they wouldn't annoy station crew.
-	var/list/del_types = list(/obj/item/pda, /obj/item/radio/headset)
+	var/list/del_types = list(/obj/item/modular_computer/pda, /obj/item/radio/headset)
 	for(var/del_type in del_types)
 		var/obj/item/I = locate(del_type) in H
 		qdel(I)
@@ -590,7 +598,7 @@
 	uniform = /obj/item/clothing/under/rank/centcom/commander
 	suit = /obj/item/clothing/suit/armor/bulletproof
 	ears = /obj/item/radio/headset/heads/captain
-	glasses = /obj/item/clothing/glasses/eyepatch
+	glasses = /obj/item/clothing/glasses/cover/eyepatch
 	mask = /obj/item/clothing/mask/cigarette/cigar/cohiba
 	head = /obj/item/clothing/head/centhat
 	gloves = /obj/item/clothing/gloves/tackler/combat

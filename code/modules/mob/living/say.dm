@@ -287,8 +287,8 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 	else
 		src.log_talk(message, LOG_SAY, forced_by=forced)
 
-	if(message[1] != "!")
-		message = treat_message(message) // unfortunately we still need this
+	if(length(message) && message[1] != "!")
+		message = treat_message(message, language) // unfortunately we still need this
 	var/sigreturn = SEND_SIGNAL(src, COMSIG_MOB_SAY, args)
 	if (sigreturn & COMPONENT_UPPERCASE_SPEECH)
 		message = uppertext(message)
@@ -353,9 +353,14 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 	SEND_SIGNAL(src, COMSIG_MOVABLE_HEAR, args) //parent calls can't overwrite the current proc args.
 	if(!client && !audiovisual_redirect)
 		return
+	// BLUEMOON EDIT - sign language is visual, deaf people should understand it
+	var/is_sign_language = initial(message_language.visual_language)
 	var/deaf_message
 	var/deaf_type
-	if(speaker != src)
+	if(is_sign_language)
+		deaf_message = null
+		deaf_type = null
+	else if(speaker != src)
 		if(!radio_freq) //These checks have to be seperate, else people talking on the radio will make "You can't hear yourself!" appear when hearing people over the radio while deaf.
 			deaf_message = "<span class='name'>[speaker]</span> [speaker.verb_say] something but you cannot hear [speaker.ru_na()]."
 			deaf_type = 1
@@ -364,13 +369,14 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 		deaf_type = 2 // Since you should be able to hear yourself without looking
 
 	// Create map text prior to modifying message for goonchat
-	if (client?.prefs.chat_on_map && stat != UNCONSCIOUS && (client.prefs.see_chat_non_mob || ismob(speaker)) && can_hear())
+	// BLUEMOON EDIT - sign language uses vision instead of hearing for map text
+	if (client?.prefs.chat_on_map && stat != UNCONSCIOUS && (client.prefs.see_chat_non_mob || ismob(speaker)) && (is_sign_language ? !eye_blind : can_hear()))
 		create_chat_message(speaker, message_language, raw_message, spans, message_mode)
 
 	// Recompose message for AI hrefs, language incomprehension.
 	message = compose_message(speaker, message_language, raw_message, radio_freq, spans, message_mode, FALSE, source)
 
-	show_message(message, MSG_AUDIBLE, deaf_message, deaf_type)
+	show_message(message, is_sign_language ? MSG_VISUAL : MSG_AUDIBLE, deaf_message, deaf_type)
 	return message
 
 /mob/living/send_speech(message, message_range = 6, obj/source = src, bubble_type = bubble_icon, list/spans, datum/language/message_language=null, message_mode)
@@ -379,8 +385,18 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 	if(eavesdropping_modes[message_mode])
 		eavesdrop_range = EAVESDROP_EXTRA_RANGE
 	var/list/listening = get_hearers_in_view(message_range+eavesdrop_range, source)
-	var/list/the_dead = list()
 
+	// ТЕШАРИ - улучшенный слух (слышат шёпот на +2 клетки дальше)
+	if(eavesdropping_modes[message_mode])
+		for(var/mob/living/carbon/human/H in range(message_range + eavesdrop_range + 2, source))
+			if(H in listening)
+				continue
+			if(!H.client)
+				continue
+			if(H.dna?.species?.id == SPECIES_TESHARI)
+				listening += H
+
+	var/list/the_dead = list()
 	for(var/_M in GLOB.player_list)
 		var/mob/M = _M
 		if(M.stat != DEAD) //not dead, not important
@@ -402,13 +418,40 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 		eavesrendered = compose_message(src, message_language, eavesdropping, null, spans, message_mode, FALSE, source)
 
 	var/rendered = compose_message(src, message_language, message, null, spans, message_mode, FALSE, source)
+	play_fov_effect(src, 6, "talk", ignore_self = TRUE, override_list = listening)
+	for(var/_AM in listening)
+		var/atom/movable/AM = _AM
+		// ПАТЧ ТЕШАРИ - проверяем дистанцию для чёткого слуха
+		var/is_teshari_listener = FALSE
+		if(ishuman(AM))
+			var/mob/living/carbon/human/H = AM
+			if(H.dna?.species?.id == SPECIES_TESHARI)
+				is_teshari_listener = TRUE
+
+		var/actual_dist = get_dist(source, AM)
+		var/should_hear_clearly = (actual_dist <= message_range)
+
+		// Тешари слышат шёпот ЧЁТКО на дистанции до 3 клеток (1 + 2 бонус)
+		if(is_teshari_listener && eavesdropping_modes[message_mode])
+			if(actual_dist <= (message_range + 2)) // 1 + 2 = 3 клетки чёткого слуха
+				should_hear_clearly = TRUE
+
+		if(eavesdrop_range && !should_hear_clearly && !(the_dead[AM]))
+			AM.Hear(eavesrendered, src, message_language, eavesdropping, null, spans, message_mode, source)
+		else
+			AM.Hear(rendered, src, message_language, message, null, spans, message_mode, source)
+	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_LIVING_SAY_SPECIAL, src, message)
+// ====================================================================
+// СТАРЫЙ КОД ДЛЯ СПРАВКИ
+// ====================================================================
+/*
 	for(var/_AM in listening)
 		var/atom/movable/AM = _AM
 		if(eavesdrop_range && get_dist(source, AM) > message_range && !(the_dead[AM]))
 			AM.Hear(eavesrendered, src, message_language, eavesdropping, null, spans, message_mode, source)
 		else
 			AM.Hear(rendered, src, message_language, message, null, spans, message_mode, source)
-	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_LIVING_SAY_SPECIAL, src, message)
+*/
 
 	var/is_yell = (say_test(message) == "2")
 	if(client && !eavesdrop_range && is_yell)	// Yell hook
@@ -484,12 +527,16 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 	return TRUE
 
 /mob/living/proc/can_speak_vocal(message) //Check AFTER handling of xeno and ling channels
+	if(QDELETED(src))
+		return FALSE
 	var/obj/item/bodypart/leftarm = get_bodypart(BODY_ZONE_L_ARM)
 	var/obj/item/bodypart/rightarm = get_bodypart(BODY_ZONE_R_ARM)
-	if(HAS_TRAIT(src, TRAIT_MUTE) && get_selected_language() != /datum/language/signlanguage)
+	var/datum/language/selected_lang = get_selected_language()
+	var/is_visual = selected_lang && initial(selected_lang.visual_language)
+	if(HAS_TRAIT(src, TRAIT_MUTE) && !is_visual)
 		return FALSE
 
-	if (get_selected_language() == /datum/language/signlanguage)
+	if(is_visual)
 		var/left_disabled = FALSE
 		var/right_disabled = FALSE
 		if (istype(leftarm)) // Need to check if the arms exist first before checking if they are disabled or else it will runtime
@@ -514,20 +561,27 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 	return TRUE
 
 /mob/living/proc/get_key(message)
+	if(!length(message))
+		return
 	var/key = message[1]
-	if(key in GLOB.department_radio_prefixes)
+	if((key in GLOB.department_radio_prefixes) && length(message) > length(key))
 		return lowertext(message[1 + length(key)])
 
 /mob/living/proc/get_message_language(message)
+	if(!length(message))
+		return null
 	if(message[1] == ",")
-		var/key = message[1 + length(message[1])]
+		var/comma_len = length(message[1])
+		if(length(message) <= comma_len)
+			return null
+		var/key = message[1 + comma_len]
 		for(var/ld in GLOB.all_languages)
 			var/datum/language/LD = ld
 			if(initial(LD.key) == key)
 				return LD
 	return null
 
-/mob/living/proc/treat_message(message)
+/mob/living/proc/treat_message(message, datum/language/speaking = null)
 
 	if(HAS_TRAIT(src, TRAIT_UNINTELLIGIBLE_SPEECH))
 		message = unintelligize(message)
@@ -541,6 +595,8 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 	if(HAS_TRAIT(src, TRAIT_KARTAVII))
 		message = kartavo(message)
 
+	var/skip_vocal_stutter = speaking && initial(speaking.visual_language)
+
 	// BLUEMOON EDIT START - теперь синтетики заикаются более с%инт$тич!ески
 	if(derpspeech)
 		if (isrobotic(src))
@@ -548,7 +604,7 @@ GLOBAL_LIST_INIT(department_radio_keys, list(
 		else
 			message = derpspeech(message, stuttering)
 
-	if(stuttering)
+	if(!skip_vocal_stutter && stuttering)
 		if (isrobotic(src))
 			message = machine_slur(message, FALSE, 30)
 		else

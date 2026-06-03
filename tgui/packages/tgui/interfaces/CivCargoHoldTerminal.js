@@ -91,14 +91,14 @@ const BountyTextBox = (props, context) => {
 
 const BountyPickBox = (props, context) => {
   const { act, data } = useBackend(context);
-  const { id_bounty_names, id_bounty_values } = data;
+  const { id_bounty_indexes, id_bounty_names, id_bounty_values } = data;
   return (
     <Section title="Please Select a Bounty:" textAlign="center">
       <Flex width="100%" wrap justify="center">
         {id_bounty_names.map((name, i) => (
           <Flex.Item
             key={i}
-            basis="30%"   // Три кнопки в ряд
+            basis="30%" // Три кнопки в ряд
             grow={0}
             shrink={0}
             px={0.5}
@@ -108,7 +108,7 @@ const BountyPickBox = (props, context) => {
               fluid
               color="green"
               content={name}
-              onClick={() => act('pick', { value: i + 1 })}
+              onClick={() => act('pick', { value: id_bounty_indexes[i] })}
             >
               <Box fontSize="14px">
                 Payout: {id_bounty_values[i]} cr

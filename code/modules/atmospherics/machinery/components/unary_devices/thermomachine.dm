@@ -45,7 +45,7 @@
 
 	if(panel_open)
 		icon_state = icon_state_open
-	else if(on && is_operational())
+	else if(on && is_operational)
 		icon_state = icon_state_on
 	else
 		icon_state = icon_state_off
@@ -62,7 +62,7 @@
 	. += "<span class='notice'>Термостат настроен на [target_temperature]K ([target_temperature-T0C]C).</span>"
 	if(in_range(user, src) || isobserver(user))
 		. += "<span class='notice'>Статус-дисплей сообщает: \n\
-		- Теплоёмкость работы с газами: <b>[heat_capacity] J/K</b>.</span> \n\
+		- Теплоёмкость работы с газами: <b>[heat_capacity] J/K</b>. \n\
 		- Диапазон T: <b>[min_temperature]K - [max_temperature]K ([min_temperature-T0C]C - [max_temperature-T0C]C)</b>.</span>"
 
 /obj/machinery/atmospherics/components/unary/thermomachine/process_atmos()
@@ -109,7 +109,8 @@
 	if(node)
 		node.disconnect(src)
 		nodes[1] = null
-	nullifyPipenet(parents[1])
+	if(parents[1])
+		nullifyPipenet(parents[1])
 
 	atmosinit()
 	node = nodes[1]

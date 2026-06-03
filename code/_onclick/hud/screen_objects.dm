@@ -49,8 +49,13 @@
 	set_new_hud(hud_owner)
 
 /atom/movable/screen/Destroy()
+	if(istype(hud) && hud.mymob?.client)
+		hud.mymob.client.screen -= src
+	for(var/client/C as anything in GLOB.clients)
+		C.moused_over_objects -= src
+	set_new_hud(null)
 	master = null
-	hud = null
+	vis_contents.Cut()
 	return ..()
 
 /atom/movable/screen/Click(location, control, params)
@@ -74,13 +79,14 @@
 
 ///setter used to set our new hud
 /atom/movable/screen/proc/set_new_hud(datum/hud/hud_owner)
-	if(hud)
+	if(istype(hud, /datum))
 		UnregisterSignal(hud, COMSIG_PARENT_QDELETING)
 	if(isnull(hud_owner))
 		hud = null
 		return
 	hud = hud_owner
-	RegisterSignal(hud, COMSIG_PARENT_QDELETING, PROC_REF(on_hud_delete))
+	if(istype(hud, /datum))
+		RegisterSignal(hud, COMSIG_PARENT_QDELETING, PROC_REF(on_hud_delete))
 
 /// Returns the mob this is being displayed to, if any
 /atom/movable/screen/proc/get_mob()
@@ -432,6 +438,10 @@
 	if(iscarbon(usr))
 		var/mob/living/carbon/C = usr
 		C.toggle_throw_mode()
+	else if(istype(usr, /mob/living/simple_animal))
+		var/mob/living/simple_animal/S = usr
+		if(S.dextrous)
+			S.toggle_throw_mode()
 
 /atom/movable/screen/zone_sel
 	name = "damage zone"
@@ -676,7 +686,7 @@
 INITIALIZE_IMMEDIATE(/atom/movable/screen/splash)
 
 /atom/movable/screen/splash/Initialize(mapload, datum/hud/hud_owner, client/C, visible, use_previous_title)
-	. = ..()
+	. = ..(mapload)
 	if(!istype(C))
 		return
 
@@ -749,3 +759,31 @@ INITIALIZE_IMMEDIATE(/atom/movable/screen/splash)
 		var/image/intent_icon = image(icon,src,"combo_[intent_text]")
 		intent_icon.pixel_x = 16 * (i - 1) - 8 * length(streak)
 		add_overlay(intent_icon)
+
+// Z
+/atom/movable/screen/floor_changer
+	name = "Сменить уровень"
+	icon = 'icons/mob/screen_ghost.dmi'
+	icon_state = "floor_change_v" // Иронично
+	mouse_over_pointer = MOUSE_HAND_POINTER
+
+/atom/movable/screen/floor_changer/Click(location, control, params)
+	var/list/modifiers = params2list(params)
+	var/mouse_y = text2num(LAZYACCESS(modifiers, "icon-y"))
+	var/mob/dead/observer/ghost = usr
+	if(!isobserver(ghost))
+		return
+	var/turf/current = get_turf(ghost)
+	if(!current)
+		return
+	var/target_z = (mouse_y > 16) ? current.z + 1 : current.z - 1
+	if(target_z < 1 || target_z > world.maxz)
+		return
+	var/turf/target = locate(current.x, current.y, target_z)
+	if(!target)
+		return
+	ghost.forceMove(target)
+
+/atom/movable/screen/floor_changer/ghost
+	icon = 'icons/mob/screen_ghost.dmi'
+

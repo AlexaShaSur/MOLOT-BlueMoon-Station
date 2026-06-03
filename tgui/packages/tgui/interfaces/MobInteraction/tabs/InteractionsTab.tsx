@@ -9,6 +9,7 @@ import { Box } from '../../../components';
 type ContentInfo = {
   interactions: InteractionData[];
   favorite_interactions: string[];
+  hidden_interactions_keys: string[];
   user_is_blacklisted: boolean;
   target: string;
   target_is_blacklisted: boolean;
@@ -22,6 +23,7 @@ type InteractionData = {
   desc: string;
   type: number;
   additionalDetails: additionalDetailsContent[];
+  hidden?: boolean;
 }
 
 type additionalDetailsContent = {
@@ -43,6 +45,8 @@ const INTERACTION_FLAG_USER_IS_TARGET = (1<<4);
 const INTERACTION_FLAG_USER_NOT_TIRED = (1<<5);
 const INTERACTION_FLAG_UNHOLY_CONTENT = (1<<6);
 const INTERACTION_FLAG_REQUIRE_BONDAGE = (1<<7);
+const INTERACTION_FLAG_RANGED_CONSENT = (1<<8);
+const INTERACTION_FLAG_HIDE_IN_PANEL = (1<<9);
 
 export const InteractionsTab = (props, context) => {
   const { act, data } = useBackend<ContentInfo>(context);
@@ -57,6 +61,7 @@ export const InteractionsTab = (props, context) => {
     || [];
 
   const favorite_interactions = data.favorite_interactions || [];
+  const hidden_keys = data.hidden_interactions_keys || [];
   const [inFavorites, setInFavorites] = useLocalState(context, 'inFavorites', false);
   const valid_favorites = interactions.filter(interaction => favorite_interactions.includes(interaction.key));
   const interactions_to_display = inFavorites
@@ -120,6 +125,16 @@ export const InteractionsTab = (props, context) => {
                     selected={favorite_interactions.includes(interaction.key)}
                   />
                 </Stack.Item>
+                <Stack.Item>
+                  <Button
+                    icon={hidden_keys.includes(interaction.key) ? "low-vision" : "eye"}
+                    tooltip={`${hidden_keys.includes(interaction.key) ? "Показать" : "Скрыть"} this interaction`}
+                    onClick={() => act('toggle_hidden_interaction', {
+                      interaction: interaction.key,
+                    })}
+                    selected={hidden_keys.includes(interaction.key)}
+                  />
+                </Stack.Item>
               </Stack>
             </Stack.Item>
           ))
@@ -154,9 +169,11 @@ export const sortInteractions = (interactions, searchText = '', data) => {
     theyAllowExtreme,
     theyAllowLewd,
     theyAllowUnholy,
+    theyAllowRanged,
     theyHaveBondage,
     user_is_blacklisted,
     verb_consent,
+    ranged_verb_pref,
 
 
     max_distance,
@@ -214,6 +231,10 @@ export const sortInteractions = (interactions, searchText = '', data) => {
       (!isTargetSelf && (target_has_active_player === 1)
         ? !(INTERACTION_FLAG_OOC_CONSENT
           & interaction.interactionFlags) : true)),
+    // Has a player or none at all
+    filter(interaction =>
+      interaction.interactionFlags & INTERACTION_FLAG_RANGED_CONSENT
+        ? (((target_has_active_player === 0) || theyAllowRanged) && ranged_verb_pref) : true),
     // Distance
     filter(interaction =>
       max_distance <= interaction.maxDistance),

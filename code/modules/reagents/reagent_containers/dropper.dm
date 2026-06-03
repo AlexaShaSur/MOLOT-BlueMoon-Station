@@ -22,7 +22,7 @@
 			return
 
 		if(!target.is_injectable())
-			to_chat(user, "<span class='warning'>Вы не может напрямую наполнить [target]!</span>")
+			to_chat(user, "<span class='warning'>Вы не можете напрямую наполнить [target]!</span>")
 			return
 
 		var/trans = 0
@@ -89,7 +89,7 @@
 
 /obj/item/reagent_containers/dropper/update_overlays()
 	. = ..()
-	if(reagents.total_volume)
+	if(reagents && reagents.total_volume)
 		. += mutable_appearance('icons/obj/reagentfillings.dmi', "dropper", color = mix_color_from_reagents(reagents.reagent_list))
 
 /obj/item/reagent_containers/dropper/get_belt_overlay()

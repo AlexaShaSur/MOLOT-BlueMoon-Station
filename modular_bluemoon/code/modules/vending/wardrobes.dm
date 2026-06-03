@@ -139,7 +139,7 @@
 
 /obj/machinery/vending/wardrobe/medi_wardrobe
 	name = "\improper MediDrobe"
-	desc = "Вендомат, по слухам, способный выдавать одежду медперсоналу."
+	desc = "Вендомат, по слухам, выдающий одежду медперсоналу."
 	icon_state = "medidrobe"
 	product_slogans = "Сделайте пятна крови модными!!!"
 	vend_reply = "Спасибо за использование MediDrobe!"
@@ -417,7 +417,7 @@
 		/obj/item/clothing/head/press_helmet = 1,
 	)
 	premium = list(
-		/obj/item/card/id/heresy = 5,
+		/obj/item/card_sticker/heresy = 5,
 	)
 	refill_canister = /obj/item/vending_refill/wardrobe/curator_wardrobe
 	payment_department = ACCOUNT_SRV
@@ -483,7 +483,7 @@
 		/obj/item/clothing/gloves/color/white = 3,
 	)
 	contraband = list(
-		/obj/item/card/id/muck = 2,
+		/obj/item/card_sticker/muck = 2,
 	)
 	refill_canister = /obj/item/vending_refill/wardrobe/chef_wardrobe
 	payment_department = ACCOUNT_SRV
@@ -611,7 +611,7 @@
 		/obj/item/sign/flag/ravenheart = 3, // Bluemoon edition - Флаг Воронье Сердце,
 		/obj/item/sign/flag/ravenheart/alt = 3, // Bluemoon edition - Флаг-баннер Воронье Сердце,
 		/obj/item/storage/box/raven_box/posters = 3, // Bluemoon edition - Постеры,
-		/obj/item/card/id/agony = 5,
+		/obj/item/card_sticker/agony = 5,
 		/obj/item/choice_beacon/box/creepy_statue_kit = 6,
 		/obj/item/choice_beacon/box/creepy_statue_kit/big = 1,
 	)
@@ -730,7 +730,10 @@
 		/obj/item/clothing/gloves/color/black = 2,
 		/obj/item/clothing/gloves/color/latex = 2,
 		/obj/item/reagent_containers/food/drinks/flask/det = 2,
-		/obj/item/storage/fancy/cigarettes = 5
+		/obj/item/storage/fancy/cigarettes = 5,
+		/obj/item/storage/backpack/detective = 2,
+		/obj/item/storage/backpack/satchel/detective = 2,
+		/obj/item/storage/backpack/duffelbag/detective = 2
 	)
 	premium = list(
 		/obj/item/clothing/head/flatcap = 1,
@@ -852,7 +855,7 @@
 		/obj/item/clothing/under/rank/centcom/officer = 3,
 		/obj/item/clothing/under/rank/centcom/officer_alt = 3,
 		/obj/item/clothing/under/rank/centcom/commander = 3,
-		/obj/item/clothing/glasses/eyepatch = 3,
+		/obj/item/clothing/glasses/cover/eyepatch = 3,
 		/obj/item/storage/box/syndie_kit/centcom_costume = 2,
 		/obj/item/mod/control/pre_equipped/corporate = 2,
 	)
@@ -929,7 +932,7 @@
 		/obj/item/clothing/head/maid/syndicate/civil = 5,
 		/obj/item/clothing/head/helmet/swat/ds/civil = 5,
 		/obj/item/clothing/head/hats/warden/syndicate/civil = 5,
-		/obj/item/card/id/syndicate_citizen = 5
+		/obj/item/card_sticker/syndicate = 5
 	)
 	refill_canister = /obj/item/vending_refill/wardrobe/syndie_wardrobe/civil
 	light_color = COLOR_MOSTLY_PURE_RED
@@ -997,8 +1000,8 @@
 		/obj/item/clothing/under/rank/blueshield/formal/skirt = 2,
 		/obj/item/clothing/shoes/jackboots/tall = 2,
 		/obj/item/clothing/shoes/jackboots/tall_default = 2,
-		/obj/item/clothing/suit/armor/vest/bluesheid/spacecoat = 2,
-		/obj/item/clothing/suit/armor/vest/bluesheid/jacket = 2,
+		/obj/item/clothing/suit/armor/vest/blueshield/spacecoat = 2,
+		/obj/item/clothing/suit/armor/vest/blueshield/jacket = 2,
 		/obj/item/clothing/under/rank/blueshield/formal/pmc_leader_jumpsuit = 2,
 		/obj/item/clothing/mask/balaclava/pmc_leader_balaclava = 2,
 		/obj/item/clothing/head/HoS/pmc_leader_cap = 2,
@@ -1070,7 +1073,7 @@
 		/obj/item/clothing/under/rank/security/head_of_security/alt = 1,
 		/obj/item/clothing/under/rank/security/head_of_security/alt/skirt = 1,
 		/obj/item/clothing/head/HoS = 1,
-		/obj/item/clothing/glasses/hud/security/sunglasses/eyepatch = 1,
+		/obj/item/clothing/glasses/cover/eyepatch = 1,
 		/obj/item/clothing/glasses/hud/security/sunglasses/gars/supergars = 1,
 		/obj/item/clothing/under/rank/security/head_of_security/grey = 1,
 		/obj/item/clothing/suit/hooded/wintercoat/hos = 1,

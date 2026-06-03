@@ -18,6 +18,7 @@
 GLOBAL_LIST_EMPTY(vending_machines_to_restock)
 
 #define MAX_VENDING_INPUT_AMOUNT 30
+#define CUSTOM_VENDOR_MAX_ITEMS 350
 /**
  * # vending record datum
  *
@@ -52,7 +53,7 @@ GLOBAL_LIST_EMPTY(vending_machines_to_restock)
  */
 /obj/machinery/vending
 	name = "\improper Vendomat"
-	desc = "A generic vending machine."
+	desc = "Обыкновенный автомат для продажи."
 	icon = 'icons/obj/vending.dmi'
 	icon_state = "generic"
 	layer = BELOW_OBJ_LAYER
@@ -248,6 +249,9 @@ GLOBAL_LIST_EMPTY(vending_machines_to_restock)
 	QDEL_NULL(coin)
 	QDEL_NULL(bill)
 	QDEL_NULL(Radio)
+	QDEL_LIST(product_records)
+	QDEL_LIST(hidden_records)
+	QDEL_LIST(coin_records)
 	GLOB.vending_machines_to_restock -= src
 	return ..()
 
@@ -262,9 +266,9 @@ GLOBAL_LIST_EMPTY(vending_machines_to_restock)
 
 	build_products_from_categories()
 
-	product_records = list()
-	hidden_records = list()
-	coin_records = list()
+	QDEL_LIST(product_records)
+	QDEL_LIST(hidden_records)
+	QDEL_LIST(coin_records)
 
 	build_inventories(start_empty = TRUE)
 
@@ -593,7 +597,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 		default_deconstruction_screwdriver(user, icon_state, icon_state, I)
 		update_appearance()
 	else
-		to_chat(user, span_warning("You must first secure [src]."))
+		to_chat(user, span_warning("Для начала нужно закрепить [src]."))
 	return TRUE
 
 /obj/machinery/vending/attackby(obj/item/I, mob/living/user, params)
@@ -603,33 +607,36 @@ GLOBAL_LIST_EMPTY(vending_products)
 
 	if(refill_canister && istype(I, refill_canister))
 		if (!panel_open)
-			to_chat(user, span_warning("You should probably unscrew the service panel first!"))
+			to_chat(user, span_warning("Для начала следует открутить панель техобслуживания!"))
 		else if (machine_stat & (BROKEN|NOPOWER))
-			to_chat(user, span_notice("[src] does not respond."))
+			to_chat(user, span_notice("[src] не отвечает на запросы."))
 		else
 			//if the panel is open we attempt to refill the machine
 			var/obj/item/vending_refill/canister = I
 			if(canister.get_part_rating() == 0)
-				to_chat(user, span_warning("[canister] is empty!"))
+				to_chat(user, span_warning("[canister] опустошена!"))
 			else
 				// instantiate canister if needed
 				var/transferred = restock(canister)
 				if(transferred)
-					to_chat(user, span_notice("You loaded [transferred] items in [src]."))
+					to_chat(user, span_notice("Вы загрузили [transferred] шт. предметов в [src]."))
 				else
-					to_chat(user, span_warning("There's nothing to restock!"))
+					to_chat(user, span_warning("Нечего пополнять!"))
 			return
-	if(compartmentLoadAccessCheck(user) && !user.combat_mode)
-		if(canLoadItem(I))
+	if(compartmentLoadAccessCheck(user) && !SEND_SIGNAL(user, COMSIG_COMBAT_MODE_CHECK, COMBAT_MODE_ACTIVE))
+		if(!is_operational())
+			return
+		if(!panel_open && canLoadItem(I))
 			loadingAttempt(I,user)
 
+		// На всякий случай тут нет проверки на panel_open
 		if(istype(I, /obj/item/storage/bag)) //trays USUALLY
 			var/obj/item/storage/T = I
 			var/loaded = 0
 			var/denied_items = 0
 			for(var/obj/item/the_item in T.contents)
 				if(contents.len >= MAX_VENDING_INPUT_AMOUNT) // no more than 30 item can fit inside, legacy from snack vending although not sure why it exists
-					to_chat(user, span_warning("[src]'s compartment is full."))
+					to_chat(user, span_warning("Внутреннее пространство [src] заполнено."))
 					break
 				if(canLoadItem(the_item) && loadingAttempt(the_item,user))
 					SEND_SIGNAL(T, COMSIG_TRY_STORAGE_TAKE, the_item, src, TRUE)
@@ -637,9 +644,9 @@ GLOBAL_LIST_EMPTY(vending_products)
 				else
 					denied_items++
 			if(denied_items)
-				to_chat(user, span_warning("[src] refuses some items!"))
+				to_chat(user, span_warning("[src] отклонил некоторые вещи!"))
 			if(loaded)
-				to_chat(user, span_notice("You insert [loaded] dishes into [src]'s compartment."))
+				to_chat(user, span_notice("ВЫ ВСТАВИЛИ [loaded] шт. предметов внутрь [src]."))
 	else
 		. = ..()
 		if(tiltable && !tilted && I.force)
@@ -658,7 +665,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 					tilt(user, crit=TRUE)
 
 /obj/machinery/vending/proc/freebie(mob/fatty, freebies)
-	visible_message(span_notice("[src] yields [freebies > 1 ? "several free goodies" : "a free goody"]!"))
+	visible_message(span_notice("[src] раздаёт [freebies > 1 ? "несколько бесплатных товаров" : "бесплатный товар"]!"))
 
 	for(var/i in 1 to freebies)
 		playsound(src, vending_sound, 50, TRUE, extrarange = -3)
@@ -682,7 +689,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 /obj/machinery/vending/proc/tilt(atom/fatty, crit=FALSE)
 	if(QDELETED(src) || !has_gravity(src))
 		return
-	visible_message(span_danger("[src] tips over!"))
+	visible_message(span_danger("[src] опрокидывается!"))
 	tilted = TRUE
 	panel_open = TRUE
 	set_anchored(FALSE)
@@ -712,8 +719,8 @@ GLOBAL_LIST_EMPTY(vending_products)
 				var/crit_rebate = 0 // lessen the normal damage we deal for some of the crits
 
 				if(crit_case < 5) // the body/head asplode case has its own description
-					C.visible_message(span_danger("[C] is crushed by [src]!"), \
-						span_userdanger("You are crushed by [src]!"))
+					C.visible_message(span_danger("[C] раздавлен [src]!"), \
+						span_userdanger("Вы раздавлены [src]!"))
 
 				switch(crit_case) // only carbons can have the fun crits
 					if(1) // shatter their legs and bleed 'em
@@ -726,13 +733,13 @@ GLOBAL_LIST_EMPTY(vending_products)
 						if(r)
 							r.receive_damage(brute=200, updating_health=TRUE)
 						if(l || r)
-							C.visible_message(span_danger("[C]'s legs shatter with a sickening crunch!"), \
-								span_userdanger("Your legs shatter with a sickening crunch!"))
+							C.visible_message(span_danger("Ноги [C] дробятся с ужасающим хрустом!"), \
+								span_userdanger("Ваши ноги дробятся с ужасающим хрустом!"))
 					if(2) // pin them beneath the machine until someone untilts it
 						forceMove(get_turf(C))
 						buckle_mob(C, force=TRUE)
-						C.visible_message(span_danger("[C] is pinned underneath [src]!"), \
-							span_userdanger("You are pinned down by [src]!"))
+						C.visible_message(span_danger("[C] придавлен[C.ru_a()] [src]!"), \
+							span_userdanger("Вы придавлены под [src]!"))
 					if(3) // glass candy
 						crit_rebate = 50
 						for(var/i = 0, i < num_shards, i++)
@@ -744,7 +751,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 							shard.updateEmbedding()
 					if(4) // paralyze this binch
 						// the new paraplegic gets like 4 lines of losing their legs so skip them
-						visible_message(span_danger("[C]'s spinal cord is obliterated with a sickening crunch!"), ignored_mobs = list(C))
+						visible_message(span_danger("Позвоночник [C] ломается с ужасным звуком!"), ignored_mobs = list(C))
 						C.gain_trauma(/datum/brain_trauma/severe/paralysis/spinesnapped)
 					if(5) // limb squish!
 						for(var/i in C.bodyparts)
@@ -754,13 +761,13 @@ GLOBAL_LIST_EMPTY(vending_products)
 								squish_part.force_wound_upwards(type_wound)
 							else
 								squish_part.receive_damage(brute=30)
-						C.visible_message(span_danger("[C]'s body is maimed underneath the mass of [src]!"), \
-							span_userdanger("Your body is maimed underneath the mass of [src]!"))
+						C.visible_message(span_danger("Тело [C] искалечено массой [src]!"), \
+							span_userdanger("Ваше тело искалечено массой [src]!"))
 					if(6) // skull squish!
 						var/obj/item/bodypart/head/O = C.get_bodypart(BODY_ZONE_HEAD)
 						if(O)
-							C.visible_message(span_danger("[O] explodes in a shower of gore beneath [src]!"), \
-								span_userdanger("Oh f-"))
+							C.visible_message(span_danger("[O] взрывается фонтаном мозгов и крови под [src]!"), \
+								span_userdanger("Ёб тв-"))
 							O.dismember()
 							O.drop_organs()
 							qdel(O)
@@ -773,8 +780,8 @@ GLOBAL_LIST_EMPTY(vending_products)
 					C.take_bodypart_damage((squish_damage - crit_rebate)*0.5, wound_bonus = 5)
 				C.AddElement(/datum/element/squish, 80 SECONDS)
 			else
-				L.visible_message(span_danger("[L] is crushed by [src]!"), \
-				span_userdanger("You are crushed by [src]!"))
+				L.visible_message(span_danger("[L] раздавлен [src]!"), \
+				span_userdanger("Вы раздавлены [src]!"))
 				L.apply_damage(squish_damage, forced=TRUE)
 				if(crit_case)
 					L.apply_damage(squish_damage, forced=TRUE)
@@ -796,14 +803,12 @@ GLOBAL_LIST_EMPTY(vending_products)
 
 /obj/machinery/vending/proc/untilt(mob/user)
 	if(user)
-		user.visible_message(span_notice("[user] rights [src]."), \
-			span_notice("You right [src]."))
+		user.visible_message(span_notice("[user] ставит на место [src]."), \
+			span_notice("Вы поставили на место [src]."))
 
 	unbuckle_all_mobs(TRUE)
 
 	tilted = FALSE
-	panel_open = FALSE
-	set_anchored(TRUE)
 	layer = initial(layer)
 
 	var/matrix/M = matrix()
@@ -814,10 +819,10 @@ GLOBAL_LIST_EMPTY(vending_products)
 	. = TRUE
 	if(!user.transferItemToLoc(I, src))
 		return FALSE
-	to_chat(user, span_notice("You insert [I] into [src]'s input compartment."))
+	to_chat(user, span_notice("Вы вставили [I] внутрь приёмного слота [src]."))
 
 	for(var/datum/data/vending_product/product_datum in product_records + coin_records + hidden_records)
-		if(ispath(I.type, product_datum.product_path))
+		if(I.type == product_datum.product_path)
 			product_datum.amount++
 			LAZYADD(product_datum.returned_products, I)
 			return
@@ -856,7 +861,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 		if(do_you_have_access)
 			return TRUE
 		else
-			to_chat(user, span_warning("[src]'s input compartment blinks red: Access denied."))
+			to_chat(user, span_warning("Приёмный слот и[src] мигает красным: в доступе отказано."))
 			return FALSE
 
 /obj/machinery/vending/exchange_parts(mob/user, obj/item/storage/part_replacer/W)
@@ -877,7 +882,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 	else
 		to_chat(user, display_parts(user))
 	if(moved)
-		to_chat(user, span_notice("[moved] items restocked."))
+		to_chat(user, span_notice("[moved] шт. товара пополнено."))
 		W.play_rped_sound()
 	return TRUE
 
@@ -889,7 +894,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 	if(obj_flags & EMAGGED)
 		return
 	obj_flags |= EMAGGED
-	to_chat(user, span_notice("You short out the product lock on [src]."))
+	to_chat(user, span_notice("Вы взломали ограничения на товары [src]."))
 
 /obj/machinery/vending/_try_interact(mob/user)
 	if(seconds_electrified && !(machine_stat & NOPOWER))
@@ -897,7 +902,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 			return
 
 	if(tilted && !user.buckled && !isAI(user))
-		to_chat(user, span_notice("You begin righting [src]."))
+		to_chat(user, span_notice("Вы начали ставить на место [src]."))
 		if(do_after(user, 50, target=src))
 			untilt(user)
 		return
@@ -1086,7 +1091,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 		message_admins("Vending machine exploit attempted by [ADMIN_LOOKUPFLW(usr)]!")
 		return
 	if (R.amount <= 0)
-		say("Sold out of [R.name].")
+		say("Запасы [R.name] распроданы.")
 		flick(icon_deny,src)
 		vend_ready = TRUE
 		return
@@ -1098,12 +1103,12 @@ GLOBAL_LIST_EMPTY(vending_products)
 				var/mob/living/L = usr
 				C = L.get_idcard(TRUE)
 			if(!C)
-				say("No card found.")
+				say("ID-карты не обнаружено.")
 				flick(icon_deny,src)
 				vend_ready = TRUE
 				return
 			else if (!C.registered_account)
-				say("No account found.")
+				say("Банковского аккаунта не обнаружено.")
 				flick(icon_deny,src)
 				vend_ready = TRUE
 				return
@@ -1130,7 +1135,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 
 		if(price_to_use && silicon_customer)
 			if(!account.adjust_money(-price_to_use))
-				say("You do not possess the funds to purchase [R.name].")
+				say("Недостаточно средств для покупки [R.name].")
 				flick(icon_deny,src)
 				vend_ready = TRUE
 				return
@@ -1138,7 +1143,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 			if(D)
 				D.adjust_money(price_to_use)
 		else if(price_to_use && !account?.adjust_money(-price_to_use, "Vending: [R.name]"))
-			say("You do not possess the funds to purchase [R.name].")
+			say("Недостаточно средств для покупки [R.name].")
 			flick(icon_deny,src)
 			vend_ready = TRUE
 			return
@@ -1149,7 +1154,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 			//SSeconomy.track_purchase(account, price_to_use, name)
 			log_econ("[price_to_use] credits were inserted into [src] by [account?.account_holder] to buy [R].")
 	if(last_shopper != REF(usr) || purchase_message_cooldown < world.time)
-		say("Thank you for shopping with [src]!")
+		say("Благодарим вас за покупки у [src]!")
 		purchase_message_cooldown = world.time + 5 SECONDS
 		//This is not the best practice, but it's safe enough here since the chances of two people using a machine with the same ref in 5 seconds is fuck low
 		last_shopper = REF(usr)
@@ -1168,9 +1173,9 @@ GLOBAL_LIST_EMPTY(vending_products)
 	//	vended_item.set_greyscale(colors=greyscale_colors)
 	R.amount--
 	if(usr.CanReach(src) && usr.put_in_hands(vended_item))
-		to_chat(usr, span_notice("You take [R.name] out of the slot."))
+		to_chat(usr, span_notice("Вы достали [R.name] из слота."))
 	else
-		to_chat(usr, span_warning("[capitalize(R.name)] falls onto the floor!"))
+		to_chat(usr, span_warning("[capitalize(R.name)] падает на землю!"))
 	SSblackbox.record_feedback("nested tally", "vending_machine_usage", 1, list("[type]", "[R.product_path]"))
 	vend_ready = TRUE
 
@@ -1245,7 +1250,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 	pre_throw(throw_item)
 
 	throw_item.throw_at(target, 16, 3)
-	visible_message(span_danger("[src] launches [throw_item] at [target]!"))
+	visible_message(span_danger("[src] запускает [throw_item] прямо в [target]!"))
 	return TRUE
 /**
  * A callback called before an item is tossed out
@@ -1288,7 +1293,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 /obj/machinery/vending/proc/canLoadItem(obj/item/I, mob/user)
 	if((I.type in products) || (I.type in premium) || (I.type in contraband))
 		return TRUE
-	to_chat(user, span_warning("[src] does not accept [I]!"))
+	to_chat(user, span_warning("[src] не принимает [I]!"))
 	return FALSE
 
 /obj/machinery/vending/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum)
@@ -1300,7 +1305,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 	tilt(L)
 
 /obj/machinery/vending/attack_tk_grab(mob/user)
-	to_chat(user, span_warning("[src] seems to resist your mental grasp!"))
+	to_chat(user, span_warning("[src] сопротивляется вашей ментальной хватке!"))
 
 ///Crush the mob that the vending machine got thrown at
 /obj/machinery/vending/throw_impact(atom/hit_atom, datum/thrownthing/throwingdatum)
@@ -1319,10 +1324,14 @@ GLOBAL_LIST_EMPTY(vending_products)
 	/// where the money is sent
 	var/datum/bank_account/linked_account
 	/// max number of items that the custom vendor can hold
-	var/max_loaded_items = 20
+	var/max_loaded_items = CUSTOM_VENDOR_MAX_ITEMS
 	/// Base64 cache of custom icons.
 	var/list/base64_cache = list()
 	//panel_type = "panel20"
+
+/obj/machinery/vending/custom/examine(mob/user)
+	. = ..()
+	. += span_notice("Владелец может изменить имя, рекламу и слоган используя ручку.")
 
 /obj/machinery/vending/custom/compartmentLoadAccessCheck(mob/user)
 	. = FALSE
@@ -1335,21 +1344,21 @@ GLOBAL_LIST_EMPTY(vending_products)
 
 /obj/machinery/vending/custom/canLoadItem(obj/item/I, mob/user)
 	. = FALSE
-	if(I.flags_1 & HOLOGRAM_1)
-		say("This vendor cannot accept nonexistent items.")
+	if(I.flags_1 & HOLOGRAM_1 || I.item_flags & ABSTRACT)
+		say("Этот автомат не может принимать ненастоящие предметы.")
 		return
 	if(loaded_items >= max_loaded_items)
-		say("There are too many items in stock.")
+		say("Слишком много предметов в хранилище.")
 		return
 	if(isstack(I))
-		say("Loose items may cause problems, try to use it inside wrapping paper.")
+		say("Незакреплённые предметы могут создавать проблемы, попробуйте обернуть их упаковочной бумагой.")
 		return
 	if(I.custom_price)
 		return TRUE
 
 /obj/machinery/vending/custom/ui_interact(mob/user)
 	if(!linked_account)
-		balloon_alert(user, "no registered owner")
+		balloon_alert(user, "нет зарегистрированного владельца")
 		return FALSE
 	return ..()
 
@@ -1393,24 +1402,79 @@ GLOBAL_LIST_EMPTY(vending_products)
 
 /obj/machinery/vending/custom/attackby(obj/item/I, mob/user, params)
 	if(!linked_account && isliving(user))
-		var/mob/living/L = user
-		var/obj/item/card/id/C = L.get_idcard(TRUE)
-		if(C?.registered_account)
+		var/obj/item/card/id/C = user.get_idcard(TRUE)
+		if(istype(C) && C.registered_account)
 			linked_account = C.registered_account
-			say("\The [src] has been linked to [C].")
+			say("\The [src] был подключён к [C].")
+
+	if(!linked_account)
+		say("Автомат не имеет владельца, пожалуйста привяжите аккаунт.")
+
+	if(isidcard(I))
+		var/obj/item/card/id/C = I
+		if(C.registered_account) // Не нужно продавать карты с аккаунтами
+			return
 
 	if(compartmentLoadAccessCheck(user))
 		if(istype(I, /obj/item/pen))
-			name = tgui_input_text(user, "Set name", "Name", name, 20)
-			desc = tgui_input_text(user, "Set description", "Description", desc, 60)
-			slogan_list += tgui_input_text(user, "Set slogan", "Slogan", "Epic", 60)
-			last_slogan = world.time + rand(0, slogan_delay)
+			var/static/list/options = list("Имя", "Описание", "Слоганы")
+			var/choice = tgui_input_list(user, "Что требуется изменить?", "Изменение маркетинга", options)
+			var/some_input
+			if(QDELETED(user) || !Adjacent(user))
+				return
+			switch(choice)
+				if("Имя")
+					some_input = tgui_input_text(user, "Укажите имя", "Имя", name, 20)
+					if(!some_input)
+						return
+					name = capitalize(some_input)
+				if("Описание")
+					some_input = tgui_input_text(user, "Укажите описание", "Описание", desc, 60, TRUE, TRUE)
+					if(!some_input)
+						return
+					desc = capitalize(some_input)
+				if("Слоганы")
+					var/static/list/slogan_options = list("Добавить", "Удалить", "Очистить все")
+					while(choice && choice != "Очистить все" && !QDELETED(user) && Adjacent(user))
+						some_input = null
+						choice = tgui_input_list(user, "Что требуется изменить?", "Изменение слоганов", slogan_options)
+						if(QDELETED(user) || !Adjacent(user))
+							return
+						switch(choice)
+							if("Добавить")
+								some_input = tgui_input_text(user, "Укажите слоган", "Новый слоган", max_length = 60)
+								if(!some_input)
+									continue
+								slogan_list += capitalize(some_input)
+							if("Удалить")
+								if(!LAZYLEN(slogan_list))
+									to_chat(user, span_warning("Нет слоганов для удаления"))
+									continue
+								choice = tgui_input_list(user, "Какой слоган удалить?", "Удаление слогана", slogan_list)
+								if(!choice)
+									continue
+								slogan_list -= choice
+							if("Очистить все")
+								if(!LAZYLEN(slogan_list))
+									to_chat(user, span_warning("Нет слоганов для удаления"))
+									continue
+								slogan_list.Cut()
 			return
 
 	return ..()
 
 /obj/machinery/vending/custom/crowbar_act(mob/living/user, obj/item/I)
-	return FALSE
+	if(linked_account) // Можно разобрать, но только если это владелец или нет аккаунта
+		var/obj/item/card/id/C = user.get_idcard(FALSE)
+		if(!istype(C) || C.registered_account != linked_account)
+			return
+	return ..()
+
+/obj/machinery/vending/custom/deconstruct(disassembled)
+	var/turf/T = get_turf(src)
+	. = ..()
+	if(T && !disassembled)
+		explosion(T, devastation_range = -1, light_impact_range = 3)
 
 /obj/machinery/vending/custom/Destroy()
 	unbuckle_all_mobs(TRUE)
@@ -1418,7 +1482,6 @@ GLOBAL_LIST_EMPTY(vending_products)
 	if(T)
 		for(var/obj/item/I in contents)
 			I.forceMove(T)
-		explosion(src, devastation_range = -1, light_impact_range = 3)
 	return ..()
 
 /**
@@ -1433,7 +1496,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 	var/obj/item/card/id/id_card = user.get_idcard(TRUE)
 	vend_ready = FALSE
 	if(!id_card || !id_card.registered_account)
-		balloon_alert(usr, "No card found.")
+		balloon_alert(usr, "ID-карты не обнаружено.")
 		flick(icon_deny, src)
 		return TRUE
 	var/datum/bank_account/payee = id_card.registered_account
@@ -1446,7 +1509,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 	/// Charges the user if its not the owner
 	if(!compartmentLoadAccessCheck(user))
 		if(!payee.has_money(dispensed_item.custom_price))
-			balloon_alert(user, "insufficient funds")
+			balloon_alert(user, "Недостаточно средств")
 			return TRUE
 		/// Make the transaction
 		payee.adjust_money(-dispensed_item.custom_price, , "Vending: [dispensed_item]")
@@ -1458,7 +1521,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 		[dispensed_item] by [payee.account_holder], owned by [linked_account.account_holder].")
 		/// Make an alert
 		if(last_shopper != REF(usr) || purchase_message_cooldown < world.time)
-			say("Thank you for your patronage [user]!")
+			say("Спасибо за ваше покровительство, [user]!")
 			purchase_message_cooldown = world.time + 5 SECONDS
 			last_shopper = REF(usr)
 	/// Remove the item
@@ -1466,9 +1529,9 @@ GLOBAL_LIST_EMPTY(vending_products)
 	use_power(active_power_usage)
 	vending_machine_input[choice] = max(vending_machine_input[choice] - 1, 0)
 	if(user.CanReach(src) && user.put_in_hands(dispensed_item))
-		to_chat(user, span_notice("You take [dispensed_item.name] out of the slot."))
+		to_chat(user, span_notice("Вы взяли [dispensed_item.name] из слота."))
 	else
-		to_chat(user, span_warning("[capitalize(dispensed_item.name)] falls onto the floor!"))
+		to_chat(user, span_warning("[capitalize(dispensed_item.name)] падает на землю!"))
 	return TRUE
 
 /obj/machinery/vending/custom/unbreakable
@@ -1482,7 +1545,7 @@ GLOBAL_LIST_EMPTY(vending_products)
 
 /obj/item/price_tagger
 	name = "price tagger"
-	desc = "This tool is used to set a price for items used in custom vendors."
+	desc = "Этот инструмент нужен для выставления цен на товары в автоматах продажи."
 	icon = 'icons/obj/device.dmi'
 	icon_state = "pricetagger"
 	custom_premium_price = PRICE_ABOVE_NORMAL * 0.5
@@ -1491,13 +1554,13 @@ GLOBAL_LIST_EMPTY(vending_products)
 
 /obj/item/price_tagger/attack_self(mob/user)
 	if(loc != user)
-		to_chat(user, span_warning("You must be holding the price tagger to continue!"))
+		to_chat(user, span_warning("Вы должны держать оценщик для продолжения!"))
 		return
 	var/chosen_price = tgui_input_number(user, "Set price", "Price", price)
 	if(!chosen_price || QDELETED(user) || QDELETED(src) || !user.canUseTopic(src, BE_CLOSE, FALSE, NO_TK) || loc != user)
 		return
 	price = chosen_price
-	to_chat(user, span_notice(" The [src] will now give things a [price] cr tag."))
+	to_chat(user, span_notice(" The [src] будет выставлять ценник в [price] кр."))
 
 /obj/item/price_tagger/afterattack(atom/target, mob/user, proximity)
 	. = ..()
@@ -1506,14 +1569,14 @@ GLOBAL_LIST_EMPTY(vending_products)
 	if(isitem(target))
 		var/obj/item/I = target
 		I.custom_price = price
-		to_chat(user, span_notice("You set the price of [I] to [price] cr."))
+		to_chat(user, span_notice("Вы проставили ценник на [I] в [price] кр."))
 
 /obj/machinery/vending/custom/greed //name and like decided by the spawn
 	icon_state = "greed"
 	icon_deny = "greed-deny"
 	//panel_type = "panel4"
 	max_integrity = 700
-	max_loaded_items = 40
+	max_loaded_items = CUSTOM_VENDOR_MAX_ITEMS*2
 	light_mask = "greed-light-mask"
 	custom_materials = list(/datum/material/gold = MINERAL_MATERIAL_AMOUNT * 5)
 
@@ -1529,3 +1592,6 @@ GLOBAL_LIST_EMPTY(vending_products)
 	slogan_list = list("[GLOB.deity] says: It's your divine right to buy!")
 	add_filter("vending_outline", 9, list("type" = "outline", "color" = COLOR_VERY_SOFT_YELLOW))
 	add_filter("vending_rays", 10, list("type" = "rays", "size" = 35, "color" = COLOR_VIVID_YELLOW))
+
+#undef MAX_VENDING_INPUT_AMOUNT
+#undef CUSTOM_VENDOR_MAX_ITEMS

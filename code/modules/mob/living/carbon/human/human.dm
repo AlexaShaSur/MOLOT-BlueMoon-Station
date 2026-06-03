@@ -46,9 +46,12 @@
 	AddElement(/datum/element/strippable, GLOB.strippable_human_items, TYPE_PROC_REF(/mob/living/carbon/human, should_strip))
 
 /mob/living/carbon/human/Destroy()
+	QDEL_NULL(profile)
 	QDEL_NULL(physiology)
 	QDEL_NULL_LIST(vore_organs) // CITADEL EDIT belly stuff
 	GLOB.human_list -= src
+	GLOB.suit_sensors_list -= src
+	GLOB.latejoiners -= src
 	return ..()
 
 /mob/living/carbon/human/prepare_data_huds()
@@ -103,8 +106,8 @@
 	spreadFire(AM)
 
 /mob/living/carbon/human/Topic(href, href_list)
-	if(usr.canUseTopic(src, BE_CLOSE, NO_DEXTERY, check_resting = FALSE))
-		if(href_list["embedded_object"])
+	if(href_list["embedded_object"])
+		if(usr.canUseTopic(src, BE_CLOSE, NO_DEXTERY, check_resting = FALSE))
 			var/obj/item/bodypart/L = locate(href_list["embedded_limb"]) in bodyparts
 			if(!L)
 				return
@@ -114,7 +117,7 @@
 			SEND_SIGNAL(src, COMSIG_CARBON_EMBED_RIP, I, L)
 			return
 
-	if(href_list["character_profile"])
+	else if(href_list["character_profile"])
 		if(!profile)
 			profile = new(src)
 		profile.ui_interact(usr)
@@ -125,7 +128,7 @@
 			var/mob/living/carbon/human/H = usr
 			var/perpname = get_face_name(get_id_name(""))
 			if(istype(H.glasses, /obj/item/clothing/glasses/hud) || istype(H.getorganslot(ORGAN_SLOT_HUD), /obj/item/organ/cyberimp/eyes/hud))
-				var/datum/data/record/R = find_record("name", perpname, GLOB.data_core.general)
+				var/datum/data/record/R = GLOB.data_core.general_by_name[perpname]
 				if(href_list["photo_front"] || href_list["photo_side"])
 					if(R)
 						if(!H.canUseHUD())
@@ -157,7 +160,7 @@
 							to_chat(H, "<span class='warning'>ERROR: Invalid Access</span>")
 							return
 						if(perpname)
-							R = find_record("name", perpname, GLOB.data_core.security)
+							R = GLOB.data_core.security_by_name[perpname]
 							if(R)
 								if(href_list["status"])
 									var/setcriminal = input(usr, "Specify a new criminal status for this person.", "Security HUD", R.fields["criminal"]) in list(SEC_RECORD_STATUS_NONE, SEC_RECORD_STATUS_ARREST, SEC_RECORD_STATUS_EXECUTE, SEC_RECORD_STATUS_INCARCERATED, SEC_RECORD_STATUS_RELEASED, SEC_RECORD_STATUS_PAROLLED, SEC_RECORD_STATUS_DEMOTE, SEC_RECORD_STATUS_SEARCH, SEC_RECORD_STATUS_MONITOR, SEC_RECORD_STATUS_DISCHARGED, "Отмена")
@@ -346,6 +349,21 @@
 /mob/living/carbon/human/proc/canUseHUD()
 	return CHECK_MOBILITY(src, MOBILITY_UI)
 
+/mob/living/carbon/human/proc/is_zone_covered_by_clothing(target_zone)
+	var/covered_part = zone2body_parts_covered_complicated(target_zone)
+	if(!covered_part)
+		if(above_neck(target_zone))
+			covered_part = HEAD
+		else
+			return FALSE
+	for(var/obj/item/I in get_equipped_items())
+		if(!istype(I, /obj/item/clothing))
+			continue
+		var/obj/item/clothing/C = I
+		if(C.body_parts_covered & covered_part)
+			return TRUE
+	return FALSE
+
 /mob/living/carbon/human/can_inject(mob/user, error_msg, target_zone, penetrate_thick = FALSE, bypass_immunity = FALSE)
 	. = 1 // Default to returning true.
 	if(user && !target_zone)
@@ -354,20 +372,33 @@
 		. = 0
 	// If targeting the head, see if the head item is thin enough.
 	// If targeting anything else, see if the wear suit is thin enough.
-	if (!penetrate_thick)
+	if(!penetrate_thick)
 		if(above_neck(target_zone))
 			if(head && istype(head, /obj/item/clothing))
 				var/obj/item/clothing/CH = head
-				if (CH.clothing_flags & THICKMATERIAL)
+				if(CH.clothing_flags & THICKMATERIAL)
 					. = 0
 		else
-			if(wear_suit && istype(wear_suit, /obj/item/clothing))
-				var/obj/item/clothing/CS = wear_suit
-				if (CS.clothing_flags & THICKMATERIAL)
-					. = 0
+			var/obj/item/bodypart/BP = get_bodypart(target_zone)
+			var/obj/item/clothing/CS = get_bodypart_protecting_clothing_by_coverage(src, BP)
+			if(CS && (CS.clothing_flags & THICKMATERIAL))
+				. = 0
 	if(!. && error_msg && user)
-		// Might need re-wording.
-		to_chat(user, "<span class='alert'>There is no exposed flesh or thin material [above_neck(target_zone) ? "on [ru_ego()] head" : "on [ru_ego()] body"].</span>")
+		to_chat(user, "<span class='alert'>Участок тела на [above_neck(target_zone) ? "вашей голове" : "вашем теле"] скрыт или на нём слишком толстый слой одежды!</span>")
+
+// Syringe-specific gate: same as can_inject() plus an extra "is the zone uncovered" check
+// for low-piercing syringes (SYRINGE_PIERCE_NONE). Sutures, patches, hyposprays, antag
+// bites etc. must keep calling can_inject() so they keep working through normal clothing.
+/mob/living/carbon/human/can_inject_syringe(mob/user, error_msg, target_zone, pierce_level = SYRINGE_PIERCE_NONE)
+	if(user && !target_zone)
+		target_zone = user.zone_selected
+	if(!can_inject(user, error_msg, target_zone, pierce_level >= SYRINGE_PIERCE_ALL))
+		return FALSE
+	if(pierce_level < SYRINGE_PIERCE_THICK && is_zone_covered_by_clothing(target_zone))
+		if(error_msg && user)
+			to_chat(user, "<span class='alert'>Участок тела на [above_neck(target_zone) ? "вашей голове" : "вашем теле"] прикрыт одеждой, игла не пройдёт.</span>")
+		return FALSE
+	return TRUE
 
 /mob/living/carbon/human/check_obscured_slots()
 	. = ..()
@@ -443,7 +474,7 @@
 	//Check for arrest warrant
 	if(judgement_criteria & JUDGE_RECORDCHECK)
 		var/perpname = get_face_name(get_id_name())
-		var/datum/data/record/R = find_record("name", perpname, GLOB.data_core.security)
+		var/datum/data/record/R = GLOB.data_core.security_by_name[perpname]
 		if(R && R.fields["criminal"])
 			switch(R.fields["criminal"])
 				if(SEC_RECORD_STATUS_EXECUTE)
@@ -585,7 +616,7 @@
 /**
  * Used to update the makeup on a human and apply/remove lipstick traits, then store/unstore them on the head object in case it gets severed
  */
-/mob/living/carbon/human/proc/update_lips(new_style, new_colour, apply_trait)
+/mob/living/carbon/human/proc/update_lips(new_style, new_colour, apply_trait, kiss_uses = -1)
 	lip_style = new_style
 	lip_color = new_colour
 	update_body()
@@ -593,10 +624,12 @@
 	var/obj/item/bodypart/head/hopefully_a_head = get_bodypart(BODY_ZONE_HEAD)
 	REMOVE_TRAITS_IN(src, LIPSTICK_TRAIT)
 	hopefully_a_head?.stored_lipstick_trait = null
+	kiss_uses_remaining = -1
 
 	if(new_style && apply_trait)
 		ADD_TRAIT(src, apply_trait, LIPSTICK_TRAIT)
 		hopefully_a_head?.stored_lipstick_trait = apply_trait
+		kiss_uses_remaining = kiss_uses
 
 /**
  * A wrapper for [mob/living/carbon/human/proc/update_lips] that tells us if there were lip styles to change
@@ -607,6 +640,15 @@
 		return FALSE
 	update_lips(null)
 	return TRUE
+
+/// Вызывается при использовании kiss эмоута. Для ограничения использований.
+/mob/living/carbon/human/proc/use_kiss()
+	if(kiss_uses_remaining <= 0)
+		return
+	kiss_uses_remaining--
+	if(kiss_uses_remaining == 0)
+		to_chat(src, span_warning("Помада размазалась, надо нанести заново."))
+		clean_lips()
 
 /mob/living/carbon/human/clean_blood()
 	var/mob/living/carbon/human/H = src
@@ -646,14 +688,16 @@
 	remove_atom_colour(TEMPORARY_COLOUR_PRIORITY, "#000000")
 	cut_overlay(MA)
 
-/mob/living/carbon/human/canUseTopic(atom/movable/M, be_close=FALSE, no_dextery=FALSE, no_tk=FALSE, check_resting = TRUE)
+/mob/living/carbon/human/canUseTopic(atom/movable/M, be_close=FALSE, no_dextery=FALSE, no_tk=FALSE, check_resting = TRUE, silent = FALSE)
 	if(incapacitated() || (check_resting && !CHECK_MOBILITY(src, MOBILITY_STAND)))
-		to_chat(src, "<span class='warning'>You can't do that right now!</span>")
+		if(!silent)
+			to_chat(src, "<span class='warning'>You can't do that right now!</span>")
 		return FALSE
 	if(!Adjacent(M) && (M.loc != src))
 		if((be_close == 0) || (!no_tk && (dna.check_mutation(TK) && tkMaxRangeCheck(src, M))))
 			return TRUE
-		to_chat(src, "<span class='warning'>You are too far away!</span>")
+		if(!silent)
+			to_chat(src, "<span class='warning'>You are too far away!</span>")
 		return FALSE
 	return TRUE
 
@@ -665,10 +709,19 @@
 		..()
 
 /mob/living/carbon/human/replace_records_name(oldname,newname) // Only humans have records right now, move this up if changed.
-	for(var/list/L in list(GLOB.data_core.general,GLOB.data_core.medical,GLOB.data_core.security,GLOB.data_core.locked))
-		var/datum/data/record/R = find_record("name", oldname, L)
+	if(oldname == newname)
+		return
+	// Update indexed records (general, medical, security)
+	for(var/list/index in list(GLOB.data_core.general_by_name, GLOB.data_core.medical_by_name, GLOB.data_core.security_by_name))
+		var/datum/data/record/R = index[oldname]
 		if(R)
 			R.fields["name"] = newname
+			index[newname] = R
+			index -= oldname
+	// Locked records are not name-indexed — use linear search
+	var/datum/data/record/locked_record = find_record("name", oldname, GLOB.data_core.locked)
+	if(locked_record)
+		locked_record.fields["name"] = newname
 
 /mob/living/carbon/human/get_total_tint()
 	. = ..()
@@ -902,7 +955,10 @@ Mark this mob, then navigate to the preferences of the client you desire and cal
 		//If you dragged them to you and you're aggressively grabbing try to fireman carry them
 		else if(user == src)
 			if(user.a_intent == INTENT_GRAB)
-				fireman_carry(target)
+				if(istype(belt, /obj/item/storage/belt/belly_riding))
+					belly_ride(target)
+				else
+					fireman_carry(target)
 				return
 	. = ..()
 
@@ -912,6 +968,28 @@ Mark this mob, then navigate to the preferences of the client you desire and cal
 
 /mob/living/carbon/human/proc/can_be_firemanned(mob/living/carbon/target)
 	return (ishuman(target) && (!CHECK_MOBILITY(target, MOBILITY_STAND) || target.mob_weight < MOB_WEIGHT_NORMAL)) || ispAI(target)
+
+/mob/living/carbon/human/proc/can_belly_ride(mob/living/carbon/target)
+	return (ishuman(target) && target.mob_weight <= max(mob_weight, MOB_WEIGHT_NORMAL)) && !incapacitated(ignore_restraints = TRUE) && istype(belt, /obj/item/storage/belt/belly_riding) && target.stat != DEAD
+
+/mob/living/carbon/human/proc/belly_ride(mob/living/carbon/target)
+	if(target.stat == DEAD)
+		to_chat(src, span_warning("Я не буду переносить труп на животе!"))
+		return
+	if(target.mob_weight > max(mob_weight, MOB_WEIGHT_NORMAL))
+		to_chat(src, span_warning("Вы пытаетесь поднять [target], но [target.ru_who()] слишком тяжелая!"))
+		return
+	if(can_belly_ride(target))
+		visible_message(span_warning("[src] начинает закреплять [target] в ремни на своем животе."),
+		span_notice("Вы закрепяете [target] в ремни на своем животе."))
+		if(do_after(src, RIDING_CARRYDELAY_BELLY, target, extra_checks = CALLBACK(src, PROC_REF(can_belly_ride), target)))
+			if(can_belly_ride(target))
+				buckle_mob(target, TRUE, TRUE, buckle_type = RIDING_BELLY, auto_by_type = TRUE)
+				return
+		visible_message(span_warning("[src] не закрепил [target] на своем животе!"))
+	else
+		if(ishuman(target))
+			to_chat(src, span_notice("Вы не смогли закрепить [target] в ремни на своем животе!"))
 
 /mob/living/carbon/human/proc/fireman_carry(mob/living/carbon/target)
 	var/carrydelay = 40 //if you have latex you are faster at grabbing
@@ -930,48 +1008,53 @@ Mark this mob, then navigate to the preferences of the client you desire and cal
 	else if(HAS_TRAIT(src, TRAIT_QUICK_CARRY) || target.mob_weight < MOB_WEIGHT_NORMAL)
 		carrydelay = 27.5 // BLUEMOON EDIT making this a little bit useful
 		skills_space = "быстро "
-	// BLUEMOON ADDITION AHEAD - тяжёлых и сверхтяжёлых персонажей нельзя нести на плече
-	if(target.mob_weight > MOB_WEIGHT_NORMAL)
-		to_chat(src, span_warning("You tried to lift [target], but they are too heavy!"))
+	// BLUEMOON ADDITION AHEAD - тяжёлых и сверхтяжёлых персонажей нельзя нести на плече, если вы не такой-же
+	if(max(mob_weight, MOB_WEIGHT_NORMAL) < target.mob_weight)
+		to_chat(src, span_warning("Вы пытаетесь поднять [target], но [target.ru_who()] слишком тяжелая!"))
 		return
 	// BLUEMOON ADDITION END
 	if(can_be_firemanned(target) && !incapacitated(FALSE, TRUE))
-		visible_message("<span class='notice'>[src] [skills_space]поднимает [target] на свои плечи.</span>",
+		visible_message(span_notice("[src] [skills_space]поднимает [target] на свои плечи."),
 		//Joe Medic starts quickly/expertly lifting Grey Tider onto their back..
-		"<span class='notice'>[gloves_used ? "Используя перчатки с наночипами, вы" : "Вы"] [skills_space]поднимаете [target] на свои плечи.</span>")
+		span_notice("[gloves_used ? "Используя перчатки с наночипами, вы" : "Вы"] [skills_space]поднимаете [target] на свои плечи."))
 		//(Using your gloves' nanochips, you/You) ( /quickly/expertly) start to lift Grey Tider onto your back(, while assisted by the nanochips in your gloves../...)
 		if(do_after(src, carrydelay, target, extra_checks = CALLBACK(src, PROC_REF(can_be_firemanned), target)))
 			//Second check to make sure they're still valid to be carried
 			if(can_be_firemanned(target) && !incapacitated(FALSE, TRUE))
-				buckle_mob(target, TRUE, TRUE, 90, 1, 0, TRUE)
+				buckle_mob(target, TRUE, TRUE, buckle_type = RIDING_FIREMAN, auto_by_type = TRUE)
 				return
-		visible_message("<span class='warning'>[src] не поднимает [target] за свои плечи!")
+		visible_message(span_warning("[src] не поднимает [target] за свои плечи!"))
 	else
 		if (ishuman(target))
-			to_chat(src, "<span class='notice'>Вы не можете поднять [target] на свои плечи, ибо [target] стоит!</span>")
+			to_chat(src, span_notice("Вы не можете поднять [target] на свои плечи, ибо [target] стоит!"))
 		else
-			to_chat(src, "<span class='notice'>Вам не удалось поднять [src].</span>")
+			to_chat(src, span_notice("Вам не удалось поднять [src]."))
+
+#define PIGGYBACK_DELAY_BASE 3.5 SECONDS
+#define PIGGYBACK_DELAYADD_HEAVY 1 SECONDS
+#define PIGGYBACK_DELAYADD_HEAVY_SUPER 3.5 SECONDS
 
 /mob/living/carbon/human/proc/piggyback(mob/living/carbon/target)
 	if(can_piggyback(target))
-		visible_message("<span class='notice'>[target] начинает забираться на [src]...</span>")
+		visible_message(span_notice("[target] начинает забираться на [src]..."))
 
 		// BLUEMOON ADDITION START - тяжёлые персонажи дольше забираются на спину
-		var/climb_on_time = 1.5 SECONDS
-		switch(target.mob_weight)
-			if(MOB_WEIGHT_HEAVY_SUPER)
-				climb_on_time = 4 SECONDS
-			if(MOB_WEIGHT_HEAVY)
-				climb_on_time = 2.5 SECONDS
+		var/climb_on_time = PIGGYBACK_DELAY_BASE
+		if(mob_weight < target.mob_weight)
+			switch(target.mob_weight)
+				if(MOB_WEIGHT_HEAVY_SUPER)
+					climb_on_time += PIGGYBACK_DELAYADD_HEAVY_SUPER
+				if(MOB_WEIGHT_HEAVY)
+					climb_on_time += PIGGYBACK_DELAYADD_HEAVY
 		// BLUEMOON ADDITION END
 
 		if(do_after(target, climb_on_time, src, IGNORE_INCAPACITATED, extra_checks = CALLBACK(src, PROC_REF(can_piggyback), target)))
 			if(can_piggyback(target))
 				if(target.incapacitated(FALSE, TRUE) || incapacitated(FALSE, TRUE))
-					target.visible_message("<span class='warning'>[target] can't hang onto [src]!</span>")
+					target.visible_message(span_warning("[target] не может уцепиться за [src]!"))
 					return
 				// BLUEMOON ADDITION START
-				if(target.mob_weight > MOB_WEIGHT_NORMAL)
+				if(target.mob_weight > max(mob_weight, MOB_WEIGHT_NORMAL))
 					target.visible_message(span_warning("[target] слишком много весит для [src]!"))
 					var/obj/item/bodypart/affecting = get_bodypart(BODY_ZONE_CHEST)
 					var/wound_bon = 100
@@ -992,22 +1075,72 @@ Mark this mob, then navigate to the preferences of the client you desire and cal
 					Knockdown(3 SECONDS) // Knocking down the unlucky guy
 					target.Knockdown(1) // simply make the oversized one fall
 					if(get_turf(target) != get_turf(src))
-						target.throw_at(get_turf(src), 1, 1, FALSE, FALSE)
+						target.throw_at(get_turf(src), 1, 1, src, FALSE, FALSE)
 					// BLUEMOON ADDITION END
-				buckle_mob(target, TRUE, TRUE, 0, 1, 2, FALSE)
+				buckle_mob(target, TRUE, TRUE, buckle_type = RIDING_PIGGYBACK, auto_by_type = TRUE)
 		else
-			visible_message("<span class='warning'>[target] не удаётся забраться на [src]!</span>")
+			visible_message(span_warning("[target] не удаётся забраться на [src]!"))
 	else
-		to_chat(target, "<span class='warning'>Ты не можешь прокатиться на спине [src] прямо сейчас!</span>")
+		to_chat(target, span_warning("Ты не можешь прокатиться на спине [src] прямо сейчас!"))
 
-/mob/living/carbon/human/buckle_mob(mob/living/target, force = FALSE, check_loc = TRUE, lying_buckle = 0, hands_needed = 0, target_hands_needed = 0, fireman = FALSE, carry_type = null)
+#undef PIGGYBACK_DELAY_BASE
+#undef PIGGYBACK_DELAYADD_HEAVY
+#undef PIGGYBACK_DELAYADD_HEAVY_SUPER
+
+/mob/living/carbon/human/buckle_mob(mob/living/target, force = FALSE, check_loc = TRUE, lying_buckle = 0, hands_needed = 0, target_hands_needed = 0, buckle_type = RIDING_PIGGYBACK, auto_by_type = FALSE)
 	if(!force)//humans are only meant to be ridden through piggybacking and special cases
 		return
+	if(!istype(target))
+		return FALSE
 	if(!is_type_in_typecache(target, can_ride_typecache))
-		target.visible_message("<span class='warning'>[target] действительно не может забраться на [src]...</span>")
+		target.visible_message(span_warning("[target] действительно не может забраться на [src]..."))
 		return
 	if(target.has_buckled_mobs())
 		return FALSE
+
+	// Автосмена типа перевозки для тавров, если это RIDING_BELLY
+	if(RIDING_IS_BELLY(buckle_type))
+		buckle_type = RIDING_BELLY
+
+		// Переносимый, проверка на то, что тавры могут быть только переносчиками, но не носимыми
+		if(ishuman(target))
+			var/mob/living/carbon/human/H = target
+			if(!(H.dna?.features["taur"] in list(null, "None")))
+				var/datum/sprite_accessory/taur/T = GLOB.taur_list[H.dna.features["taur"]]
+				if(T && T.taur_mode != STYLE_SNEK_TAURIC)
+					target.visible_message(span_warning("[target] не может уместиться в ремни [src]..."))
+					return
+
+		// Переносчик, проверка, что он 4х лапый, а не змея
+		if(!(dna?.features["taur"] in list(null, "None")))
+			var/datum/sprite_accessory/taur/T = GLOB.taur_list[dna.features["taur"]]
+			if(T?.taur_mode in list(STYLE_PAW_TAURIC, STYLE_HOOF_TAURIC))
+				buckle_type = RIDING_BELLY_TAUR
+
+	// Пресеты настроек по типу переноски
+	if(auto_by_type)
+		switch(buckle_type)
+			if(RIDING_PIGGYBACK)
+				lying_buckle = 0
+				hands_needed = 1
+				target_hands_needed = 2
+			if(RIDING_FIREMAN)
+				lying_buckle = 90
+				hands_needed = 1
+				target_hands_needed = 0
+			if(RIDING_PRINCESS)
+				lying_buckle = 90
+				hands_needed = 2
+				target_hands_needed = 0
+			if(RIDING_FACE_TO_FACE)
+				lying_buckle = 0
+				hands_needed = 1
+				target_hands_needed = 0
+			if(RIDING_BELLY, RIDING_BELLY_TAUR)
+				lying_buckle = 0
+				hands_needed = 0
+				target_hands_needed = 0
+
 	buckle_lying = lying_buckle
 	var/datum/component/riding/human/riding_datum = LoadComponent(/datum/component/riding/human)
 	if(target_hands_needed)
@@ -1026,22 +1159,19 @@ Mark this mob, then navigate to the preferences of the client you desire and cal
 
 	if(hands_needed || target_hands_needed)
 		if(hands_needed && !equipped_hands_self)
-			src.visible_message("<span class='warning'>[src] can't get a grip on [target] because their hands are full!</span>",
-				"<span class='warning'>You can't get a grip on [target] because your hands are full!</span>")
+			src.visible_message(span_warning("[src] can't get a grip on [target] because their hands are full!"),
+				span_warning("You can't get a grip on [target] because your hands are full!"))
 			return
 		else if(target_hands_needed && !equipped_hands_target)
-			target.visible_message("<span class='warning'>[target] can't get a grip on [src] because their hands are full!</span>",
-				"<span class='warning'>You can't get a grip on [src] because your hands are full!</span>")
+			target.visible_message(span_warning("[target] can't get a grip on [src] because their hands are full!"),
+				span_warning("You can't get a grip on [src] because your hands are full!"))
 			return
 
 	stop_pulling()
-	switch(carry_type)
-		if("face_to_face")
-			riding_datum.face_to_face_carrying = TRUE
-		if("princess")
-			riding_datum.princess_carrying = TRUE
+	riding_datum.buckle_type = buckle_type
 	riding_datum.handle_vehicle_layer(dir)
-	riding_datum.fireman_carrying = fireman
+	if(RIDING_IS_BELLY(buckle_type))
+		riding_datum.belly_harness = belt
 	. = ..(target, force, check_loc)
 	if(!.)
 		visible_message(span_warning("[src] не смог(ла) поднять [target]."))
@@ -1320,7 +1450,7 @@ Mark this mob, then navigate to the preferences of the client you desire and cal
 				to_chat(src, span_warning("\The [S] pulls \the [hand] from your grip!"))
 
 ///Sets up the jump component for the mob. Proc args can be altered so different mobs have different 'default' jump settings
-/mob/living/proc/set_jump_component(duration = 0.5 SECONDS, cooldown = 1 SECONDS, cost = 64, height = 16, sound = null, flags = JUMP_SHADOW, flags_pass = PASSTABLE)
+/mob/living/proc/set_jump_component(duration = 0.5 SECONDS, cooldown = 1 SECONDS, cost = 48, height = 16, sound = null, flags = JUMP_SHADOW, flags_pass = PASSTABLE)
 	if(HAS_TRAIT(src, TRAIT_FREERUNNING))
 		AddComponent(/datum/component/jump, _jump_duration = duration, _jump_cooldown = cooldown, _stamina_cost = 32, _jump_height = height, _jump_sound = sound, _jump_flags = flags, _jumper_allow_pass_flags = flags_pass)
 	else

@@ -22,6 +22,16 @@
 	beauty_modifier = 0.05
 	armor_modifiers = list(MELEE = 0.2, BULLET = 0.2, LASER = 0, ENERGY = 1, BOMB = 0, BIO = 0.2, RAD = 0.2, FIRE = 1, ACID = 0.2) // yeah ok
 
+/datum/material/glass/on_applied_turf(turf/T, amount, material_flags)
+	. = ..()
+	if(istype(T, /turf/closed/wall/material))
+		T.pass_flags_self |= PASSGLASS
+
+/datum/material/glass/on_removed_turf(turf/T, amount, material_flags)
+	if(istype(T, /turf/closed/wall/material))
+		T.pass_flags_self &= ~PASSGLASS
+	return ..()
+
 /*
 Color matrices are like regular colors but unlike with normal colors, you can go over 255 on a channel.
 Unless you know what you're doing, only use the first three numbers. They're in RGB order.
@@ -203,6 +213,29 @@ Unless you know what you're doing, only use the first three numbers. They're in 
 		var/obj/wooden = source
 		wooden.resistance_flags &= ~FLAMMABLE
 
+/datum/material/cloth
+	name = "cloth"
+	desc = "The cloth can be completely different."
+	color = "#e3ddd8ed"
+	strength_modifier = 0
+	sheet_type = /obj/item/stack/sheet/cloth
+	categories = list(MAT_CATEGORY_RIGID = TRUE, MAT_CATEGORY_BASE_RECIPES = TRUE)
+	value_per_unit = 0.01
+	beauty_modifier = 0.2
+	armor_modifiers = list(MELEE = 0.1, BULLET = 0, LASER = 0.1, ENERGY = 0.1, BOMB = 0, BIO = 1, RAD = 0, FIRE = 0, ACID = 0.3)
+
+/datum/material/cloth/on_applied_obj(obj/source, amount, material_flags)
+	. = ..()
+	if(material_flags & MATERIAL_AFFECT_STATISTICS)
+		var/obj/O = source
+		O.resistance_flags |= FLAMMABLE
+
+/datum/material/cloth/on_removed_obj(obj/source, material_flags)
+	. = ..()
+	if(material_flags & MATERIAL_AFFECT_STATISTICS)
+		var/obj/O = source
+		O.resistance_flags &= ~FLAMMABLE
+
 ///Stronk force increase
 /datum/material/adamantine
 	name = "adamantine"
@@ -313,7 +346,7 @@ Unless you know what you're doing, only use the first three numbers. They're in 
 /datum/material/paper
 	name = "paper"
 	desc = "Ten thousand folds of pure starchy power."
-	color = "#E5DCD5"
+	color = "#e5dcd5"
 	categories = list(MAT_CATEGORY_RIGID = TRUE, MAT_CATEGORY_BASE_RECIPES = TRUE)
 	sheet_type = /obj/item/stack/sheet/paperframes
 	value_per_unit = 0.0025

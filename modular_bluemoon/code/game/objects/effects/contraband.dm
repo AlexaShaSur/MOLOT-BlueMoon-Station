@@ -219,6 +219,9 @@
 	return ..()
 
 /obj/structure/sign/poster/contraband/inteq/process()
+	if(!demotivator)
+		STOP_PROCESSING(SSobj, src)
+		return
 	if(world.time < demotivator.next_scare)
 		return
 	var/scared_someone = FALSE
@@ -242,9 +245,11 @@
 /obj/structure/sign/poster/contraband/inteq/attackby(obj/item/tool, mob/user, params)
 	if (tool.tool_behaviour == TOOL_WIRECUTTER)
 		QDEL_NULL(demotivator)
+		STOP_PROCESSING(SSobj, src)
 	return ..()
 
 /obj/structure/sign/poster/contraband/inteq/Destroy()
+	STOP_PROCESSING(SSobj, src)
 	QDEL_NULL(demotivator)
 	return ..()
 
@@ -277,7 +282,7 @@
 
 /obj/structure/sign/poster/contraband/inteq/inteq_sign
 	name = "InteQ poster"
-	desc = "Частная Военная Компания, занимающаяся обороной частных предприятий и выполнением заказов. В данный момент они хотят уничтожить Пакт между НТ и Синдикатом..."
+	desc = "Частная Военная Компания, занимающаяся обороной частных предприятий и выполнением заказов. В данный момент они хотят уничтожить ПАКТ между НТ и Синдикатом..."
 	icon_state = "poster_inteq_baza"
 
 /obj/structure/sign/poster/contraband/inteq/inteq_better_dead

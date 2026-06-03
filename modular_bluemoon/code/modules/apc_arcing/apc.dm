@@ -13,12 +13,12 @@
 
 /obj/machinery/power/apc/examine()
 	. = ..()
-	. += "It [arc_shielded ? "has" : "does not have"] arc shielding installed."
+	. += "Дуговое экранирование [arc_shielded ? "" : "не"] установлено."
 	if(panel_open)
 		if(arc_shielded)
-			. += "The arc shielding could be removed with a <b>wrench</b>."
+			. += "Дуговое экранирование можно снять <b>гаечным ключом</b>."
 		else
-			. += "It could be arc shielded with a <b>sheet of bronze</b>."
+			. += "Можно экранировать <b>листом бронзы</b>."
 
 /obj/machinery/power/apc/process(seconds_per_tick)
 	. = ..()
@@ -48,15 +48,16 @@
 		switch(effect)
 			if(SHOCK_SOMEONE)
 				var/list/shock_mobs = list()
-				for(var/mob/living/creature in viewers(get_turf(src), 5))
+				for(var/mob/living/creature in viewers(5, src))
 					shock_mobs += creature
 				if(length(shock_mobs))
-					var/mob/living/living_target = shock_mobs
-					var/shock_damage = excess/99.5
+					var/mob/living/living_target = pick(shock_mobs)
+					// Same order of magnitude as /datum/powernet/get_electrocute_damage (avail is in watts)
+					var/shock_damage = clamp(20 + round(excess / 25000), 20, 195) + rand(-5, 5)
 					do_sparks(n = 3, c = FALSE, source = living_target)
-					living_target.electrocute_act(shock_damage, "electrical arc")
+					living_target.electrocute_act(shock_damage, src)
 					playsound(get_turf(living_target), 'sound/magic/LightningShock.ogg', 75, TRUE)
-					Beam(living_target, icon_state = "lightning[rand(1, 12)]", icon = 'icons/effects/beam.dmi', time = 5)
+					src.Beam(living_target, icon_state = "lightning[rand(1, 12)]", icon = 'icons/effects/beam.dmi', time = 5)
 					energy_fail(2)
 			if(MAKE_SPARKS)
 				do_sparks(n = 3, c = FALSE, source = src)
@@ -78,10 +79,10 @@
 /// Handles interaction of adding arc shielding to apc with bronze
 /obj/machinery/power/apc/proc/bronze_act(mob/living/user, obj/item/stack/sheet/bronze/bronze)
 	if(arc_shielded)
-		balloon_alert(user, "already arc shielded!")
+		balloon_alert(user, "уже экранировано!")
 		return FALSE
 	bronze.use(1)
-	balloon_alert(user, "installed arc shielding")
+	balloon_alert(user, "установлено дуговое экранирование.")
 	arc_shielded = TRUE
 	playsound(src, 'sound/items/rped.ogg', 20)
 	return TRUE
@@ -89,7 +90,7 @@
 /obj/machinery/power/apc/wrench_act(mob/living/user, obj/item/tool)
 	. = ..()
 	if(panel_open && arc_shielded)
-		balloon_alert(user, "arc shielding removed")
+		balloon_alert(user, "дуговое экранирование снято.")
 		arc_shielded = FALSE
 		tool.play_tool_sound(src, 50)
 

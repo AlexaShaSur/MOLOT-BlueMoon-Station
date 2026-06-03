@@ -20,12 +20,17 @@
 /// The menu itself, only var is target which is the mob you are interacting with
 /datum/component/interaction_menu_granter
 	var/mob/living/target
+	var/list/hidden_interactions = list()
 	var/mob/living/auto_interaction_target
 	var/datum/interaction/currently_active_interaction
 	var/next_interaction_time
 	var/auto_interaction_pace = 1 SECONDS
 
 /datum/component/interaction_menu_granter/process(delta_time)
+	if(QDELETED(parent) || !isliving(parent))
+		auto_interaction_target = null
+		currently_active_interaction = null
+		return PROCESS_KILL
 	if(!currently_active_interaction)
 		auto_interaction_target = null
 		currently_active_interaction = null
@@ -37,7 +42,16 @@
 	if(world.time <= next_interaction_time)
 		return
 	next_interaction_time = world.time + auto_interaction_pace
-	if(!currently_active_interaction.do_action(parent, auto_interaction_target, apply_cooldown = FALSE))
+	var/interaction_key = "[currently_active_interaction.type]"
+	var/check_hidden = hidden_interactions && (interaction_key in hidden_interactions) \
+		? !!hidden_interactions[interaction_key] \
+		: FALSE
+	var/mob/living/granter = parent
+	if(QDELETED(granter) || QDELETED(auto_interaction_target))
+		auto_interaction_target = null
+		currently_active_interaction = null
+		return PROCESS_KILL
+	if(!currently_active_interaction.do_action(granter, auto_interaction_target, apply_cooldown = FALSE, is_hidden = check_hidden))
 		auto_interaction_target = null
 		currently_active_interaction = null
 		return PROCESS_KILL
@@ -48,6 +62,8 @@
 	var/mob/parent_mob = parent
 	if(!parent_mob.client)
 		return COMPONENT_INCOMPATIBLE
+	if(!hidden_interactions)
+		hidden_interactions = list()
 	return ..()
 
 /datum/component/interaction_menu_granter/RegisterWithParent()
@@ -141,6 +157,8 @@
 	// BLUEMOON ADD
 	if(self.has_tail())
 		required_from_user |= INTERACTION_REQUIRE_TAIL
+	if(self.check_mutation(TK) || HAS_TRAIT(self, TRAIT_TK_POTENTIAL))
+		required_from_user |= INTERACTION_REQUIRE_TK
 	if(user_has_penis)
 		var/shape_desc = get_penis_shape_desc(self)
 		if(self?.client?.prefs.sexknotting && target?.client?.prefs.sexknotting && findtext(shape_desc, "узл"))
@@ -269,6 +287,7 @@
 	.["theirPrefs"] = null
 	.["theirLust"] = null
 	.["theyAllowLewd"] = null
+	.["theyAllowRanged"] = null
 	.["theyAllowExtreme"] = null
 	//SPLURT EDIT
 	.["theyAllowUnholy"] = null
@@ -401,6 +420,7 @@
 			.["theyAllowLewd"] = !!(target.client.prefs.toggles & VERB_CONSENT)
 			.["theyAllowExtreme"] = !!pref_to_num(target.client.prefs.extremepref)
 			.["theyAllowUnholy"] = !!pref_to_num(target.client.prefs.unholypref) //SPLURT EDIT
+			.["theyAllowRanged"] = !!(target.client.prefs.toggles & RANGED_VERBS_CONSENT)
 		if(HAS_TRAIT(user, TRAIT_ESTROUS_DETECT))
 			.["theirLust"] = target.get_lust()
 			.["theirMaxLust"] = target.get_climax_threshold() // BLUEMOON EDIT
@@ -445,6 +465,8 @@
 			genital_entry["arousal_state"] = genital.aroused_state
 			genital_entry["always_accessible"] = genital.always_accessible
 			genitals += list(genital_entry)
+		.["genitals"] = genitals
+
 		if(!get_genitals.getorganslot(ORGAN_SLOT_ANUS)) //SPLURT Edit
 			var/simulated_ass = list()
 			simulated_ass["name"] = "Анус"
@@ -461,8 +483,6 @@
 			simulated_ass["possible_choices"] = GLOB.genitals_visibility_toggles - GEN_VISIBLE_NO_CLOTHES
 			simulated_ass["always_accessible"] = get_genitals.anus_always_accessible
 			genitals += list(simulated_ass)
-	.["genitals"] = genitals
-
 	var/datum/preferences/prefs = self?.client.prefs
 	if(prefs)
 	//Lust stuff, appears at the very top
@@ -473,7 +493,12 @@
 
 	//Let's get their favorites!
 		.["favorite_interactions"] = 	SANITIZE_LIST(prefs.favorite_interactions)
-
+		var/list/hidden_keys = list()
+		if(hidden_interactions)
+			for(var/key in hidden_interactions)
+				if(hidden_interactions[key])
+					hidden_keys += key
+		.["hidden_interactions_keys"] = hidden_keys
 	//Getting char prefs
 		.["erp_pref"] = 				pref_to_num(prefs.erppref)
 		.["noncon_pref"] = 				pref_to_num(prefs.nonconpref)
@@ -486,6 +511,7 @@
 
 	//Getting preferences
 		.["verb_consent"] = 			!!CHECK_BITFIELD(prefs.toggles, VERB_CONSENT)
+		.["ranged_verb_pref"] = 		!!CHECK_BITFIELD(prefs.toggles, RANGED_VERBS_CONSENT)
 		.["lewd_verb_sounds"] = 		!!CHECK_BITFIELD(prefs.toggles, LEWD_VERB_SOUNDS)
 		.["arousable"] = 				prefs.arousable
 		.["sexknotting"] = 				prefs.sexknotting // BLUEMONN ADD
@@ -520,8 +546,8 @@
 	var/list/sent_interactions = list()
 	for(var/interaction_key in SSinteractions.interactions)
 		var/datum/interaction/I = SSinteractions.interactions[interaction_key]
-		// THIS IS A BASETYPE, DO NOT SEND
-		if(!I.description)
+		// THIS IS A BASETYPE, DO NOT SEND || we hide it from users
+		if(!I.description || (I.interaction_flags & INTERACTION_FLAG_HIDE_IN_PANEL))
 			continue
 		var/list/interaction = list()
 		interaction["key"] = I.type
@@ -570,14 +596,33 @@
 		return
 	var/mob/living/parent_mob = parent
 	switch(action)
+		if("toggle_hidden_interaction")
+			var/interaction_key = params["interaction"]
+			if(!length(interaction_key))
+				return
+
+			if(!hidden_interactions)
+				hidden_interactions = list()
+
+			var/current = hidden_interactions[interaction_key]
+			hidden_interactions[interaction_key] = !current
+			SStgui.update_uis(src)
+			return TRUE
 		if("interact")
-			var/datum/interaction/o = SSinteractions.interactions[params["interaction"]]
+			var/interaction_key = params["interaction"]
+			var/datum/interaction/o = SSinteractions.interactions[interaction_key]
 			if(!o)
 				return FALSE
+
+			var/is_hidden = hidden_interactions && (interaction_key in hidden_interactions) \
+				? !!hidden_interactions[interaction_key] \
+				: FALSE
+
 			if(o == currently_active_interaction)
 				to_chat(parent_mob, span_notice("Включена автоматическая интеракция."))
 				return TRUE
-			o.do_action(parent_mob, target)
+
+			o.do_action(parent_mob, target, TRUE, is_hidden)
 			return TRUE
 		if("interaction_pace")
 			var/speed = params["speed"]
@@ -600,12 +645,15 @@
 			var/datum/interaction/interaction = SSinteractions.interactions[params["interaction"]]
 			if(!interaction)
 				return FALSE
-			var/datum/preferences/prefs = parent_mob.client.prefs
+			var/client/C = parent_mob?.client
+			if(!C?.prefs)
+				return FALSE
+			var/datum/preferences/prefs = C.prefs
 			if(interaction.type in prefs.favorite_interactions)
 				LAZYREMOVE(prefs.favorite_interactions, interaction.type)
 			else
 				LAZYADD(prefs.favorite_interactions, interaction.type)
-			prefs.save_preferences()
+			prefs.save_preferences(bypass_cooldown = TRUE, silent = TRUE)
 			return TRUE
 		if("genital")
 			var/mob/living/carbon/self = parent_mob
@@ -718,6 +766,8 @@
 
 				if("verb_consent")
 					TOGGLE_BITFIELD(prefs.toggles, VERB_CONSENT)
+				if("ranged_verb_pref")
+					TOGGLE_BITFIELD(prefs.toggles, RANGED_VERBS_CONSENT)
 				if("lewd_verb_sounds")
 					TOGGLE_BITFIELD(prefs.toggles, LEWD_VERB_SOUNDS)
 				if("arousable")

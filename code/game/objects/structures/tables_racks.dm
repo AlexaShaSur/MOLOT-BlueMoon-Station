@@ -18,6 +18,7 @@
 	icon = 'icons/obj/smooth_structures/table.dmi'
 	icon_state = "table"
 	density = TRUE
+	shadow_weight = 0.25
 	anchored = TRUE
 	pass_flags_self = PASSTABLE | LETPASSTHROW
 	layer = TABLE_LAYER
@@ -35,7 +36,7 @@
 	max_integrity = 100
 	integrity_failure = 0.33
 	smooth = SMOOTH_TRUE
-	canSmoothWith = list(/obj/structure/table, /obj/structure/table/reinforced, /obj/structure/table/greyscale)
+	canSmoothWith = list(/obj/structure/table, /obj/structure/table/greyscale)
 
 /obj/structure/table/Initialize(mapload)
 	. = ..()
@@ -484,7 +485,7 @@
 	name = "plasmaglass table"
 	desc = "Стеклянный стол, но розовый и куда более прочный. Что ещё Nanotrasen спроектирует на плазме?"
 	icon = 'icons/obj/smooth_structures/plasmaglass_table.dmi'
-	icon_state = "plasmaglass_table"
+	icon_state = "box"
 	climbable = TRUE
 	buildstack = /obj/item/stack/sheet/plasmaglass
 	canSmoothWith = null
@@ -661,12 +662,13 @@
 	name = "reinforced table"
 	desc = "Усиленная версия четырёхножного стола."
 	icon = 'icons/obj/smooth_structures/reinforced_table.dmi'
-	icon_state = "r_table"
+	icon_state = "box"
 	deconstruction_ready = 0
 	buildstack = /obj/item/stack/sheet/plasteel
 	max_integrity = 200
 	integrity_failure = 0.25
 	armor = list(MELEE = 10, BULLET = 30, LASER = 30, ENERGY = 100, BOMB = 20, BIO = 0, RAD = 0, FIRE = 80, ACID = 70)
+	canSmoothWith = list(/obj/structure/table/reinforced, /obj/structure/table/reinforced/rglass, /obj/structure/table/reinforced/plasmarglass)
 
 /obj/structure/table/reinforced/deconstruction_hints(mob/user)
 	if(deconstruction_ready)
@@ -691,10 +693,48 @@
 	else
 		. = ..()
 
+/obj/structure/table/reinforced/rglass
+	name = "reinforced glass table"
+	desc = "Усиленная версия стеклянного стола."
+	icon = 'icons/obj/smooth_structures/rglass_table.dmi'
+	icon_state = "box"
+	buildstack = /obj/item/stack/sheet/rglass
+	max_integrity = 150
+
+/obj/structure/table/reinforced/plasmarglass
+	name = "reinforced plasma glass table"
+	desc = "Усиленная версия плазмо-стеклянного стола."
+	icon = 'icons/obj/smooth_structures/rplasmaglass_table.dmi'
+	icon_state = "box"
+	buildstack = /obj/item/stack/sheet/plasmarglass
+	max_integrity = 400
+
+/obj/structure/table/reinforced/titaniumglass
+	name = "titanium glass table"
+	desc = "Стол из армированного титаном стекла, покрытый свежим слоем краски 'NT white'."
+	icon = 'icons/obj/smooth_structures/titaniumglass_table.dmi'
+	icon_state = "box"
+	buildstack = /obj/item/stack/sheet/titaniumglass
+	canSmoothWith = null
+	max_integrity = 350
+
+/obj/structure/table/reinforced/plastitanium
+	name = "Plastitanium Table"
+	desc = "Стол из плазменного композита с титановым усилением. Прочно так же, как и звучит."
+	icon = 'icons/obj/smooth_structures/plastitanium_table.dmi'
+	icon_state = "box"
+	buildstack = /obj/item/stack/sheet/mineral/plastitanium
+	canSmoothWith = list(/obj/structure/table/reinforced/plastitanium, /obj/structure/table/reinforced/plastitaniumglass)
+	max_integrity = 500
+
 /obj/structure/table/reinforced/plastitaniumglass
 	name = "Plastitanium Glass Table"
 	desc = "Стол из силикат-плазменного композита с титановым усилением. Прочно так же, как и звучит."
-	max_integrity = 300
+	icon = 'icons/obj/smooth_structures/plastitaniumglass_table.dmi'
+	icon_state = "box"
+	buildstack = /obj/item/stack/sheet/plastitaniumglass
+	canSmoothWith = list(/obj/structure/table/reinforced/plastitanium, /obj/structure/table/reinforced/plastitaniumglass)
+	max_integrity = 450
 
 /obj/structure/table/reinforced/brass
 	name = "brass table"
@@ -751,13 +791,14 @@
 
 /obj/structure/table/optable
 	name = "operating table"
-	desc = "Для продвинутых хирургических операций."
+	desc = "Кушетка для продвинутых хирургических операций."
 	icon = 'icons/obj/surgery.dmi'
 	icon_state = "optable"
 	buildstack = /obj/item/stack/sheet/mineral/silver
 	smooth = SMOOTH_FALSE
 	can_buckle = 1
 	buckle_lying = 90
+	pseudo_z_axis = 0
 	var/mob/living/carbon/human/patient = null
 	var/obj/machinery/computer/operating/computer = null
 // BLUEMOON ADD START
@@ -768,9 +809,6 @@
 	. = ..()
 	register_context()
 
-/obj/structure/table/optable/Destroy()
-	stop_process()
-	. = ..()
 
 /obj/structure/table/optable/add_context(atom/source, list/context, obj/item/held_item, mob/living/user)
 	LAZYSET(context[SCREENTIP_CONTEXT_LMB], INTENT_ANY, "Unbuckle patient")
@@ -796,10 +834,10 @@
 		. += span_info("Операционный стол подключен к компьютеру рядом через кабель на полу.")
 
 	if(tank && mask)
-		. += span_notice("Alt-Click: Можно попробовать включить оборудование для анестезии, если положить кого-то на стол.")
+		. += span_notice("Alt-Click для подачи анестетика пациенту на столе.")
 
 	if(tank || mask)
-		. += span_notice("Ctrl-Click: Отсоединить от стола баллон и маску.")
+		. += span_notice("Ctrl-Click: отсоединить от стола баллон и маску.")
 
 /obj/structure/table/optable/AltClick(mob/living/user)
 	. = ..()
@@ -870,6 +908,7 @@
 /obj/structure/table/optable/post_buckle_mob(mob/living/M)
 	. = ..()
 	check_patient()
+	M.pixel_y = M.get_standard_pixel_y_offset()
 
 /obj/structure/table/optable/process()
 	if(mask?.loc != patient || tank?.loc != src || patient?.loc != loc)
@@ -894,6 +933,13 @@
 	if(mask)
 		mask.forceMove(loc)
 		mask = null
+	if(patient)
+		if(patient.internal == tank)
+			patient.internal = null
+		patient = null
+	if(computer)
+		computer.table = null
+		computer = null
 	STOP_PROCESSING(SSobj, src)
 	. = ..()
 
@@ -949,11 +995,12 @@
  */
 /obj/structure/rack
 	name = "rack"
-	desc = "Иначе, чем во времена Средневековья..."
+	desc = "Совсем не как во времена Средневековья..."
 	icon = 'icons/obj/objects.dmi'
 	icon_state = "rack"
 	layer = TABLE_LAYER
 	density = TRUE
+	shadow_weight = 0.15
 	anchored = TRUE
 	pass_flags_self = LETPASSTHROW //You can throw objects over this, despite it's density.
 	max_integrity = 20

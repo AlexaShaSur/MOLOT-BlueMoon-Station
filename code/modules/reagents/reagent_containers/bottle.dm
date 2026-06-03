@@ -2,11 +2,12 @@
 
 /obj/item/reagent_containers/glass/bottle
 	name = "bottle"
-	desc = "Маленькая бутылочка."
+	desc = "Маленькая бутылочка. Плотно закрыта крышкой."
 	icon_state = "bottle"
 	item_state = "atoxinbottle"
 	possible_transfer_amounts = list(5,10,15,25,30)
 	volume = 30
+	spillable = FALSE
 
 /obj/item/reagent_containers/glass/bottle/Initialize(mapload)
 	. = ..()
@@ -21,7 +22,7 @@
 	. = ..()
 	if(!cached_icon)
 		cached_icon = icon_state
-	if(reagents.total_volume)
+	if(reagents && reagents.total_volume)
 		var/mutable_appearance/filling = mutable_appearance('icons/obj/reagentfillings.dmi', "[cached_icon]-10", color = mix_color_from_reagents(reagents.reagent_list))
 
 		var/percent = round((reagents.total_volume / volume) * 100)
@@ -521,7 +522,7 @@
 			return TRUE
 
 		if(attacking_item.reagents.holder_full())
-			balloon_alert(user, "вместилище заполенено!")
+			balloon_alert(user, "бутылка заполнена!")
 			return TRUE
 
 		var/transfer_amount = reagents.trans_to(attacking_item, amount_per_transfer_from_this)

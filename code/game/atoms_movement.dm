@@ -33,21 +33,21 @@
 	if(oldarea != newarea)
 		oldarea.Exited(src, newloc)
 
-	for(var/i in oldloc)
-		if(i == src) // Multi tile objects
-			continue
-		var/atom/movable/thing = i
-		thing.Uncrossed(src)
+	if(length(oldloc.contents))
+		for(var/atom/movable/thing as anything in oldloc)
+			if(thing == src) // Multi tile objects
+				continue
+			thing.Uncrossed(src)
 
 	newloc.Entered(src, oldloc)
 	if(oldarea != newarea)
 		newarea.Entered(src, oldloc)
 
-	for(var/i in loc)
-		if(i == src) // Multi tile objects
-			continue
-		var/atom/movable/thing = i
-		thing.Crossed(src)
+	if(loc && length(loc.contents))
+		for(var/atom/movable/thing as anything in loc)
+			if(thing == src) // Multi tile objects
+				continue
+			thing.Crossed(src)
 
 /**
  * meant for movement with zero side effects. only use for objects that are supposed to move "invisibly" (like camera mobs or ghosts)
@@ -123,8 +123,13 @@
 			if(moving_diagonally == SECOND_DIAG_STEP)
 				if(!.)
 					setDir(first_step_dir)
+					// Half-finished diagonal: one cardinal step succeeded — match old inertia (Moved skipped newtonian during split).
+					if(!inertia_moving && first_step_dir)
+						inertia_next_move = world.time + inertia_move_delay
+						newtonian_move(first_step_dir)
 				else if (!inertia_moving)
 					inertia_next_move = world.time + inertia_move_delay
+					// Single combined impulse — do not stack with per-cardinal Moved() calls during this diagonal.
 					newtonian_move(direct)
 			moving_diagonally = 0
 			return
@@ -159,8 +164,7 @@
 		return FALSE
 
 /atom/movable/proc/handle_buckled_mob_movement(newloc, direct, glide_size_override)
-	for(var/m in buckled_mobs)
-		var/mob/living/buckled_mob = m
+	for(var/mob/living/buckled_mob as anything in buckled_mobs)
 		if(!buckled_mob.Move(newloc, direct, glide_size_override))
 			forceMove(buckled_mob.loc)
 			last_move = buckled_mob.last_move
@@ -173,7 +177,8 @@
 /atom/movable/proc/Moved(atom/OldLoc, Dir, Forced = FALSE)
 	SHOULD_CALL_PARENT(TRUE)
 	SEND_SIGNAL(src, COMSIG_MOVABLE_MOVED, OldLoc, Dir, Forced)
-	if (!inertia_moving)
+	// Diagonal intents are split into two cardinals inside Move(); defer newtonian to one call at split end (see above).
+	if (!inertia_moving && !HAS_TRAIT(src, TRAIT_HYPERSPACED) && !moving_diagonally)
 		inertia_next_move = world.time + inertia_move_delay
 		newtonian_move(Dir)
 	return TRUE
@@ -215,8 +220,7 @@
 
 /atom/movable/proc/onTransitZ(old_z,new_z)
 	SEND_SIGNAL(src, COMSIG_MOVABLE_Z_CHANGED, old_z, new_z)
-	for (var/item in src) // Notify contents of Z-transition. This can be overridden IF we know the items contents do not care.
-		var/atom/movable/AM = item
+	for (var/atom/movable/AM as anything in src) // Notify contents of Z-transition. This can be overridden IF we know the items contents do not care.
 		AM.onTransitZ(old_z,new_z)
 
 ///Proc to modify the movement_type and hook behavior associated with it changing.
@@ -259,8 +263,9 @@
 				oldloc.Exited(src, destination)
 				if(old_area && old_area != destarea)
 					old_area.Exited(src, destination)
-			for(var/atom/movable/AM in oldloc)
-				AM.Uncrossed(src)
+			if(oldloc && length(oldloc.contents))
+				for(var/atom/movable/AM as anything in oldloc)
+					AM.Uncrossed(src)
 			var/turf/oldturf = get_turf(oldloc)
 			var/turf/destturf = get_turf(destination)
 			var/old_z = (oldturf ? oldturf.z : null)
@@ -271,10 +276,11 @@
 			if(destarea && old_area != destarea)
 				destarea.Entered(src, oldloc)
 
-			for(var/atom/movable/AM in destination)
-				if(AM == src)
-					continue
-				AM.Crossed(src, oldloc)
+			if(length(destination.contents))
+				for(var/atom/movable/AM as anything in destination)
+					if(AM == src)
+						continue
+					AM.Crossed(src, oldloc)
 
 		Moved(oldloc, NONE, TRUE)
 		. = TRUE
@@ -300,8 +306,9 @@
  *
  * Arguments:
  * * movement_dir - 0 when stopping or any dir when trying to move
+ * * continuous_move - TRUE when checking from the newtonian drift loop (not client step intent)
  */
-/atom/movable/proc/Process_Spacemove(movement_dir = 0)
+/atom/movable/proc/Process_Spacemove(movement_dir = 0, continuous_move = FALSE)
 	if(has_gravity(src))
 		return TRUE
 
@@ -314,20 +321,64 @@
 	if(!isturf(loc))
 		return TRUE
 
-	if(locate(/obj/structure/lattice) in range(1, get_turf(src))) //Not realistic but makes pushing things in space easier
+	var/turf/T = get_turf(src)
+	if(length(T.contents) && (locate(/obj/structure/lattice) in T))
 		return TRUE
+	for(var/dir in GLOB.alldirs)
+		var/turf/adj = get_step(T, dir)
+		if(adj && length(adj.contents) && (locate(/obj/structure/lattice) in adj))
+			return TRUE
 
 	return FALSE
 
-/// Only moves the object if it's under no gravity
-/atom/movable/proc/newtonian_move(direction)
-	if(!isturf(loc) || Process_Spacemove(0))
-		inertia_dir = 0
+/// Subtype hook (e.g. lattice); [Process_Spacemove] already handles lattice on /atom/movable — mobs override and use backups
+/atom/movable/proc/handle_spacemove_grabbing()
+	return FALSE
+
+/// Only moves the object if it's under no gravity. Uses smooth drift when possible. [inertia_dir] is a BYOND dir flag.
+/atom/movable/proc/newtonian_move(
+	inertia_dir,
+	instant = FALSE,
+	start_delay = 0,
+	drift_force = 1,
+	controlled_cap = null,
+	force_loop = TRUE,
+)
+	if(!isturf(loc))
+		src.inertia_dir = 0
+		if(drift_handler)
+			QDEL_IN(drift_handler, 0)
 		return FALSE
 
-	inertia_dir = direction
-	if(!direction)
+	if(!inertia_dir)
+		src.inertia_dir = 0
+		if(drift_handler)
+			QDEL_IN(drift_handler, 0)
 		return TRUE
-	inertia_last_loc = loc
-	SSspacedrift.processing[src] = src
+
+	if(Process_Spacemove(inertia_dir, TRUE))
+		src.inertia_dir = 0
+		if(drift_handler)
+			QDEL_IN(drift_handler, 0)
+		return FALSE
+
+	SSspacedrift.processing -= src
+	src.inertia_dir = inertia_dir
+	var/inertia_angle = dir2angle(inertia_dir)
+	var/capped = isnull(controlled_cap) ? drift_force : min(drift_force, controlled_cap)
+
+	if(!isnull(drift_handler) && !QDELETED(drift_handler))
+		if(drift_handler.newtonian_impulse(inertia_angle, start_delay, capped, controlled_cap, force_loop))
+			return TRUE
+		if(QDELETED(src))
+			return FALSE
+
+	// Defer: Destroy() must not clear a replacement drift_handler (see /datum/drift_handler/Destroy)
+	if(drift_handler)
+		var/datum/drift_handler/old_drift = drift_handler
+		QDEL_IN(old_drift, 0)
+	new /datum/drift_handler(src, inertia_angle, instant, start_delay, capped)
+	if(QDELETED(drift_handler))
+		src.inertia_dir = 0
+		return FALSE
 	return TRUE

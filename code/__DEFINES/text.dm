@@ -260,6 +260,7 @@ GLOBAL_LIST_INIT(mat_ru_nominative, list(
 	"plastic" = "пластик",
 	"biomass" = "биомасса",
 	"wood" = "дерево",
+	"cloth" = "ткань",
 	"adamantine" = "адамантин",
 	"mythril" = "мифрил",
 	"sand" = "песк",
@@ -272,6 +273,7 @@ GLOBAL_LIST_INIT(mat_ru_nominative, list(
 	"cardboard" = "картон",
 	"bone" = "кость",
 	"bamboo" = "бамбук",
+	"rigid material" = "твёрдый материал",
 ))
 
 /// Лист-словарь для examine string'а материалов в родительном падеже
@@ -292,6 +294,7 @@ GLOBAL_LIST_INIT(mat_ru_genitive, list(
 	"plastic" = "пластика",
 	"biomass" = "биомассы",
 	"wood" = "дерева",
+	"cloth" = "ткани",
 	"adamantine" = "адамантина",
 	"mythril" = "мифрила",
 	"sand" = "песка",
@@ -304,4 +307,67 @@ GLOBAL_LIST_INIT(mat_ru_genitive, list(
 	"cardboard" = "картона",
 	"bone" = "кости",
 	"bamboo" = "бамбука",
+	"rigid material" = "твёрдого материала",
+))
+
+/// Лист-словарь для examine string'а бюджетов
+
+GLOBAL_LIST_INIT(budget_ru_nominative, list(
+	"civil budget" = "Гражданский бюджет",
+	"engineering budget" = "Бюджет инженерного отдела",
+	"scientific budget" = "Бюджет научного отдела",
+	"medical budget" = "Бюджет медицинского отдела",
+	"service budget" = "Бюджет отдела сервиса",
+	"cargo budget" = "Бюджет отдела карго",
+	"defense budget" = "Бюджет службы безопасности",
+))
+
+GLOBAL_LIST_INIT(budget_ru_genitive, list(
+	"civil budget" = "гражданского отдела",
+	"engineering budget" = "инженерного отдела",
+	"scientific budget" = "научного отдела",
+	"medical budget" = "медицинского отдела",
+	"service budget" = "отдела сервиса",
+	"cargo budget" = "отдела карго",
+	"defense budget" = "отдела службы безопасности",
+))
+
+/// Лист-словарь для модулей киборгов
+GLOBAL_LIST_INIT(borgmodule_ru_adjective, list(
+	"default" = "стандартный",
+	"standard" = "универсальный",
+    "medical" = "медицинский",
+    "engineering" = "инженерный",
+	"engineer" = "инженерный",
+    "security" = "охранный",
+	"peacekeeper" = "миротворческий",
+	"clown" = "клоунский",
+	"service" = "сервисный",
+	"miner" = "шахтёрский",
+	"cargo" = "погрузочный",
+	"syndicate" = "нелегальный",
+	"syndicate assault" = "штурмовой",
+	"syndicate medical" = "медицинский",
+	"syndicate saboteur" = "саботажный",
+	"inteq assault" = "штурмовой",
+	"inteq medical" = "медицинский",
+	"inteq saboteur" = "саботажный",
+	"inteq engineering" = "инженерный",
+	"spider assault" = "штурмовой",
+	"spider medical" = "медицинский",
+	"spider saboteur" = "саботажный",
+	"slaver medical combat" = "медицинский боевой",
+	"roleplay" = "ролевой",
+))
+
+/// Лист-словарь для цветов
+GLOBAL_LIST_INIT(colors_ru, list(
+	"red" = "красный",
+	"yellow" = "жёлтый",
+	"green" = "зелёный",
+	"blue" = "синий",
+	"pink" = "розовый",
+	"orange" = "оранжевый",
+	"cyan" = "циановый",
+	"white" = "белый",
 ))

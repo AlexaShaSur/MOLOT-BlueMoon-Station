@@ -8,6 +8,86 @@
 	var/securityCrimeCounter = 0
 	///This list tracks characters spawned in the world and cannot be modified in-game. Currently referenced by respawn_character().
 	var/list/locked = list()
+	/// Name-indexed lookups for O(1) record access by character name
+	var/list/medical_by_name = list()
+	var/list/security_by_name = list()
+	var/list/general_by_name = list()
+	/// ID-indexed lookups for O(1) record access by hex ID
+	var/list/medical_by_id = list()
+	var/list/security_by_id = list()
+	var/list/general_by_id = list()
+	var/list/locked_by_id = list()
+
+/// Registers a record in the appropriate index lists. Call after adding to medical/security/general lists.
+/datum/datacore/proc/register_record(datum/data/record/R, record_type)
+	var/rname = R.fields["name"]
+	var/rid = R.fields["id"]
+	switch(record_type)
+		if("general")
+			if(rname)
+				general_by_name[rname] = R
+			if(rid)
+				general_by_id[rid] = R
+		if("medical")
+			if(rname)
+				medical_by_name[rname] = R
+			if(rid)
+				medical_by_id[rid] = R
+		if("security")
+			if(rname)
+				security_by_name[rname] = R
+			if(rid)
+				security_by_id[rid] = R
+
+/// Reindexes a record after name or id change. Call with old values before the change.
+/datum/datacore/proc/reindex_record(datum/data/record/R, old_name, old_id)
+	// Remove old keys
+	if(old_name)
+		if(general_by_name[old_name] == R)
+			general_by_name -= old_name
+		if(medical_by_name[old_name] == R)
+			medical_by_name -= old_name
+		if(security_by_name[old_name] == R)
+			security_by_name -= old_name
+	if(old_id)
+		if(general_by_id[old_id] == R)
+			general_by_id -= old_id
+		if(medical_by_id[old_id] == R)
+			medical_by_id -= old_id
+		if(security_by_id[old_id] == R)
+			security_by_id -= old_id
+	// Insert new keys
+	var/new_name = R.fields["name"]
+	var/new_id = R.fields["id"]
+	if(new_name)
+		if(R in general)
+			general_by_name[new_name] = R
+		if(R in medical)
+			medical_by_name[new_name] = R
+		if(R in security)
+			security_by_name[new_name] = R
+	if(new_id)
+		if(R in general)
+			general_by_id[new_id] = R
+		if(R in medical)
+			medical_by_id[new_id] = R
+		if(R in security)
+			security_by_id[new_id] = R
+
+/// Removes all records (medical, security, general) for a given name. Returns the rank from general record if found.
+/datum/datacore/proc/remove_records_by_name(target_name)
+	var/announce_rank = null
+	var/datum/data/record/gen = general_by_name[target_name]
+	if(gen)
+		announce_rank = gen.fields["rank"]
+		qdel(gen)
+	var/datum/data/record/med = medical_by_name[target_name]
+	if(med)
+		qdel(med)
+	var/datum/data/record/sec = security_by_name[target_name]
+	if(sec)
+		qdel(sec)
+	return announce_rank
 
 /datum/data
 	var/name = "data"
@@ -17,14 +97,28 @@
 	var/list/fields = list()
 
 /datum/data/record/Destroy()
-	if(src in GLOB.data_core.medical)
-		GLOB.data_core.medical -= src
-	if(src in GLOB.data_core.security)
-		GLOB.data_core.security -= src
-	if(src in GLOB.data_core.general)
-		GLOB.data_core.general -= src
-	if(src in GLOB.data_core.locked)
-		GLOB.data_core.locked -= src
+	var/record_name = fields["name"]
+	var/record_id = fields["id"]
+	if(record_name)
+		if(GLOB.data_core.medical_by_name[record_name] == src)
+			GLOB.data_core.medical_by_name -= record_name
+		if(GLOB.data_core.security_by_name[record_name] == src)
+			GLOB.data_core.security_by_name -= record_name
+		if(GLOB.data_core.general_by_name[record_name] == src)
+			GLOB.data_core.general_by_name -= record_name
+	if(record_id)
+		if(GLOB.data_core.medical_by_id[record_id] == src)
+			GLOB.data_core.medical_by_id -= record_id
+		if(GLOB.data_core.security_by_id[record_id] == src)
+			GLOB.data_core.security_by_id -= record_id
+		if(GLOB.data_core.general_by_id[record_id] == src)
+			GLOB.data_core.general_by_id -= record_id
+		if(GLOB.data_core.locked_by_id[record_id] == src)
+			GLOB.data_core.locked_by_id -= record_id
+	GLOB.data_core.medical -= src
+	GLOB.data_core.security -= src
+	GLOB.data_core.general -= src
+	GLOB.data_core.locked -= src
 	. = ..()
 
 /datum/data/crime
@@ -113,7 +207,7 @@
 
 // отдельная запись квирков когда они реально записаны
 /datum/datacore/proc/notes_traits_modify(mob/living/carbon/human/H)
-	var/datum/data/record/foundrecord = find_record("name", H.real_name, GLOB.data_core.medical)
+	var/datum/data/record/foundrecord = GLOB.data_core.medical_by_name[H.real_name]
 	if(foundrecord)
 		var/traits_dat = H.get_trait_string(TRUE)
 		if(!traits_dat)
@@ -132,10 +226,15 @@
 			manifest_inject(N.new_character, N.client, N.client.prefs)
 		CHECK_TICK
 
-/datum/datacore/proc/manifest_modify(name, assignment)
-	var/datum/data/record/foundrecord = find_record("name", name, GLOB.data_core.general)
+/datum/datacore/proc/manifest_modify(name, assignment, real_rank)
+	if(!name || !assignment && !real_rank)
+		return
+	var/datum/data/record/foundrecord = GLOB.data_core.general_by_name[name]
 	if(foundrecord)
-		foundrecord.fields["rank"] = assignment
+		if(assignment)
+			foundrecord.fields["rank"] = assignment
+		if(real_rank)
+			foundrecord.fields["real_rank"] = real_rank
 
 /datum/datacore/proc/get_manifest()
 	var/list/manifest_out = list()
@@ -153,7 +252,7 @@
 	for(var/datum/data/record/t in GLOB.data_core.general)
 		var/name = t.fields["name"]
 		var/rank = t.fields["rank"]
-		var/department_check = GetJobName(t.fields["rank"])
+		var/department_check = GetJobName(t.fields["real_rank"])
 		var/has_department = FALSE
 		for(var/department in departments)
 			var/list/jobs = departments[department]
@@ -205,14 +304,14 @@
 		.manifest tr.alt td {[monochrome?"border-top-width: 2px":"background-color: #DEF"]}
 	</style></head>
 	<table class="manifest" width='350px'>
-	<tr class='head'><th>Name</th><th>Rank</th></tr>
+	<tr class='head'><th>Имя</th><th>Должность</th></tr>
 	"}
 	var/even = 0
 	// sort mobs
 	for(var/datum/data/record/t in GLOB.data_core.general)
 		var/name = t.fields["name"]
 		var/rank = t.fields["rank"]
-		var/department_check = GetJobName(t.fields["rank"])
+		var/department_check = GetJobName(t.fields["real_rank"])
 		var/department = 0
 		if(department_check in GLOB.command_positions)
 			heads[name] = rank
@@ -306,14 +405,26 @@
 	var/static/list/show_directions = list(SOUTH, WEST)
 	if(H.mind && (H.mind.assigned_role != H.mind.special_role)  && (H.mind.assigned_role != "Stowaway"))
 		var/assignment
+		var/real_rank
 		if(H.mind.assigned_role)
-			assignment = H.mind.assigned_role
+			real_rank = H.mind.assigned_role
 		else if(H.job)
-			assignment = H.job
+			real_rank = H.job
 		else
-			assignment = "Unassigned"
-		if(C && C.prefs && C.prefs.alt_titles_preferences[assignment])
-			assignment = C.prefs.alt_titles_preferences[assignment]
+			real_rank = "Unassigned"
+
+		// Берем название роли из карточки, с учетом наклеек и альт. названия
+		if(H.wear_id)
+			var/obj/item/card/id/id_card = H.wear_id.GetID()
+			if(istype(id_card))
+				assignment = id_card.get_assignment_name()
+		if(!assignment)
+			// Если не удалось, пробуем получить из префов
+			if(C && C.prefs && C.prefs.alt_titles_preferences[assignment])
+				assignment = C.prefs.alt_titles_preferences[assignment]
+			// Иначе берем стандартное название
+			else
+				assignment = real_rank
 
 		var/static/record_id_num = 1001
 		var/id = num2hex(record_id_num++,6)
@@ -337,7 +448,7 @@
 		G.fields["id"]			= id
 		G.fields["name"]		= H.real_name
 		G.fields["rank"]		= assignment
-		G.fields["real_rank"]	= GetJobName(assignment)
+		G.fields["real_rank"]	= GetJobName(real_rank)
 		G.fields["age"]			= H.age
 		G.fields["species"]		= H.dna.species.name
 		G.fields["fingerprint"]	= md5(H.dna.uni_identity)
@@ -352,6 +463,8 @@
 		G.fields["photo_front"]	= photo_front
 		G.fields["photo_side"]	= photo_side
 		general += G
+		general_by_name[H.real_name] = G
+		general_by_id[id] = G
 
 		//Medical Record
 		var/datum/data/record/M = new()
@@ -369,12 +482,19 @@
 		M.fields["cdi_d"]		= "No diseases have been diagnosed at the moment."
 		M.fields["notes"]		= "[prefs.medical_records]"
 		medical += M
+		medical_by_name[H.real_name] = M
+		medical_by_id[id] = M
 
 		//Security Record
 		var/datum/data/record/S = new()
 		S.fields["id"]			= id
 		S.fields["name"]		= H.real_name
-		S.fields["criminal"]	= SEC_RECORD_STATUS_NONE
+		// BLUEMOON CHANGE START - Установление статуса заключенного
+		if(real_rank == "Prisoner")
+			S.fields["criminal"]	= SEC_RECORD_STATUS_INCARCERATED
+		else
+			S.fields["criminal"]	= SEC_RECORD_STATUS_NONE
+		// BLUEMOON CHANGE END
 		S.fields["mi_crim"]		= list()
 		S.fields["mi_crim_d"]	= list()
 		S.fields["ma_crim"]		= list()
@@ -387,13 +507,19 @@
 		// BLUEMOON ADD END
 		LAZYINITLIST(S.fields["comments"])
 		security += S
+		security_by_name[H.real_name] = S
+		security_by_id[id] = S
+		// BLUEMOON ADD START - Установление статуса заключенного
+		if(real_rank == "Prisoner")
+			H.sec_hud_set_security_status()
+		// BLUEMOON ADD END
 
 		//Locked Record
 		var/datum/data/record/L = new()
 		L.fields["id"]			= md5("[H.real_name][H.mind.assigned_role]")	//surely this should just be id, like the others?
 		L.fields["name"]		= H.real_name
 		L.fields["rank"] 		= assignment
-		L.fields["real_rank"]	= GetJobName(assignment)
+		L.fields["real_rank"]	= GetJobName(real_rank)
 		L.fields["age"]			= H.age
 		if(H.gender == MALE)
 			G.fields["gender"]  = "Male"
@@ -409,6 +535,7 @@
 		L.fields["image"]		= image
 		L.fields["mindref"]		= H.mind
 		locked += L
+		locked_by_id[L.fields["id"]] = L
 	return
 
 /datum/datacore/proc/get_id_photo(mob/living/carbon/human/H, client/C, show_directions = list(SOUTH))

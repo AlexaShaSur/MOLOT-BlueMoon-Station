@@ -1,7 +1,7 @@
 import { useBackend } from '../backend';
-import { Button, Collapsible, Flex, LabeledList, NoticeBox, Section, Slider, Box } from '../components';
-import { Window } from '../layouts';
+import { Box, Button, Collapsible, Flex, LabeledList, NoticeBox, Section, Slider } from '../components';
 import { formatPower } from '../format';
+import { Window } from '../layouts';
 
 
 export const BluespaceTap = (props, context) => {
@@ -31,12 +31,12 @@ export const BluespaceTap = (props, context) => {
       <Window.Content scrollable>
         {!!emagged && (
           <NoticeBox danger={1}>
-            Safety Protocols disabled
+            Safety protocols disabled — nether breach chance rises with input level
           </NoticeBox>
         )}
-        {!!(inputLevel > safeLevels) && (
-          <NoticeBox danger={1}>
-            High Power, Instability likely
+        {!emagged && !!(inputLevel > safeLevels) && (
+          <NoticeBox warning>
+            High power load (no dimensional breach risk while safety protocols are active)
           </NoticeBox>
         )}
         <Collapsible

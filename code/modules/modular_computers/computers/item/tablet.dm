@@ -6,7 +6,7 @@
 	icon_state_powered = "tablet-red"
 	icon_state_menu = "menu"
 	base_icon_state = "tablet"
-	// worn_icon_state = "tablet"
+	// icon_state = "tablet"
 	hardware_flag = PROGRAM_TABLET
 	max_hardware_size = 1
 	w_class = WEIGHT_CLASS_SMALL
@@ -64,6 +64,7 @@
 		usr.put_in_hands(inserted_item)
 		to_chat(usr, "<span class='notice'>You remove [inserted_item] from \the [src]'s pen slot.</span>")
 		inserted_item = null
+		playsound(src, 'sound/machines/button4.ogg', 50, 1)
 		SStgui.update_uis(src)
 	else
 		to_chat(usr, "<span class='warning'>\The [src] does not have a pen in it!</span>")
@@ -231,6 +232,27 @@
 		return
 	borgo.playsound_local(src, sound, 50, TRUE)
 	to_chat(borgo, span_notice("The [src] displays a [caller.filedesc] notification: [alerttext]"))
+
+/obj/item/modular_computer/tablet/integrated/proc/get_department_access()
+	if(!borgo)
+		return list()
+	if(!borgo.module)
+		return list()
+	var/static/list/module_access_map = list(
+		/obj/item/robot_module/engineering = list(ACCESS_ENGINE),
+		/obj/item/robot_module/medical = list(ACCESS_MEDICAL),
+		/obj/item/robot_module/security = list(ACCESS_SECURITY),
+		/obj/item/robot_module/butler = list(ACCESS_JANITOR),
+		/obj/item/robot_module/miner = list(ACCESS_MINING),
+		/obj/item/robot_module/cargo = list(ACCESS_CARGO),
+		/obj/item/robot_module/syndicate = list(ACCESS_SYNDICATE),
+		/obj/item/robot_module/syndicate_medical = list(ACCESS_SYNDICATE),
+		/obj/item/robot_module/saboteur = list(ACCESS_SYNDICATE),
+	)
+	for(var/module_type in module_access_map)
+		if(istype(borgo.module, module_type))
+			return module_access_map[module_type]
+	return list()
 
 
 /obj/item/modular_computer/tablet/integrated/syndicate

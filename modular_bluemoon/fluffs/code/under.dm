@@ -102,6 +102,14 @@
 	mutantrace_variation = STYLE_DIGITIGRADE
 	can_adjust = FALSE
 
+/obj/item/clothing/under/donator/bm/silky_body_alt
+	name = "V-shaped Body"
+	desc = "A perfectly tailored bodysuit that fits the body and does not constrain you in any movements."
+	icon_state = "silky_body_alt"
+	item_state = "bl_suit"
+	mutantrace_variation = STYLE_DIGITIGRADE
+	can_adjust = FALSE
+
 /obj/item/clothing/under/donator/bm/Frieren_skirt
 	name = "Frieren skirt"
 	desc = "Изысканный эльфийский наряд, что выполнен из нежной ткани и украшен золотыми нитями."
@@ -198,6 +206,30 @@
 	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear.dmi'
 	anthro_mob_worn_overlay = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear.dmi'
 
+/obj/item/clothing/underwear/shirt/bra/troubleneko_bra
+	name = "Laced lingerie bra"
+	icon_state = "troubleneko_bra"
+	item_state = "troubleneko_bra"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/underwear.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear.dmi'
+	anthro_mob_worn_overlay = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear_anthro.dmi'
+
+/obj/item/clothing/underwear/briefs/troubleneko_panties
+	name = "Panties"
+	icon_state = "troubleneko_panties"
+	item_state = "troubleneko_panties"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/underwear.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear.dmi'
+	anthro_mob_worn_overlay = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear_anthro.dmi'
+
+/obj/item/clothing/underwear/socks/thigh/troubleneko_socks
+	name = "Socks"
+	icon_state = "troubleneko_socks"
+	item_state = "troubleneko_socks"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/underwear.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear.dmi'
+	anthro_mob_worn_overlay = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear_anthro.dmi'
+
 /obj/item/clothing/underwear/shirt/toggle/savannah_sleepwear
 	name = "sleepwear"
 	desc = "A sleepshirt. Fancy?"
@@ -277,21 +309,37 @@
 	can_adjust = FALSE
 	mutantrace_variation = NONE
 
+///////////////////////////////////////////////
+
 /obj/item/clothing/under/donator/bm/inlaid_data_dress
 	name = "Inlaid Data Dress"
 	desc = "Съемный модуль для синтетика. Корпус изготовлен из легкого но прочного металла. \
 			Два резервуара для хладагента на уровне груди покрытые титаном. \
 			На обратной стороне изображен стеклянный цилиндр с синим космическим кристаллом внутри. \
 			В юбку встроен радар внешнего обзора. Иногда происходит пространственное смещение... стоп ЧТО?!"
-	icon_state = "InlaidDataDress"
-	actions_types = list(/datum/action/item_action/degree_distortion_effect, /datum/action/item_action/toggle_echo_effect_dress)
+	icon_state = "InlaidDataDress_default"
+	actions_types = list(
+		/datum/action/item_action/degree_distortion_effect,
+		/datum/action/item_action/toggle_echo_effect_dress,
+		/datum/action/item_action/toggle_particle_effect_dress
+	)
 	can_adjust = TRUE
 	body_parts_covered = CHEST|GROIN|LEGS|ARMS
-	species_restricted = list("I.P.C.", "Synthetic Lizardperson", "Synthetic", "Military Synth")
+	resistance_flags = FIRE_PROOF | ACID_PROOF
+	always_reskinnable = TRUE
+	repairable_by = /obj/item/stack/sheet/metal
+	species_restricted = list("I.P.C.", "Synthetic Lizardperson", "Synthetic", "Military Synth", "Synthetic Anthropomorph")
+	unique_reskin = list(
+		"Roselia" = list("icon_state" = "InlaidDataDress_default", "skin" = "default"),
+		"Rose-1" = list("icon_state" = "InlaidDataDress_battle", "skin" = "battle", "active_echo" = FALSE),
+		"Rose-4" = list("icon_state" = "InlaidDataDress_lust", "skin" = "lust", "can_adjust" = FALSE, "body_parts_covered" = NONE, "active_echo" = FALSE),
+	)
+	var/equipped_slot = FALSE
 	var/obj/effect/distortion_effect/filter_on_user
 	var/obj/effect/dress_particle_holder/particle_effect_holder
 	var/obj/echo
 	var/active_echo = TRUE
+	var/skin = "default"
 
 /obj/item/clothing/under/donator/bm/inlaid_data_dress/New()
 	. = ..()
@@ -307,8 +355,26 @@
 
 	START_PROCESSING(SSfastprocess, src)
 
+/obj/item/clothing/under/donator/bm/inlaid_data_dress/Destroy()
+	. = ..()
+
+	STOP_PROCESSING(SSfastprocess, src)
+
+	LAZYREMOVE(vis_contents, filter_on_user)
+	LAZYREMOVE(vis_contents, particle_effect_holder)
+
+	QDEL_NULL(echo)
+	QDEL_NULL(filter_on_user)
+	QDEL_NULL(particle_effect_holder)
+
+
 /obj/item/clothing/under/donator/bm/inlaid_data_dress/equipped(mob/user, slot)
 	. = ..()
+
+	if(slot != ITEM_SLOT_ICLOTHING)
+		return
+
+	equipped_slot = TRUE
 	LAZYADD(user.vis_contents, filter_on_user)
 	LAZYADD(user.vis_contents, particle_effect_holder)
 	LAZYADD(user.vis_contents, echo)
@@ -316,6 +382,11 @@
 	echo.render_source = user.render_target
 
 /obj/item/clothing/under/donator/bm/inlaid_data_dress/dropped(mob/user)
+
+	if(!equipped_slot)
+		return ..()
+
+	equipped_slot = FALSE
 	LAZYREMOVE(user.vis_contents, filter_on_user)
 	LAZYREMOVE(user.vis_contents, particle_effect_holder)
 	LAZYREMOVE(user.vis_contents, echo)
@@ -325,12 +396,12 @@
 
 /obj/item/clothing/under/donator/bm/inlaid_data_dress/toggle_jumpsuit_adjust()
 	if(!body_parts_covered)
-		icon_state = "InlaidDataDress"
-		item_state = "InlaidDataDress"
+		icon_state = "InlaidDataDress_[skin]"
+		item_state = "InlaidDataDress_[skin]"
 		body_parts_covered = CHEST|GROIN|LEGS|ARMS
 	else
-		icon_state = "InlaidDataDress_open"
-		item_state = "InlaidDataDress_open"
+		icon_state = "InlaidDataDress_[skin]_open"
+		item_state = "InlaidDataDress_[skin]_open"
 		body_parts_covered = NONE
 	return TRUE
 
@@ -351,7 +422,7 @@
 		particle_effect_holder.remove_atom_colour(coloration, colour_priority)
 
 /obj/item/clothing/under/donator/bm/inlaid_data_dress/process(delta_time)
-	if(active_echo)
+	if(active_echo && equipped_slot)
 		echo_animation()
 
 /obj/item/clothing/under/donator/bm/inlaid_data_dress/proc/echo_animation()
@@ -366,7 +437,7 @@
 	icon_state = "distortion_a"
 	pixel_x = 0
 	pixel_y = 0
-	alpha = 120
+	alpha = 60
 	plane = GRAVITY_PULSE_PLANE
 	appearance_flags = PIXEL_SCALE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
@@ -409,6 +480,27 @@
 
 	T.active_echo = !T.active_echo
 
+/datum/action/item_action/toggle_particle_effect_dress
+	name = "Toggle Particle"
+
+/datum/action/item_action/toggle_particle_effect_dress/Trigger()
+
+	if(!..())
+		return FALSE
+
+	var/obj/item/clothing/under/donator/bm/inlaid_data_dress/T = target
+
+	if(!T || !istype(T))
+		return FALSE
+
+	if(!T.particle_effect_holder)
+		return FALSE
+
+	if(T.particle_effect_holder.alpha == 150)
+		T.particle_effect_holder.alpha = 0
+	else
+		T.particle_effect_holder.alpha = 150
+
 /obj/effect/dress_particle_holder
 	pixel_y = -8
 	alpha = 150
@@ -433,6 +525,8 @@
 	position = generator("circle", 0, 10)
 	velocity = generator("circle", 0.3, 1)
 	fade = 1
+
+///////////////////////////////////////////////
 
 /obj/item/clothing/under/donator/bm/saareuni
 	name = "SAARE BDU G3"
@@ -475,8 +569,8 @@
 	item_state = "syndicate-black"
 	can_adjust = FALSE
 
-/obj/item/clothing/under/rank/brigdoc/mu88_swimsuit
-	name = "M.U. 88 New hope swimcoat"
+/obj/item/clothing/under/donator/bm/mu88_swimsuit
+	name = "M.U. 88 New hope swimsuit"
 	desc = "Лёгкое и незамысловатое одеяние, похожее на женский купальник белого цвета, имеющее подобие корсета из двух чёрных ремешков у пояса. Сделано из гибрида синтетических волокон, делая носку приятной, а сам элемент одежды - прочным и износостойким. На внутренней части имеется небольшой логотип производителя в виде чёрной розы, а рядом надпись - Black Rose atelier."
 	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
 	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
@@ -548,3 +642,208 @@
 	fitted = NO_FEMALE_UNIFORM
 	can_adjust = FALSE
 	alternate_worn_layer = BELT_LAYER
+
+///////////////////////////////////////////////
+
+/obj/item/clothing/under/donator/bm/verdant
+	name = "Verdant Tactical Suit"
+	desc = "Комплект одежды в спокойной зелёной палитре с аккуратными усиленными элементами. \
+	Сочетает плотные и мягкие материалы, создавая сбалансированный образ между защитой и комфортом. \
+	Подходит для повседневного ношения в суровых условиях."
+	icon_state = "verdant"
+	item_state = "verdant"
+	body_parts_covered = CHEST|ARMS|GROIN
+	mutantrace_variation = STYLE_DIGITIGRADE
+
+/obj/item/clothing/under/donator/gestapo
+	name = "Truth Enforcer Uniform"
+	icon_state = "gestapo_uniform"
+	item_state = "gestapo_uniform"
+	icon = 'modular_bluemoon/icons/obj/clothing/uniforms.dmi'
+	mob_overlay_icon = 'modular_bluemoon/icons/mob/clothing/uniforms.dmi'
+	lefthand_file = 'modular_bluemoon/icons/mob/inhands/clothing_lefthand.dmi'
+	righthand_file = 'modular_bluemoon/icons/mob/inhands/clothing_righthand.dmi'
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+
+///////////////////////////////////////////////
+
+/obj/item/clothing/under/poly_maniac
+	name = "Total Pants"
+	desc = "Brought by Gosei, too lazy for digi version, suck it Catcrins!"
+	icon_state = "poly_maniac"
+	item_state = "poly_maniac"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	var/list/poly_colors = list("#FFFFFF", "#dbdbdb", "#dbdbdb", "#dbdbdb", "#dbdbdb")
+
+/obj/item/clothing/under/poly_maniac/ComponentInitialize()
+	. = ..()
+	AddElement(/datum/element/polychromic, list("#FFFFFF", "#dbdbdb", "#dbdbdb", "#dbdbdb", "#dbdbdb"), 5)
+
+/obj/item/clothing/under/poly_unia
+	name = "Poly Pants"
+	desc = "Brought by Gosei, too lazy for digi version, suck it Catcrins!"
+	icon_state = "poly_unia"
+	item_state = "poly_unia"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	var/list/poly_colors = list("#FFFFFF", "#dbdbdb", "#dbdbdb", "#dbdbdb")
+
+/obj/item/clothing/under/poly_unia/ComponentInitialize()
+	. = ..()
+	AddElement(/datum/element/polychromic, list("#FFFFFF", "#dbdbdb", "#dbdbdb", "#dbdbdb"), 4)
+
+/obj/item/clothing/under/poly_cargo
+	name = "Poly Cargo"
+	desc = "Brought by Gosei, too lazy for digi version, suck it Catcrins!"
+	icon_state = "poly_cargo"
+	item_state = "poly_cargo"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	var/list/poly_colors = list("#FFFFFF", "#dbdbdb", "#dbdbdb", "#dbdbdb", "#dbdbdb", "#dbdbdb", "#dbdbdb", "#dbdbdb", "#dbdbdb")
+
+/obj/item/clothing/under/poly_cargo/ComponentInitialize()
+	. = ..()
+	AddElement(/datum/element/polychromic, list("#FFFFFF", "#dbdbdb", "#dbdbdb", "#dbdbdb", "#FFFFFF", "#dbdbdb", "#dbdbdb", "#dbdbdb", "#dbdbdb"), 9)
+
+/obj/item/clothing/under/rank/security/officer/sec_spo
+	name = "SPO uniform"
+	desc= "Standard SPO uniform. It features thermal padding and good ventilation."
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_right.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	icon_state = "sec__uniform"
+	item_state = "sec__uniform"
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	can_adjust = FALSE
+
+/obj/item/clothing/under/rank/security/officer/officer_jumpsuit
+	name = "Officer’s uniform"
+	desc= "Standard officer corps uniform. Show off your authority!"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_right.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	icon_state = "officer_jumpsuit"
+	item_state = "officer_jumpsuit"
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	can_adjust = FALSE
+
+/obj/item/clothing/under/tshirt_w_br
+	name = "Jeans and T‑shirt"
+	desc= "A comfortable set consisting of a synthetic T‑shirt and cotton jeans! Issued only to the best employees!"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_right.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	icon_state = "tshirt_w_br"
+	item_state = "tshirt_w_br"
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	can_adjust = FALSE
+
+/obj/item/clothing/under/tshirt_gray_blu
+	name = "Jeans and gray T‑shirt"
+	desc= "A comfortable set consisting of a synthetic T‑shirt and cotton jeans! Issued only to the best employees!"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_right.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	icon_state = "tshirt_gray_blu"
+	item_state = "tshirt_gray_blu"
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	can_adjust = FALSE
+
+/obj/item/clothing/under/donator/bm/sheya
+	name = "Gothic dress"
+	desc = "Готическое платье, почти не закрывающее спину"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_right.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	icon_state = "sheya_dress"
+	item_state = "sheya_dress"
+	can_adjust = FALSE
+
+/obj/item/clothing/under/donator/bm/blood_suit
+	name = "crimson aristocracy suit"
+	desc = "A sophisticated suit, dyed in deep red tones. The jacket is complemented by gold thread and a loose white shirt."
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/clothing_right.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	anthro_mob_worn_overlay = 'modular_bluemoon/fluffs/icons/mob/clothing/under_digi.dmi'
+	mutantrace_variation = STYLE_DIGITIGRADE
+	icon_state = "blood_suit"
+	item_state = "blood_suit"
+	can_adjust = FALSE
+
+/obj/item/clothing/under/donator/bm/concord
+	name = "Modified Concord Uniform"
+	desc = "Упрощённый вариант формы за авторством ЧВК \"Конкорд\", представляет из себя лёгкую дышащую синт-ткань, в несколько слоёв переплетённую с терморегуляционными трубками и мягкими подкладками. В боевой версии в ней в том числе присутствуют защитные элементы, но эта - лишь лёгкая униформа, что бы попа не потела."
+	mutantrace_variation = STYLE_DIGITIGRADE
+	icon_state = "concord"
+	item_state = "concord"
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	anthro_mob_worn_overlay = 'modular_bluemoon/fluffs/icons/mob/clothing/under_digi.dmi'
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	can_adjust = TRUE
+
+/obj/item/clothing/under/donator/bm/oldtunic
+	name = "Old Tunic"
+	desc = "Apparently, this is a fairly old tunic, made of quality materials but worn over time. It's unclear why it hasn't been thrown out yet."
+	icon_state = "oldtunic"
+	item_state = "oldtunic"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	fitted = NO_FEMALE_UNIFORM
+	body_parts_covered = CHEST|ARMS|GROIN
+
+/obj/item/clothing/under/donator/bm/h_pmc_jeans
+	name = "PMC jeans"
+	desc = "Некогда обычные джинсы адаптированные под нужды оперативника неизвестных наемнических структур."
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/under.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/under.dmi'
+	icon_state = "h_pmc_jeans"
+	item_state = "h_pmc_jeans"
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	fitted = NO_FEMALE_UNIFORM
+	can_adjust = FALSE
+
+/obj/item/clothing/underwear/shirt/h_thin_tshirt
+	name = "Thin T-shirt"
+	desc = "Обычная темная майка."
+	icon_state = "h_thin_tshirt"
+	item_state = "h_thin_tshirt"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/underwear.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear.dmi'
+
+/obj/item/clothing/underwear/briefs/h_thin_slim_tshirt
+	name = "Slim T-shirt"
+	desc = "Когда-то это было обычной майкой... Кто такое носить вообще будет?"
+	icon_state = "h_slim_tshirt"
+	item_state = "h_slim_tshirt"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/underwear.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear.dmi'
+
+/obj/item/clothing/underwear/briefs/h_thin_eslim_tshirt
+	name = "EXTRA Slim T-shirt"
+	desc = "Ты совсем ебанутый?"
+	icon_state = "h_eslim_tshirt"
+	item_state = "h_eslim_tshirt"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/underwear.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear.dmi'
+
+/obj/item/clothing/under/donator/bm/renory_jumpsuit
+	name = "Leather Jumpsuit"
+	desc = "Облегающий угольно-черный комбинезон."
+	icon_state = "renory_jumpsuit"
+	item_state = "syndicate-black"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/underwear.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/underwear.dmi'
+	mutantrace_variation = STYLE_DIGITIGRADE | STYLE_NO_ANTHRO_ICON
+	can_adjust = FALSE

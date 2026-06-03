@@ -1,3 +1,15 @@
+/// Иконка для TGUI без [/proc/getFlatIcon] — у гениталий бывают глубокие цепочки оверлеев; рекурсия в getFlatIcon даёт переполнение стека в libbyond (краш BYOND 516 на Linux).
+/proc/safe_genital_tgui_icon(obj/item/organ/genital/G)
+	if(!istype(G) || !G.icon)
+		return null
+	var/st = G.icon_state
+	var/list/states = icon_states(G.icon)
+	if(!length(states))
+		return null
+	if(!(st in states))
+		st = ("" in states) ? "" : states[1]
+	return icon(G.icon, st, SOUTH)
+
 /// Attempts to open the tgui menu
 /mob/living/carbon/verb/genital_menu()
 	set name = "Genitals Menu"
@@ -49,7 +61,8 @@
 			continue
 
 		var/list/genital_entry = list()
-		genital_entry["img"] = icon2base64(getFlatIcon(genital, no_anim=TRUE))
+		var/icon/preview_icon = safe_genital_tgui_icon(genital)
+		genital_entry["img"] = preview_icon ? icon2base64(preview_icon) : ""
 		genital_entry["name"] = "[capitalize(genital.name)]" //Prevents code from adding a prefix
 		genital_entry["key"] = REF(genital) //The key is the reference to the object
 
@@ -83,6 +96,9 @@
 				var/obj/item/organ/genital/penis/peepee = genital
 				genital_entry["max_size"] = peepee.max_length ? peepee.max_length : 0
 				genital_entry["min_size"] = peepee.min_length ? peepee.min_length : 0
+			else if(istype(genital, /obj/item/organ/genital/testicles))
+				genital_entry["max_size"] = BALLS_SIZE_MAX
+				genital_entry["min_size"] = BALLS_SIZE_MIN
 			else
 				genital_entry["max_size"] = genital.max_size ? genital.max_size : 0
 				genital_entry["min_size"] = genital.min_size ? genital.min_size : 0
@@ -169,6 +185,18 @@
 						peepee.max_length = new_max_size
 					else
 						peepee.max_length = 0
+				else if(istype(genital, /obj/item/organ/genital/testicles))
+					var/obj/item/organ/genital/testicles/balls = genital
+					if(params["max_size"])
+						var/new_size = clamp(params["max_size"], BALLS_SIZE_MIN, BALLS_SIZE_MAX)
+						balls.size = new_size
+						if(self.dna && self.dna.features)
+							self.dna.features["balls_size"] = new_size
+						balls.update_size()
+						balls.update_appearance()
+						if(ishuman(self))
+							var/mob/living/carbon/human/human = self
+							human.update_genitals()
 				else
 					if(params["max_size"])
 						var/new_max_size = clamp(params["max_size"], genital.size, INFINITY)
@@ -183,6 +211,10 @@
 					var/obj/item/organ/genital/penis/peepee = genital
 					var/new_min_size = clamp(params["min_size"], 0, peepee.length)
 					peepee.min_length = new_min_size
+				else if(istype(genital, /obj/item/organ/genital/testicles))
+					// For testicles, min_size is actually used to set the size
+					// This is handled in max_size, so we skip it here
+					return TRUE
 				else
 					var/new_min_size = clamp(params["min_size"], 0, genital.size)
 					genital.min_size = new_min_size
