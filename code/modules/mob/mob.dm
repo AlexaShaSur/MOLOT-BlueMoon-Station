@@ -56,6 +56,7 @@
 		hud_list = null
 	QDEL_LIST(client_colours)
 	clear_typing_indicator()
+	QDEL_NULL(mob_panel)
 	ghostize()
 	if(mind?.current == src) //Let's just be safe yeah? This will occasionally be cleared, but not always. Can't do it with ghostize without changing behavior
 		mind.set_current(null)
@@ -281,7 +282,8 @@
 
 	if(istype(W))
 		if(equip_to_slot_if_possible(W, slot, FALSE, FALSE, FALSE, FALSE, TRUE))
-			W.apply_outline()
+			if(usr?.client?.prefs?.outline_enabled)
+				W.apply_outline()
 			return TRUE
 
 	if(!W)
@@ -985,6 +987,12 @@ GLOBAL_VAR_INIT(exploit_warn_spam_prevention, 0)
 		var/atom/movable/screen/plane_master/lighting/L = hud_used.plane_masters["[LIGHTING_PLANE]"]
 		if(L)
 			L.alpha = lighting_alpha
+			L.apply_light_cutoff(lighting_cutoff, lighting_color_cutoffs)
+		// Плоскость оверлейного света обязана гаснуть синхронно с тьмой: при прозрачной
+		// lighting plane (мезоны/НВ) цветной множитель света без тьмы под ним - визуальный мусор
+		var/atom/movable/screen/plane_master/o_light_visual/O = hud_used.plane_masters["[O_LIGHTING_VISUAL_PLANE]"]
+		if(O)
+			O.alpha = lighting_alpha
 
 /mob/proc/update_mouse_pointer()
 	if (!client)
@@ -1018,7 +1026,10 @@ GLOBAL_VAR_INIT(exploit_warn_spam_prevention, 0)
  * this does NOT check if the mob is missing it's eyeballs. Also see_in_dark is a BYOND mob var (that defaults to 2)
 **/
 /mob/proc/has_nightvision()
-	return HAS_TRAIT(src, TRAIT_NIGHT_VISION)
+	var/light_offset = lighting_cutoff
+	if(length(lighting_color_cutoffs) == 3)
+		light_offset += (lighting_color_cutoffs[1] + lighting_color_cutoffs[2] + lighting_color_cutoffs[3]) / 3
+	return light_offset >= LIGHTING_NIGHTVISION_THRESHOLD
 
 /// Is this mob affected by nearsight
 /mob/proc/is_nearsighted()

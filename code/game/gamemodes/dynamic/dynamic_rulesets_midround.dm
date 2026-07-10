@@ -270,7 +270,7 @@
 	restricted_roles = list("AI", "Cyborg", "Prisoner", "NanoTrasen Representative", "Internal Affairs Agent", "Blueshield", "Peacekeeper", "Brig Physician", "Security Officer", "Warden", "Detective", "Head of Security","Bridge Officer", "Captain", "Head of Personnel", "Quartermaster", "Chief Engineer", "Chief Medical Officer", "Research Director")  //BLUEMOON CHANGES
 	required_candidates = 9
 	required_round_type = list(ROUNDTYPE_DYNAMIC_LIGHT) // BLUEMOON ADD
-	weight = 16 //BLUEMOON CHANGES
+	weight = 24 //BLUEMOON CHANGES
 	cost = 10 //BLUEMOON CHANGES - низкая цена, т.к. надо в соло поднять семью
 	requirements = list(101,101,101,50,30,20,10,10,10,10)
 	flags = HIGH_IMPACT_RULESET
@@ -1201,7 +1201,7 @@
 	repeatable = TRUE
 
 /datum/dynamic_ruleset/midround/pirates/acceptable(population=0, threat=0)
-	if (!SSmapping.empty_space)
+	if(!SSmapping.empty_space && !length(SSmapping.levels_by_trait(ZTRAIT_SPACE_RUINS)) && !SSmapping.station_start)
 		return FALSE
 	return ..()
 
@@ -1230,15 +1230,15 @@
 	repeatable = FALSE
 
 /datum/dynamic_ruleset/midround/raiders/acceptable(population=0, threat=0)
-	if (!SSmapping.empty_space)
+	if(!SSmapping.empty_space && !length(SSmapping.levels_by_trait(ZTRAIT_SPACE_RUINS)) && !SSmapping.station_start)
 		return FALSE
 	return ..()
 
 /datum/dynamic_ruleset/midround/raiders/execute()
 	var/datum/round_event_control/event = locate(/datum/round_event_control/raiders) in SSevents.control
-	if(event)
+	if(event && event.occurrences < event.max_occurrences)
 		SSevents.TriggerEvent(event)
-	return ..()
+	return TRUE
 
 // BLUEMOON ADD START
 

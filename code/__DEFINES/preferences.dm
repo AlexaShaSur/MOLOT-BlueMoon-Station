@@ -22,6 +22,7 @@
 #define TG_PLAYER_PANEL			(1<<19) // SPLURT - Opt for the TG splashscreen player panel
 #define SOUND_JUKEBOXES			(1<<20)
 #define RANGED_VERBS_CONSENT	(1<<21) // BLUEMOON ADD интеракты с расстояния
+#define SOUND_PERSONAL_JUKEBOXES	(1<<22)
 
 #define DEADMIN_ONSPAWN				(1<<0)
 #define DEADMIN_ANTAGONIST			(1<<1)
@@ -30,7 +31,7 @@
 #define DEADMIN_POSITION_SILICON	(1<<4)
 #define DEADMIN_ONLOGIN				(1<<5)
 
-#define TOGGLES_DEFAULT (SOUND_ADMINHELP|SOUND_MIDI|SOUND_AMBIENCE|SOUND_LOBBY|MEMBER_PUBLIC|INTENT_STYLE|MIDROUND_ANTAG|SOUND_INSTRUMENTS|SOUND_JUKEBOXES|SOUND_SHIP_AMBIENCE|SOUND_PRAYERS|SOUND_ANNOUNCEMENTS|SOUND_BARK|TG_PLAYER_PANEL)
+#define TOGGLES_DEFAULT (SOUND_ADMINHELP|SOUND_MIDI|SOUND_AMBIENCE|SOUND_LOBBY|MEMBER_PUBLIC|INTENT_STYLE|MIDROUND_ANTAG|SOUND_INSTRUMENTS|SOUND_JUKEBOXES|SOUND_PERSONAL_JUKEBOXES|SOUND_SHIP_AMBIENCE|SOUND_PRAYERS|SOUND_ANNOUNCEMENTS|SOUND_BARK|TG_PLAYER_PANEL)
 
 //Chat toggles
 #define CHAT_OOC			(1<<0)
@@ -105,13 +106,12 @@
 #define JP_MEDIUM 2
 #define JP_HIGH 3
 
-// 'Be Victim' consent options for preferences panel / antag target HUD
-#define BEVICTIM_NO "No"
-#define BEVICTIM_ASK "Ask"
-#define BEVICTIM_YES "Yes"
-
 // Values for /datum/preference/savefile_identifier
 /// This preference is character specific.
 #define PREFERENCE_CHARACTER "character"
 /// This preference is account specific.
 #define PREFERENCE_PLAYER "player"
+
+// Кол-во хедшотов, не ставить меньше 1
+#define MAX_HEADSHOTS 6
+#define MAX_HEADSHOTS_NAKED MAX_HEADSHOTS

@@ -391,7 +391,10 @@
 	..()
 	if(isliving(target))
 		if(istype(target, /mob/living/simple_animal))
-			var/mob/living/simple_animal/hostile/asteroid/hivelordbrood/explosivelegion/L = new(get_step(target, target.dir))
+			var/turf/spawn_turf = get_turf(target) || target_turf
+			if(!spawn_turf)
+				return
+			var/mob/living/simple_animal/hostile/asteroid/hivelordbrood/explosivelegion/L = new(spawn_turf)
 			L.GiveTarget(target)
 
 //blood drunk miner
@@ -509,7 +512,14 @@
 	log_override = FALSE
 
 /obj/item/projectile/kinetic/etenmm/prehit_pierce(atom/target)
-	return ..()
+	. = call(/obj/item/projectile/proc/prehit_pierce)(src, target)
+	if(. == PROJECTILE_PIERCE_PHASE)
+		return
+	if(kinetic_gun)
+		var/list/mods = kinetic_gun.modkits
+		for(var/obj/item/borg/upgrade/modkit/modkit in mods)
+			modkit.projectile_prehit(src, target, kinetic_gun)
+	// Ballistic round — skip /obj/item/projectile/kinetic pressure scaling.
 
 /obj/item/projectile/kinetic/etenmm/on_range()
 	qdel(src)

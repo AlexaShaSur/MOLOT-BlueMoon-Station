@@ -48,6 +48,7 @@
 /mob/living/carbon/human/Destroy()
 	QDEL_NULL(profile)
 	QDEL_NULL(physiology)
+	QDEL_NULL(mob_panel)
 	QDEL_NULL_LIST(vore_organs) // CITADEL EDIT belly stuff
 	GLOB.human_list -= src
 	GLOB.suit_sensors_list -= src
@@ -609,6 +610,9 @@
 		say(pick(";РАААААААААРГ!", ";ХНННННННГГГГГГГ!", ";ГВААААРРХХ!", "ННННННГГГГГГХ!", ";ААААААРРГГ!" ), forced = "hulk")
 		if(..(I, cuff_break = FAST_CUFFBREAK))
 			dropItemToGround(I)
+	else if(iszombie_infectious(src))
+		if(..(I, cuff_break = FAST_CUFFBREAK))
+			dropItemToGround(I)
 	else
 		if(..())
 			dropItemToGround(I)
@@ -693,7 +697,7 @@
 		if(!silent)
 			to_chat(src, "<span class='warning'>You can't do that right now!</span>")
 		return FALSE
-	if(!Adjacent(M) && (M.loc != src))
+	if(!Adjacent(M) && (M.loc != src) && !(M in src.GetAllContents()))
 		if((be_close == 0) || (!no_tk && (dna.check_mutation(TK) && tkMaxRangeCheck(src, M))))
 			return TRUE
 		if(!silent)
