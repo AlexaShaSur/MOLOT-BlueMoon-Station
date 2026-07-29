@@ -127,7 +127,10 @@ GLOBAL_LIST_EMPTY(family_heirlooms)
 		return
 
 	// When held: Positive mood
-	if(heirloom && (heirloom in quirk_holder.GetAllContents()))
+	// contains_atom() вместо `in GetAllContents()`: реликвию искали, собирая всё
+	// содержимое игрока рекурсивно, каждый тик SSquirks на каждого носителя квирка
+	// (в проде ~8k полных обходов инвентаря за 2.6 минуты).
+	if(heirloom && quirk_holder.contains_atom(heirloom))
 		SEND_SIGNAL(quirk_holder, COMSIG_CLEAR_MOOD_EVENT, "family_heirloom_missing")
 		SEND_SIGNAL(quirk_holder, COMSIG_ADD_MOOD_EVENT, "family_heirloom", /datum/mood_event/family_heirloom)
 
@@ -139,6 +142,7 @@ GLOBAL_LIST_EMPTY(family_heirlooms)
 /datum/quirk/family_heirloom/proc/on_heirloom_deleted()
 	SIGNAL_HANDLER
 	GLOB.family_heirlooms -= heirloom
+	heirloom = null // квирк живёт дальше и не должен держать удалённую реликвию
 
 /datum/quirk/family_heirloom/remove()
 	SEND_SIGNAL(quirk_holder, COMSIG_CLEAR_MOOD_EVENT, "family_heirloom")
@@ -387,8 +391,24 @@ GLOBAL_LIST_EMPTY(family_heirlooms)
 
 /datum/quirk/phobia/post_add()
 	var/mob/living/carbon/human/H = quirk_holder
-	phobia = new
+	var/selected_phobia
+
+	// BLUEMOON EDIT START - получение выбранной фобии из настроек персонажа
+	if(quirk_holder.client?.prefs)
+		selected_phobia = quirk_holder.client.prefs.phobia_type
+
+	// Если фобия не выбрана или невалидна — берём случайную из доступных в подсистеме
+	if(!selected_phobia || !(selected_phobia in SStraumas.phobia_types))
+		selected_phobia = pick(SStraumas.phobia_types)
+	// BLUEMOON EDIT END
+
+	// Создаем травму с выбранным типом фобии
+	phobia = new /datum/brain_trauma/mild/phobia(selected_phobia)
 	H.gain_trauma(phobia, TRAUMA_RESILIENCE_ABSOLUTE)
+
+	// BLUEMOON EDIT START - обновление мед. записи с указанием конкретной фобии
+	medical_record_text = "Пациент имеет иррациональный страх перед [selected_phobia]."
+	// BLUEMOON EDIT END
 
 /datum/quirk/phobia/remove()
 	var/mob/living/carbon/human/H = quirk_holder

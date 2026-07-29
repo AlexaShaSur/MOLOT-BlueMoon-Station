@@ -2,6 +2,7 @@
 
 /obj/machinery/computer/crew
 	name = "crew monitoring console"
+	idle_sleeps = FALSE // own periodic work in process(); must not doze off via the parent typing-indicator path
 	desc = "Used to monitor active health sensors built into most of the crew's uniforms."
 	icon_screen = "crew"
 	icon_keyboard = "med_key"
@@ -134,6 +135,12 @@ GLOBAL_DATUM_INIT(crewmonitor_command, /datum/crewmonitor/command, new)
 
 /datum/crewmonitor/ui_host(mob/user)
 	return ui_sources[user]
+
+/datum/crewmonitor/ui_close(mob/user)
+	//запись живёт с show() до закрытия UI; без чистки глобальный синглтон
+	//вечно держит и юзера, и источник (ИИ открывает консоль сам на себя)
+	ui_sources -= user
+	return ..()
 
 /datum/crewmonitor/ui_data(mob/user)
 	var/z = user.z

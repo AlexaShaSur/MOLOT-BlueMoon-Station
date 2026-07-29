@@ -159,7 +159,7 @@
 	name = "Tactical Gasmask"
 	slot = ITEM_SLOT_MASK
 	path = /obj/item/clothing/mask/gas/syndicate/cool_version
-	ckeywhitelist = list("oni3288", "smileycom")
+	ckeywhitelist = list("oni3288", "smileycom", "shizalrp", "lindaastereih")
 
 /datum/gear/donator/bm/blackcool_mask
 	name = "CFIS Gasmask"
@@ -658,7 +658,7 @@
 	name = "Alta's dogtag"
 	slot = ITEM_SLOT_NECK
 	path = /obj/item/clothing/accessory/dogtag
-	ckeywhitelist = list("oni3288", "ghos7ik", "discord980", "mihana964", "romontesque", "enigma418", "smol42", "notlikeluls",  "kladmenuwu", "alexsandoor", "scramblescream", "nai1ten", "devildeadspace", "zetneskov", "hazzi", "definitelynotnesuby", "silverfoxpaws", "pr1zrak", "earthphobia", "wafflemeow", "trora", "kosep", "urfdrf", "mikolaostavkin", "xaeshkavd", "deltarayx", "korinfellori", "troubleneko17th", "dimofon", "lichfail", "gisya", "dimakr", "cupteazee", "nopeingeneer", "silyamg", "lomodno", "valsons", "nyctealust", "abrikos", "spoopyman228", "stasdvrz", "shizalrp", "tblkba", "dragon9090", "avtobuspng", "ninjapikachushka", "ailhate", "kingdeaths", "mentaleater", "lindaastereih", "gevaitrouble", "ivanokio", "blatoff", "regiska")
+	ckeywhitelist = list("oni3288", "ghos7ik", "discord980", "mihana964", "romontesque", "enigma418", "smol42", "notlikeluls",  "kladmenuwu", "alexsandoor", "scramblescream", "nai1ten", "devildeadspace", "zetneskov", "hazzi", "definitelynotnesuby", "silverfoxpaws", "pr1zrak", "earthphobia", "wafflemeow", "trora", "kosep", "urfdrf", "mikolaostavkin", "xaeshkavd", "deltarayx", "korinfellori", "troubleneko17th", "dimofon", "lichfail", "gisya", "dimakr", "cupteazee", "nopeingeneer", "silyamg", "lomodno", "valsons", "nyctealust", "abrikos", "spoopyman228", "stasdvrz", "shizalrp", "tblkba", "dragon9090", "avtobuspng", "ninjapikachushka", "ailhate", "kingdeaths", "mentaleater", "lindaastereih", "gevaitrouble", "ivanokio", "blatoff", "regiska", "lander231")
 
 /datum/gear/donator/bm/hateredsoul_dogtag
 	name = "Combat Dogtag"
@@ -2389,10 +2389,10 @@
 	path = /obj/item/lipstick/heartboom
 	ckeywhitelist = list("liesbee")
 
-/datum/gear/donator/bm/cz_75_kit
-	name = "CZ-75 kit"
+/datum/gear/donator/bm/personal_ward
+	name = "Personal Ward Box"
 	slot = ITEM_SLOT_BACKPACK
-	path = /obj/item/modkit/cz_75
+	path = /obj/item/storage/box/donator/bm/personal_ward
 	ckeywhitelist = list("shizalrp", "krasler101", "kingdeaths", "vlonger")
 
 /datum/gear/donator/bm/kila_mask
@@ -2491,3 +2491,27 @@
 	slot = ITEM_SLOT_NECK
 	path = /obj/item/clothing/neck/cloak/oversize
 	ckeywhitelist = list("moun4l")
+
+/datum/gear/donator/bm/slim_body_and_shorts
+	name = "Comfortable short bodysuit with athletic shorts"
+	slot = ITEM_SLOT_ICLOTHING
+	path = /obj/item/clothing/under/donator/bm/h_slim_body_and_shorts
+	ckeywhitelist = list("hateredsoul")
+
+/datum/gear/donator/bm/torn_veil
+	name = "Shimmering torn veil"
+	slot = ITEM_SLOT_OCLOTHING
+	path = /obj/item/clothing/suit/donator/bm/torn_veil
+	ckeywhitelist = list("hateredsoul")
+
+/datum/gear/donator/bm/stupid_cap
+	name = "Propeller beanie"
+	slot = ITEM_SLOT_HEAD
+	path = /obj/item/clothing/head/donator/bm/stupid_cap
+	ckeywhitelist = list("angelnedemon")
+
+/datum/gear/donator/bm/infovisor
+	name = "Infovisor"
+	slot = ITEM_SLOT_EYES
+	path = /obj/item/clothing/glasses/cover/infovisor
+	ckeywhitelist = list("lindaastereih")

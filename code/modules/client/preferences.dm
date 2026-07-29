@@ -89,20 +89,22 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 	var/tgui_panel_state = ""
 	var/list/ui_zoom_preferences = list()
 	var/windowflashing = TRUE
+	var/adminhelp_windowflash = TRUE
 	var/windownoise = TRUE
 	var/mood_vignette = TRUE
 	var/toggles = TOGGLES_DEFAULT
 	/// A separate variable for deadmin toggles, only deals with those.
 	var/deadmin = NONE
+	var/mentor_toggles = SOUND_MENTORHELP
 	var/db_flags
 	var/chat_toggles = TOGGLES_DEFAULT_CHAT
 	/// Bitfield for chat mutes (MUTE_* flags).
 	var/muted = NONE
+	var/ticket_nickname = ""
 	var/ghost_form = "ghost"
 	var/ghost_orbit = GHOST_ORBIT_CIRCLE
 	var/ghost_accs = GHOST_ACCS_DEFAULT_OPTION
 	var/ghost_others = GHOST_OTHERS_DEFAULT_OPTION
-	var/ghost_hud = 1
 	var/inquisitive_ghost = 1
 	var/allow_midround_antag = 1
 	var/preferred_map = null
@@ -141,6 +143,10 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 	var/tmp/datum/loadout_color_handler/loadout_color_handler
 	// BLUEMOON ADD END
 
+	// BLUEMOON ADD START || Phobia selection
+	var/phobia_type = null
+	// BLUEMOON ADD END
+
 	//character preferences
 	var/real_name							//our character's name
 	var/nameless = FALSE					//whether or not our character is nameless
@@ -158,7 +164,6 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 	var/extremeharm = "No" 					//If "extreme content" is enabled, this option serves as a toggle for the related interactions to cause damage or not
 	var/see_chat_emotes = TRUE
 	var/view_pixelshift = FALSE
-	var/eorg_enabled = TRUE
 	var/enable_personal_chat_color = FALSE
 	var/personal_chat_color = "#ffffff"
 	var/lust_tolerance = 100
@@ -356,6 +361,10 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 	var/sound_volume_adminhelp = 100
 	var/sound_volume_instruments = 100
 	var/sound_volume_jukeboxes = 100
+	var/sound_volume_personal_jukeboxes = 100
+	var/sound_volume_emote = 100
+	var/sound_volume_mentorhelp = 100
+	var/sound_volume_fax = 100
 
 	var/parallax = PARALLAX_INSANE
 
@@ -1619,7 +1628,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 						dat += "<b>[body_size_label]:</b> <a href='?_src_=prefs;preference=body_size;task=input'>[features["body_size"]*100]%</a><br>"
 						dat += "<b>[normalized_size_label]:</b> <a href='?_src_=prefs;preference=normalized_size;task=input'>[features["normalized_size"]*100]%</a><br>"
 						dat += "<b>[scaled_appearance_label]:</b> <a href='?_src_=prefs;preference=toggle_fuzzy;task=input'>[fuzzy ? fuzzy_label : sharp_label]</a><br>"
-						dat += "<b>[weight_label]:</b> <a href='?_src_=prefs;preference=body_weight;task=input'>[all_quirks.Find("Пожиратель") ? NAME_WEIGHT_NORMAL : body_weight]</a><br>" //BLUEMOON ADD вес персонажей
+						dat += "<b>[weight_label]:</b> <a href='?_src_=prefs;preference=body_weight;task=input'>[all_quirks.Find(/datum/quirk/bluemoon_devourer::name) ? NAME_WEIGHT_NORMAL : body_weight]</a><br>" //BLUEMOON ADD вес персонажей
 
 					if(!(NOEYES in pref_species.species_traits))
 						dat += "<h3>[eye_type_label]</h3>"
@@ -2047,7 +2056,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 							dat += "<b>[belly_stuffing_label]:</b><a style='display:block;width:50px' href='?_src_=prefs;preference=belly_stuffing'>[features["belly_stuffing"] == TRUE ? "Yes" : "No"]</a>"
 							dat += "<b>[belly_accessible_label]:</b><a style='display:block;width:100px' href='?_src_=prefs;preference=belly_accessible'>[features["belly_accessible"] ? "Yes" : "No"]</a>"
 						dat += "</td>"
-						if(all_quirks.Find("Дуллахан"))
+						if(all_quirks.Find(/datum/quirk/dullahan::name))
 							dat += APPEARANCE_CATEGORY_COLUMN
 							dat += "<h3>Neckfire</h3>"
 							dat += "<a style='display:block;width:50px' href='?_src_=prefs;preference=has_neckfire;task=input'>[features["neckfire"] ? "Yes" : "No"]</a>"
@@ -2341,8 +2350,9 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 									var/class_link = ""
 									var/list/loadout_item = has_loadout_gear(loadout_slot, "[gear.type]")
 									var/extra_loadout_data = ""
-									if(gear.base64icon)
-										extra_loadout_data += "<center><img src='data:image/png;base64,[gear.base64icon]'></center>"
+									var/gear_preview = gear.get_base64icon()
+									if(gear_preview)
+										extra_loadout_data += "<center><img src='data:image/png;base64,[gear_preview]'></center>"
 									if(loadout_item)
 										var/loadout_color_display = "#FFFFFF"
 										var/loadout_color_label = "#FFFFFF"
@@ -2518,18 +2528,24 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 			modless_key_bindings -= old_key
 		else if(key_bindings[old_key])
 			key_bindings[old_key] -= kb_name
-			LAZYADD(key_bindings["Unbound"], kb_name)
+			var/has_buttons = FALSE
+			for(var/key in key_bindings)
+				var/list/temp = key_bindings[key]
+				if(temp.Find(kb_name))
+					has_buttons = TRUE
+					break
+			if(!has_buttons)
+				LAZYADD(key_bindings["Unbound"], kb_name)
 			if(!length(key_bindings[old_key]))
 				key_bindings -= old_key
 		if(special && user?.client)
 			user.client.ensure_keys_set(src)
 		return TRUE
 
-	var/new_key = uppertext(input["key"])
+	var/new_key = input["key"]
 	var/AltMod = text2num(input["alt"]) ? "Alt" : ""
 	var/CtrlMod = text2num(input["ctrl"]) ? "Ctrl" : ""
 	var/ShiftMod = text2num(input["shift"]) ? "Shift" : ""
-	var/numpad = text2num(input["numpad"]) ? "Numpad" : ""
 
 	if(GLOB._kbMap[new_key])
 		new_key = GLOB._kbMap[new_key]
@@ -2543,7 +2559,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 		if("Shift")
 			full_key = "[AltMod][CtrlMod][new_key]"
 		else
-			full_key = "[AltMod][CtrlMod][ShiftMod][numpad][new_key]"
+			full_key = "[AltMod][CtrlMod][ShiftMod][new_key]"
 
 	if(independent)
 		modless_key_bindings -= old_key
@@ -2553,7 +2569,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 			key_bindings[old_key] -= kb_name
 			if(!length(key_bindings[old_key]))
 				key_bindings -= old_key
-		key_bindings[full_key] += list(kb_name)
+		LAZYOR(key_bindings[full_key], list(kb_name))
 		key_bindings[full_key] = sort_list(key_bindings[full_key])
 
 	if(special && user?.client)
@@ -2797,8 +2813,10 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 		dat += "<center><b>Choose quirk setup</b></center><br>"
 		// BLUEMOON ADD START - настройки для отдельных квирков
 		dat += "Настройки для отдельных квирков. Если нужный квирк не будет выставлен, то они работать не будут.<br>"
-		dat += "<a href='?_src_=prefs;preference=traits_setup;task=change_shriek_option'>([BLUEMOON_TRAIT_NAME_SHRIEK]) Тип Крика: [shriek_type]</a>"
+		dat += "<a href='?_src_=prefs;preference=traits_setup;task=change_shriek_option'>([/datum/quirk/shriek::name]) Тип Крика: [shriek_type]</a>"
 		dat += "<a href='?_src_=prefs;preference=traits_setup;task=lewd_summon_nickname'>([TRAIT_LEWD_SUMMON]) Прозвище для призываемого[summon_nickname ? ": ": ""][summon_nickname]</a>"
+		var/phobia_text = phobia_type ? phobia_type : "Случайная"
+		dat += "<a href='?_src_=prefs;preference=traits_setup;task=change_phobia_option'>([BLUEMOON_TRAIT_NAME_PHOBIA]) Тип фобии: [phobia_text]</a><br>"
 		dat += "<hr>"
 		// BLUEMOON ADD END
 		dat += "<div align='center'>Left-click to add or remove quirks. You need negative quirks to have positive ones.<br>\
@@ -2875,6 +2893,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 	dat += "<div class='csetup-quirk-settings'>"
 	dat += "<a class='csetup-quirk-setting' href='?_src_=prefs;preference=traits_setup;task=change_shriek_option'>Тип крика: <b>[shriek_type]</b></a>"
 	dat += "<a class='csetup-quirk-setting' href='?_src_=prefs;preference=traits_setup;task=lewd_summon_nickname'>Прозвище: <b>[display_summon_nickname]</b></a>"
+	dat += "<a class='csetup-quirk-setting' href='?_src_=prefs;preference=traits_setup;task=change_phobia_option'>([BLUEMOON_TRAIT_NAME_PHOBIA]) Тип: <b>[phobia_type ? phobia_type : "Случайная"]</b></a>"
 	dat += "</div>"
 
 	dat += "<h3>Текущие квирки</h3>"
@@ -3323,20 +3342,20 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 					ShowChoices(user)
 				else
 					SetQuirks(user)
-	// BLUEMOON ADD START - возможность настраивать квирки
+// BLUEMOON ADD START - возможность настраивать квирки
 	else if(href_list["preference"] == "traits_setup")
 		var/is_inline_quirks = (new_character_creator && findtext(charcreation_theme, "modern") && character_settings_tab == QUIRKS_CHAR_TAB && CONFIG_GET(flag/roundstart_traits))
 		switch(href_list["task"])
-			if("change_shriek_option") // изменение вида крика от квирка крикуна
+			if("change_shriek_option")
 				var/client/C = usr.client
 				if(C)
 					var/new_shriek_type = tgui_input_list(user, "Choose your character's shriek type.", "Character Preference", GLOB.shriek_types)
 					if(new_shriek_type)
 						shriek_type = new_shriek_type
-						if(is_inline_quirks)
-							ShowChoices(user)
-						else
-							SetQuirks(user)
+					if(is_inline_quirks)
+						ShowChoices(user)
+					else
+						SetQuirks(user)
 			if("lewd_summon_nickname")
 				var/client/C = usr.client
 				if(C)
@@ -3351,9 +3370,21 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 								SetQuirks(user)
 						else
 							to_chat(user, "<font color='red'>Invalid name. Your name should be at least 2 and at most [MAX_NAME_LEN] characters long. It may only contain the characters A-Z, a-z, А-Я, а-я, -, ' and .</font>")
-
-	// BLUEMOON ADD END
-		return TRUE
+			if("change_phobia_option")
+				var/list/phobia_choices = list("Случайная")
+				if(SStraumas && SStraumas.phobia_types)
+					phobia_choices += SStraumas.phobia_types
+				var/new_choice = input(user, "Выберите вашу фобию. Если не выберете — будет случайная.", "Настройка фобии") as null|anything in phobia_choices
+				if(new_choice)
+					if(new_choice == "Случайная")
+						phobia_type = null
+					else
+						phobia_type = new_choice
+				if(is_inline_quirks)
+					ShowChoices(user)
+				else
+					SetQuirks(user)
+// BLUEMOON ADD END
 
 	else if(href_list["quirk_category"])
 		var/is_inline_quirks = (new_character_creator && findtext(charcreation_theme, "modern") && character_settings_tab == QUIRKS_CHAR_TAB && CONFIG_GET(flag/roundstart_traits))
@@ -4804,7 +4835,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 
 				//BLUEMOON ADD выбор веса персонажа, замена квирков на вес
 				if("body_weight")
-					if(all_quirks.Find("Пожиратель"))
+					if(all_quirks.Find(/datum/quirk/bluemoon_devourer::name))
 						tgui_alert(user, "Квирк Пожиратель несовместим с любым весом кроме стандартного", "Ugh, you cant", list("Ok", "Understood"))
 					else
 						var/new_body_weight = tgui_input_list(user, "Выберите вес персонажа!", "Character Preference", GLOB.mob_sizes)
@@ -5068,10 +5099,6 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 					disable_combat_cursor = !disable_combat_cursor
 				if("disable_combat_mouse_lock")
 					disable_combat_mouse_lock = !disable_combat_mouse_lock
-				if("tg_playerpanel")
-					toggles ^= TG_PLAYER_PANEL
-					to_chat(user, span_warning("Please relog in order to apply the changes"))
-					save_preferences()
 				//CITADEL PREFERENCES EDIT - I can't figure out how to modularize these, so they have to go here. :c -Pooj
 				if("genital_colour")
 					features["genitals_use_skintone"] = !features["genitals_use_skintone"]
