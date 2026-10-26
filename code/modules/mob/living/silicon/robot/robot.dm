@@ -6,6 +6,7 @@
 	bubble_icon = "robot"
 	var/obj/item/modular_computer/pda/silicon/aiPDA
 	var/flash_protect = FALSE
+	var/datum/armor/borg_plating_armor
 
 /mob/living/silicon/robot/get_cell()
 	return cell
@@ -89,7 +90,7 @@
 	diag_hud_set_borgcell()
 	logevent("System brought online.")
 
-	alert_control = new(src, list(ALARM_ATMOS, ALARM_FIRE, ALARM_POWER, ALARM_CAMERA, ALARM_BURGLAR, ALARM_MOTION), list(z))
+	alert_control = new(src, list(ALARM_ATMOS, ALARM_FIRE, ALARM_POWER, ALARM_CAMERA, ALARM_BURGLAR, ALARM_MOTION), SSmapping.get_connected_levels(z).Copy())
 	RegisterSignal(alert_control.listener, COMSIG_ALARM_TRIGGERED, PROC_REF(alarm_triggered))
 	RegisterSignal(alert_control.listener, COMSIG_ALARM_CLEARED, PROC_REF(alarm_cleared))
 	alert_control.listener.RegisterSignal(src, COMSIG_LIVING_PREDEATH, TYPE_PROC_REF(/datum/alarm_listener, prevent_alarm_changes))
@@ -97,7 +98,21 @@
 
 	add_verb(src, /mob/living/proc/lay_down) //CITADEL EDIT gimmie rest verb kthx
 	add_verb(src, /mob/living/silicon/robot/proc/rest_style)
+	init_unconscious_appearance()
 
+/mob/living/silicon/robot/init_unconscious_appearance()
+	var/image/static_overlay = image('icons/effects/effects.dmi', null, "static_base")
+	static_overlay.blend_mode = BLEND_INSET_OVERLAY
+	var/image/static_image = image('icons/mob/robots.dmi', src, "robot")
+	static_image.appearance_flags |= KEEP_TOGETHER
+	static_image.overlays += static_overlay
+	static_image.override = TRUE
+	static_image.name = "unknown cyborg"
+	var/datum/atom_hud/alternate_appearance/basic/unconscious_obscurity/AA = add_alt_appearance(/datum/atom_hud/alternate_appearance/basic/unconscious_obscurity, "[REF(src)]_unconscious", static_image, NONE)
+	if(AA)
+		for(var/mob/living/viewer in GLOB.mob_living_list)
+			if(viewer.stat == UNCONSCIOUS && viewer != src)
+				AA.add_hud_to(viewer)
 /mob/living/silicon/robot/proc/create_modularInterface()
 	if(!modularInterface)
 		modularInterface = new /obj/item/modular_computer/tablet/integrated(src)
@@ -144,6 +159,11 @@
 		alert_control.ui_interact(src)
 
 	return
+
+/mob/living/silicon/robot/getarmor(def_zone, type)
+	if(borg_plating_armor && type)
+		return borg_plating_armor.getRating(type)
+	return ..()
 
 /mob/living/silicon/robot/proc/pick_module()
 	if(module.type != /obj/item/robot_module)
@@ -629,6 +649,8 @@
 		new /obj/item/bodypart/l_arm/robot(drop_to)
 		new /obj/item/bodypart/r_arm/robot(drop_to)
 		new /obj/item/bodypart/head/robot(drop_to)
+		new /obj/item/assembly/flash/handheld(drop_to)
+		new /obj/item/assembly/flash/handheld(drop_to)
 
 	cell?.forceMove(drop_to) // Cell can be null, if removed beforehand
 	radio?.keyslot?.forceMove(drop_to)
@@ -943,7 +965,8 @@
 
 	if(see_override)
 		see_invisible = see_override
-	if(is_hilbert_hotel_zlevel(z))
+	var/turf/mob_turf = get_turf(src)
+	if(mob_turf && is_hilbert_hotel_zlevel(mob_turf.z))
 		sight = initial(sight)
 	sync_lighting_plane_alpha()
 
@@ -997,15 +1020,20 @@
 	module.transform_to(/obj/item/robot_module)
 
 	// Remove upgrades.
-	for(var/obj/item/borg/upgrade/I in upgrades)
-		I.deactivate(src)
-		I.forceMove(get_turf(src))
+	// forceMove() сам поднимает COMSIG_MOVABLE_MOVED -> remove_from_upgrades(), а тот
+	// уже зовёт deactivate() и вычищает апгрейд из upgrades. Свой вызов deactivate()
+	// здесь давал второй проход по спискам модуля - см. "list index out of bounds"
+	// у xwelding/rped в прод-раунде 10150. Идём по копии: обработчик правит upgrades.
+	for(var/obj/item/borg/upgrade/upgrade as anything in upgrades.Copy())
+		upgrade.forceMove(get_turf(src))
 
 	upgrades.Cut()
 
 	vtec = 0
 	vtec_disabled = FALSE
+	vtec_drain = 0
 	ionpulse = FALSE
+	SEND_SIGNAL(src, COMSIG_ROBOT_RESET_MODULE)
 	revert_shell()
 
 	return TRUE
@@ -1097,7 +1125,10 @@
 ///Called when an upgrade is moved outside the robot. So don't call this directly, use forceMove etc.
 /mob/living/silicon/robot/proc/remove_from_upgrades(obj/item/borg/upgrade/old_upgrade)
 	SIGNAL_HANDLER
-	if(loc == src)
+	// Проверять надо loc переехавшего апгрейда, а не свой: у моба loc это турф,
+	// и условие никогда не выполнялось - апгрейд снимался даже при перемещении
+	// внутри киборга.
+	if(old_upgrade.loc == src)
 		return
 	old_upgrade.deactivate(src)
 	upgrades -= old_upgrade

@@ -1,10 +1,8 @@
-#define UPLOAD_LIMIT_MUSIC 6485760 // 6 MiB — must match PERSONAL_MUSIC_BOX_MAX_FILE_SIZE
-
 // Personal music box uploads .ogg tracks larger than the default 512 KiB client limit.
 /client/AllowUpload(filename, filelength)
 	if(findtext(lowertext(filename), ".ogg", -4))
-		if(filelength > UPLOAD_LIMIT_MUSIC)
-			to_chat(src, "<font color='red'>Error: AllowUpload(): File Upload too large. Upload Limit: [UPLOAD_LIMIT_MUSIC / 1024]KiB.</font>")
+		if(filelength > PERSONAL_MUSIC_BOX_MAX_FILE_SIZE)
+			to_chat(src, "<font color='red'>Error: AllowUpload(): File Upload too large. Upload Limit: [PERSONAL_MUSIC_BOX_MAX_FILE_SIZE / 1024]KiB.</font>")
 			return FALSE
 		return TRUE
 	return ..()
@@ -31,7 +29,7 @@
 		return TRUE
 
 	if(href_list["mentor_unfollow"])
-		var/mob/living/M = locate(href_list["mentor_follow"])
+		var/mob/living/M = locate(href_list["mentor_unfollow"])
 		if(M && mentor_datum.following == M)
 			mentor_unfollow()
 		return TRUE
@@ -39,7 +37,7 @@
 /client/proc/mentor_datum_set(admin) //BLUEMOON EDIT: PLAYER RANKS
 	mentor_datum = GLOB.mentor_datums[ckey]
 	if(!mentor_datum && is_admin(src)) // admin with no mentor datum? let's fix that //BLUEMOON EDIT: PLAYER RANKS
-		new /datum/mentors(ckey)
+		mentor_datum = new /datum/mentors(ckey)
 
 	if(mentor_datum)
 		if(!check_rights_for(src, R_ADMIN,0) && !admin)
@@ -69,5 +67,3 @@
 
 	show_popup_menus = !show_popup_menus
 	to_chat(src, "<span class='notice'>The right-click context menu is now [show_popup_menus ? "enabled" : "disabled"].</span>")
-
-#undef UPLOAD_LIMIT_MUSIC

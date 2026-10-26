@@ -37,6 +37,9 @@
 // Центр для уи
 #define around_player "CENTER-1,CENTER-1"
 
+/// Картинка 15x15 с центром на тайле CENTER. Тайл якоря - сам CENTER, а не CENTER-7: якорь вне вьюпорта раздувает экран, и плиты рендера съезжают.
+#define ui_fullscreen "CENTER:-224,CENTER:-224"
+
 /proc/ui_hand_position(i, pixel_x = 0, pixel_y = 0) //values based on old hand ui positions (CENTER:-/+16,SOUTH:5)
 	var/x_off = -(!(i % 2))
 	var/y_off = round((i-1) / 2)
@@ -81,6 +84,7 @@
 #define ui_building "EAST-5:20,SOUTH:21"//CIT CHANGE - ditto
 #define ui_language_menu "EAST-5:4,SOUTH:21"//CIT CHANGE - ditto
 #define ui_voremode	"EAST-5:20,SOUTH:5"
+#define ui_ammocounter "RIGHT-1:28,CENTER-5:9" //BLUEMOON ADD - счётчик патрон с ФФа
 
 //Upper-middle right (alerts)
 #define ui_alert1 "EAST-1:28,CENTER+5:27"
@@ -102,6 +106,8 @@
 #define ui_internal "EAST-1:28,CENTER+1:21" // RIP, although nobody will remember this, unsmart coders have used this for other stuff. DO NOT REMOVE UNLESS RENAMING OR REPLACING.
 #define ui_mood "EAST-1:28,CENTER:21"
 #define ui_stamina "EAST-1:28,CENTER-3:14"
+#define ui_coolant_display "EAST,CENTER+2:10"
+#define ui_hunger_thirst "EAST-1:28,CENTER+1:24"
 // #define ui_spacesuit "EAST-1:28,CENTER-4:14"
 
 //Pop-up inventory
@@ -133,7 +139,7 @@
 #define ui_drone_head "CENTER-3:14,SOUTH:5"
 
 //Cyborgs
-#define ui_borg_health "EAST-1:28,CENTER-1:15"
+#define ui_borg_health "EAST-1:25,CENTER-1:20"
 #define ui_borg_pull "EAST-2:26,SOUTH+1:7"
 #define ui_borg_radio "EAST-1:28,SOUTH+1:7"
 #define ui_borg_intents "EAST-2:26,SOUTH:5"
@@ -172,6 +178,8 @@
 #define ui_ai_pda_log "BOTTOM:6,RIGHT"
 #define ui_ai_pda_send "BOTTOM+1:6,RIGHT"
 #define ui_ai_language_menu "BOTTOM+1:8,RIGHT-2:30"
+#define ui_ai_floor_indicator "BOTTOM+2:6,RIGHT"
+#define ui_ai_floor_changer "BOTTOM+2:6,RIGHT-1"
 
 #define ui_ai_crew_monitor "BOTTOM:6,CENTER-1"
 #define ui_ai_crew_manifest "BOTTOM:6,CENTER"
@@ -236,6 +244,11 @@
 #define SCRN_OBJ_IN_PALETTE "palette"
 ///Inserted first in the list
 #define SCRN_OBJ_INSERT_FIRST "first"
+/// Сколько позиций кнопок действий переживает savefile: больше не читаем и не пишем
+#define ACTION_BUTTON_SAVED_POSITIONS_MAX 128
+/// Потолок длины ключа и значения одной сохранённой позиции (аргумент copytext, то есть
+/// строка режется до 64 символов)
+#define ACTION_BUTTON_SAVED_POSITION_LEN 65
 
 // Plane group keys, used to group swaths of plane masters that need to appear in subwindows
 /// The primary group, holds everything on the main window

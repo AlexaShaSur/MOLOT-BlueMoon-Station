@@ -355,7 +355,7 @@
 	},
 /area/commons/fitness/pool)
 "aaO" = (
-/turf/open/pool,
+/turf/open/pool/water,
 /area/commons/fitness/pool)
 "aaP" = (
 /turf/open/floor/plasteel/yellowsiding{
@@ -520,7 +520,6 @@
 /turf/open/floor/plasteel,
 /area/commons/fitness/recreation)
 "abj" = (
-/obj/machinery/pool/controller,
 /turf/open/floor/plasteel/yellowsiding,
 /area/commons/fitness/pool)
 "abk" = (
@@ -553,17 +552,14 @@
 	},
 /area/commons/fitness/pool)
 "abn" = (
-/obj/machinery/pool/filter{
-	pixel_y = 24
-	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/commons/fitness/pool)
 "abo" = (
 /obj/structure/pool/ladder{
 	dir = 2;
 	pixel_y = 24
 	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/commons/fitness/pool)
 "abp" = (
 /obj/effect/turf_decal/tile/blue{
@@ -582,12 +578,11 @@
 	},
 /area/commons/fitness/pool)
 "abr" = (
-/obj/machinery/pool/drain,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/commons/fitness/pool)
 "abs" = (
 /obj/structure/pool/Lboard,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/commons/fitness/pool)
 "abt" = (
 /obj/structure/pool/Rboard,
@@ -6079,7 +6074,7 @@
 	roundstart_template = /datum/map_template/shuttle/escape_pod/large;
 	shuttle_id = "monastery_shuttle_station";
 	width = 5;
-	enforce_specific_pod = TRUE
+	enforce_specific_pod = 1
 	},
 /turf/open/space/basic,
 /area/space)
@@ -16948,7 +16943,6 @@
 /obj/structure/cable{
 	icon_state = "1-2"
 	},
-/obj/structure/disposalpipe/segment,
 /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden,
 /turf/open/floor/plating,
 /area/maintenance/department/crew_quarters/bar)
@@ -22575,7 +22569,7 @@
 /turf/open/floor/plasteel,
 /area/cargo/qm)
 "beM" = (
-/obj/machinery/mineral/equipment_vendor,
+/obj/machinery/equipment_vendor,
 /obj/effect/turf_decal/tile/brown{
 	dir = 1
 	},
@@ -63535,9 +63529,6 @@
 	},
 /obj/structure/cable{
 	icon_state = "4-8"
-	},
-/obj/structure/disposalpipe/segment{
-	dir = 4
 	},
 /obj/machinery/atmospherics/pipe/simple/supply/hidden{
 	dir = 4

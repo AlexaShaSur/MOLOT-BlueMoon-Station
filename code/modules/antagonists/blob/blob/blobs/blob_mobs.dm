@@ -52,18 +52,18 @@
 	if(istype(mover, /obj/structure/blob))
 		return TRUE
 
-/mob/living/simple_animal/hostile/blob/Process_Spacemove(movement_dir = 0, continuous_move = FALSE)
+/mob/living/simple_animal/hostile/blob/Process_Spacemove(movement_dir = 0)
 	for(var/obj/structure/blob/B in range(1, src))
 		return TRUE
-	return ..(movement_dir, continuous_move)
+	return ..(movement_dir)
 
 /mob/living/simple_animal/hostile/blob/proc/blob_chat(msg)
 	var/spanned_message = say_quote(msg)
 	var/rendered = "<font color=\"#EE4000\"><b>\[Blob Telepathy\] [real_name]</b> [spanned_message]</font>"
-	for(var/M in GLOB.mob_list)
-		if(isovermind(M) || istype(M, /mob/living/simple_animal/hostile/blob))
+	for(var/mob/M as anything in GLOB.mob_list)
+		if((isovermind(M) || istype(M, /mob/living/simple_animal/hostile/blob)) && M.training_origin == training_origin)
 			to_chat(M, rendered)
-		if(isobserver(M))
+		if(isobserver(M) && antag_training_observer_hears(M, src))
 			var/link = FOLLOW_LINK(M, src)
 			to_chat(M, "[link] [rendered]")
 
@@ -278,7 +278,7 @@
 		I.appearance_flags = RESET_COLOR
 		if(overmind?.blobstrain)
 			I.color = overmind.blobstrain.complementary_color
-		flick_overlay_view(I, src, 8)
+		flick_overlay_view_global(I, src, 8)
 
 /mob/living/simple_animal/hostile/blob/blobbernaut/adjustHealth(amount, updating_health = TRUE, forced = FALSE)
 	. = ..()

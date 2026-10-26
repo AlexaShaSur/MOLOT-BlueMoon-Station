@@ -150,7 +150,7 @@
 #define COMSIG_ATOM_EMP_ACT "atom_emp_act"
 ///from base of atom/fire_act(): (exposed_temperature, exposed_volume)
 #define COMSIG_ATOM_FIRE_ACT "atom_fire_act"
-///from base of atom/bullet_act(): (/obj/item/projectile, def_zone)
+///from base of atom/bullet_act() and of the living, silicon and simple_animal overrides, before blocks and damage: (/obj/item/projectile, def_zone)
 #define COMSIG_ATOM_BULLET_ACT "atom_bullet_act"
 ///from base of atom/blob_act(): (/obj/structure/blob)
 #define COMSIG_ATOM_BLOB_ACT "atom_blob_act"
@@ -204,7 +204,15 @@
 /////////////////
 
 //This signal return value bitflags can be found in __DEFINES/misc.dm
-#define COMSIG_ATOM_INTERCEPT_Z_FALL "movable_intercept_z_impact"	//called for each movable in a turf contents on /turf/zImpact(): (atom/movable/A, levels)
+#define COMSIG_ATOM_INTERCEPT_Z_FALL "movable_intercept_z_impact"	//called for each atom in a turf contents on /turf/zImpact(): (list/falling_movables, levels)
+
+#define COMSIG_CAN_Z_MOVE "can_z_move"							//from base of atom/movable/can_z_move(): (turf/start, turf/destination)
+	#define COMPONENT_CANT_Z_MOVE (1<<0)
+#define COMSIG_ATOM_ON_Z_IMPACT "atom_on_z_impact"				//from base of atom/movable/onZImpact(): (turf/impacted_turf, levels)
+#define COMSIG_LIVING_Z_IMPACT "living_z_impact"				//from base of mob/living/ZImpactDamage(): (levels, turf/impacted_turf)
+	#define ZIMPACT_CANCEL_DAMAGE (1<<0)
+	#define ZIMPACT_NO_MESSAGE (1<<1)
+	#define ZIMPACT_NO_SPIN (1<<2)
 
 /// Called from orbit component: (atom/movable/orbiter, radius, clockwise, rotation_speed, rotation_segments, pre_rotation)
 #define COMSIG_ATOM_ORBIT_BEGIN "atom_orbit_begin"
@@ -262,9 +270,9 @@
 #define COMSIG_MOVABLE_HEAR "movable_hear"						//from base of atom/movable/Hear(): (message, atom/movable/speaker, message_language, raw_message, radio_freq, list/spans, message_mode, atom/movable/source)
 	#define HEARING_MESSAGE 1
 	#define HEARING_SPEAKER 2
-//	#define HEARING_LANGUAGE 3
+	#define HEARING_LANGUAGE 3
 	#define HEARING_RAW_MESSAGE 4
-//	 #define HEARING_RADIO_FREQ 5
+	#define HEARING_RADIO_FREQ 5
 //	#define HEARING_SPANS 6
 	#define HEARING_MESSAGE_MODE 7
 //	#define HEARING_SOURCE 8
@@ -316,6 +324,13 @@
 	#define COMSIG_BLOCK_EYECONTACT (1<<0)
 //	#define COMPONENT_STOP_MIND_TRANSFER 1
 #define COMSIG_MOB_UPDATE_SIGHT "mob_update_sight"				//from base of /mob/update_sight(): ()
+/// After blindness overlays have been updated.
+#define COMSIG_MOB_BLINDNESS_CHANGED "mob_blindness_changed"
+/// A listener's sound/typing marker: (atom/source, kind, direction, duration).
+#define COMSIG_MOB_SOUND_INDICATOR "mob_sound_indicator"
+	#define COMPONENT_SOUND_INDICATOR_HANDLED (1<<0)
+/// An audible nearby event that produces an acoustic snapshot: (atom/center).
+#define COMSIG_MOB_ECHOLOCATION_PULSE "mob_echolocation_pulse"
 #define COMSIG_MOB_ON_NEW_MIND "mob_on_new_mind"			//called when a new mind is assigned to a mob: ()
 #define COMSIG_MOB_SAY "mob_say" // from /mob/living/say(): (proc args list)
 	#define COMPONENT_UPPERCASE_SPEECH 1
@@ -327,13 +342,16 @@
 	#define SPEECH_LANGUAGE 5
 //	#define SPEECH_IGNORE_SPAM 6
 //	#define SPEECH_FORCED 7
+/// Из /mob/living/send_speech(): (message, message_range, source, bubble_type, spans, message_language, message_mode).
+#define COMSIG_LIVING_SEND_SPEECH "living_send_speech"
 #define COMSIG_MOB_FOV_VIEWER "mob_is_viewer"					//from base of /fov_viewers(): (atom/center, depth, viewers_list)
 #define COMSIG_MOB_GET_VISIBLE_MESSAGE "mob_get_visible_message" //from base of atom/visible_message(): (atom/A, msg, range, ignored_mobs)
 	#define COMPONENT_NO_VISIBLE_MESSAGE 1 //exactly what's said on the tin.
 #define COMSIG_MOB_ANTAG_ON_GAIN "mob_antag_on_gain"			//from base of /datum/antagonist/on_gain(): (antag_datum)
 #define COMSIG_MOB_APPLY_DAMAGE	"mob_apply_damage"				//from base of /mob/living/proc/apply_damage(): (damage, damagetype, def_zone, wound_bonus, bare_wound_bonus, sharpness)
 
-#define COMSIG_MOB_SPELL_CAN_CAST "mob_spell_can_cast"			//from base of /obj/effect/proc_holder/spell/can_cast(): (spell)
+#define COMSIG_MOB_SPELL_CAN_CAST "mob_spell_can_cast"			//from base of /obj/effect/proc_holder/spell/can_cast(): (spell, silent)
+#define COMSIG_MOB_CAST_SPELL "mob_cast_spell"					//from base of /obj/effect/proc_holder/spell/perform(): (spell)
 #define COMSIG_MOB_SWAP_HANDS "mob_swap_hands"					//from base of mob/swap_hand(): (obj/item)
 	#define COMPONENT_BLOCK_SWAP 1
 
@@ -347,6 +365,8 @@
 #define COMSIG_GUN_AUTOFIRE_SELECTED "gun_autofire_selected"
 ///When a gun is switched off of automatic fire mode
 #define COMSIG_GUN_AUTOFIRE_DESELECTED "gun_autofire_deselected"
+///The gun needs to update the gun hud!
+#define COMSIG_UPDATE_AMMO_HUD "update_ammo_hud"
 
 // Lighting:
 ///from base of [atom/proc/set_light]: (l_range, l_power, l_color, l_on)
@@ -409,8 +429,16 @@
 #define COMSIG_LIVING_SHOCK_PREVENTED "living_shock_prevented"  //sent when items with siemen coeff. of 0 block a shock: (power_source, source, siemens_coeff, dist_check)
 #define COMSIG_LIVING_MINOR_SHOCK "living_minor_shock"			//sent by stuff like stunbatons and tasers: ()
 #define COMSIG_LIVING_REVIVE "living_revive"					//from base of mob/living/revive() (full_heal, admin_revive)
+#define COMSIG_LIVING_HERETIC_SACRIFICE_STARTING "living_heretic_sacrifice_starting"	//from /datum/heretic_mansus_visit/proc/start() before the victim is healed: ()
+#define COMSIG_LIVING_HERETIC_CAPTURE_SHAKEN "living_heretic_capture_shaken"	//from /proc/heretic_capture_shake() when a helper finishes shaking a captured victim awake: (mob/living/helper)
+#define COMSIG_HERETIC_POCKET_COLLAPSING "heretic_pocket_collapsing"	//from /datum/heretic_pocket/proc/collapse() before anyone is moved out: (reason, mob/living/culprit)
+
+//Используется для отправки сигнала о ЕМП в обход проверок
+//нужно для использовании энергии в adv emp модуле.
+#define COMSIG_LIVING_FORCE_EMP "living_force_emp"
 
 #define COMSIG_MOB_RESET_PERSPECTIVE "mob_reset_perspective"		//from base of /mob/reset_perspective(): (atom/target)
+#define COMSIG_CLIENT_SET_EYE "client_set_eye"						//from base of /client/proc/set_eye(): (atom/old_eye, atom/new_eye)
 #define COMSIG_LIVING_GUN_PROCESS_FIRE "living_gun_process_fire"	//from base of /obj/item/gun/proc/process_fire(): (atom/target, params, zone_override)
 // This returns flags as defined for block in __DEFINES/combat.dm!
 #define COMSIG_LIVING_RUN_BLOCK "living_do_run_block"				//from base of mob/living/do_run_block(): (real_attack, atom/object, damage, attack_text, attack_type, armour_penetration, mob/attacker, def_zone)
@@ -429,6 +457,7 @@
 #define COMSIG_LIVING_ATTACKER_SET "living_attacker_set"			// from base of /mob/living/set_last_attacker(): (attacker)
 
 #define COMSIG_LIVING_SET_AS_ATTACKER "living_set_as_attacker"		// from base of /mob/living/set_last_attacker(): (target)
+#define COMSIG_LIVING_HIT_BY_PROJECTILE "living_hit_by_projectile"	// from base of /mob/living/bullet_act() before damage, when not blocked: (obj/item/projectile/projectile, def_zone)
 
 //ALL OF THESE DO NOT TAKE INTO ACCOUNT WHETHER AMOUNT IS 0 OR LOWER AND ARE SENT REGARDLESS!
 #define COMSIG_LIVING_STATUS_STUN "living_stun"					//from base of mob/living/Stun() (amount, update, ignore)
@@ -467,8 +496,11 @@
 #define COMSIG_CARBON_EMBED_RIP "item_embed_start_rip"						// defined twice, in carbon and human's topics, fired when interacting with a valid embedded_object to pull it out (mob/living/carbon/target, /obj/item, /obj/item/bodypart/L)
 #define COMSIG_CARBON_EMBED_REMOVAL "item_embed_remove_safe"		// called when removing a given item from a mob, from mob/living/carbon/remove_embedded_object(mob/living/carbon/target, /obj/item)
 #define COMSIG_CARBON_UPDATEHEALTH "comsig_carbon_updatehealth"		// called from /mob/living/carbon/updatehealth()
+#define COMSIG_CARBON_PRE_MISC_HELP "carbon_pre_misc_help"			//from base of /mob/living/carbon/help_shake_act(): (mob/living/carbon/helper)
+	#define COMPONENT_BLOCK_MISC_HELP (1<<0)
 // /mob/living/silicon signals
 #define COMSIG_ROBOT_UPDATE_ICONS "robot_update_icons"			//from base of robot/update_icons(): ()
+#define COMSIG_ROBOT_RESET_MODULE "robot_reset_module"
 
 // /mob/living/simple_animal/hostile signals
 #define COMSIG_HOSTILE_ATTACKINGTARGET "hostile_attackingtarget"
@@ -491,6 +523,8 @@
 #define COMSIG_MACHINERY_POWER_RESTORED "machinery_power_restored"
 ///from /obj/machinery/obj_break(damage_flag): (damage_flag)
 #define COMSIG_MACHINERY_BROKEN "machinery_broken"
+///from /obj/machinery/door/airlock/proc/unbolt(): ()
+#define COMSIG_AIRLOCK_UNBOLTED "airlock_unbolted"
 
 // /obj/machinery/power/supermatter_crystal signals
 /// from /obj/machinery/power/supermatter_crystal/process_atmos(); when the SM delam reaches the point of sounding alarms
@@ -499,7 +533,7 @@
 #define COMSIG_SUPERMATTER_DELAM_ALARM "sm_delam_alarm"
 
 // /obj/item signals
-#define COMSIG_ITEM_ATTACK "item_attack"						//from base of obj/item/attack(): (/mob/living/target, /mob/living/user)
+#define COMSIG_ITEM_ATTACK "item_attack"						//from base of obj/item/attack(): (/mob/living/target, /mob/living/user, damage_multiplier)
 #define COMSIG_ITEM_ATTACK_SELF "item_attack_self"				//from base of obj/item/attack_self(): (/mob)
 	#define COMPONENT_NO_INTERACT 1
 #define COMSIG_ITEM_ATTACK_OBJ "item_attack_obj"				//from base of obj/item/attack_obj(): (/obj, /mob)
@@ -509,6 +543,8 @@
 #define COMSIG_ITEM_AFTERATTACK "item_afterattack"				//from base of obj/item/afterattack(): (atom/target, mob/user, params)
 #define COMSIG_ITEM_ALT_AFTERATTACK "item_alt_afterattack"		//from base of obj/item/altafterattack(): (atom/target, mob/user, proximity, params)
 #define COMSIG_ITEM_EQUIPPED "item_equip"						//from base of obj/item/equipped(): (/mob/equipper, slot)
+/// A mob has just equipped an item. Called on [/mob] from base of [/obj/item/equipped()]: (/obj/item/equipped_item, slot)
+#define COMSIG_MOB_EQUIPPED_ITEM "mob_equipped_item"
 /// A mob has just unequipped an item.
 #define COMSIG_MOB_UNEQUIPPED_ITEM "mob_unequipped_item"
 	// Do not grant actions on equip.
@@ -594,6 +630,8 @@
 
 // /obj/item/radio signals
 #define COMSIG_RADIO_NEW_FREQUENCY "radio_new_frequency"		//called from base of /obj/item/radio/proc/set_frequency(): (list/args)
+#define COMSIG_MOVABLE_USING_RADIO "movable_using_radio"		//sent to the speaker from /obj/item/radio/proc/speaker_jammed() before a transmission or the headset click: (obj/item/radio/radio)
+	#define COMPONENT_CANNOT_USE_RADIO (1<<0)
 
 // /obj/item/pen signals
 #define COMSIG_PEN_ROTATED "pen_rotated"						//called after rotation in /obj/item/pen/attack_self(): (rotation, mob/living/carbon/user)
@@ -867,7 +905,7 @@
 ///from /datum/element/jump when a jump has started and ended
 #define COMSIG_ELEMENT_JUMP_STARTED "element_jump_started"
 #define COMSIG_ELEMENT_JUMP_ENDED "element_jump_ended"
-#define COMSIG_KB_LIVING_JUMP "keybind_jump"
+#define COMSIG_KB_LIVING_JUMP "keybind_jump"      //from /datum/keybinding/living/jump/down(): (leap_dir)
 #define COMSIG_TURF_JUMP_ENDED_HERE "turf_jump_ended_here"      //from datum/element/jump/end_jump(): (jumper)
 #define COMSIG_KB_ACTIVATED (1<<0)
 
@@ -882,7 +920,9 @@
 // Research signals
 #define COMSIG_GLOB_RESEARCH_NODE_UNLOCKED "global_research_node_unlocked"	// Изучение любого научного узла, сигнализирующее о необходимости синхронизации
 #define COMSIG_GLOB_RESEARCH_BATCH_COMPLETE	"global_research_batch_complete"	// Успешная упаковка и отправка пакета научных нод рецепиентам
-
+#define COMSIG_ATOM_GET_TECHWEB "atom_get_techweb"
+#define COMSIG_ATOM_SET_TECHWEB "atom_set_techweb"
+#define COMSIG_ATOM_TECHWEB_CHANGED "atom_techweb_changed"
 
 // Neural Interface Signals
 #define COMSIG_NEURAL_INTERFACE_ADD_SOURCE "neural_interface_add_source" // AddSource(id)
@@ -891,3 +931,4 @@
 #define COMSIG_NEURAL_INTERFACE_WRITE_LOG "neural_interface_write_log" // write_log(text, key="LOG", color="#4ad1fa86", size=12, speed=0)
 #define COMSIG_NEURAL_INTERFACE_WRITE_DATA "neural_interface_write_data" // write_data(key, value, decay_duration=3 SECONDS, priority=0)
 #define COMSIG_NEURAL_INTERFACE_WRITE_IMAGE_DATA "neural_interface_write_image_data" // write_image_data(key, image/overlay, atom/target, text, decay_duration=30 SECONDS, pixel_x_text = 0, pixel_y_text = 0, text_size=12)
+#define COMSIG_GLOB_NEURAL_INTERFACE_RELAY "!global_neural_interface_relay"

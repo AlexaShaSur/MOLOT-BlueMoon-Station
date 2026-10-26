@@ -12,7 +12,7 @@
 	level = 1			// underfloor only
 	dir = NONE			// dir will contain dominant direction for junction pipes
 	max_integrity = 200
-	armor = list(MELEE = 25, BULLET = 10, LASER = 10, ENERGY = 100, BOMB = 0, BIO = 100, RAD = 100, FIRE = 90, ACID = 30)
+	armor_type = /datum/armor/disposal
 	layer = DISPOSAL_PIPE_LAYER			// slightly lower than wires and other pipes
 	plane = ABOVE_WALL_PLANE
 	rad_flags = RAD_PROTECT_CONTENTS | RAD_NO_CONTAMINATE
@@ -50,10 +50,10 @@
 // pipe is deleted
 // ensure if holder is present, it is expelled
 /obj/structure/disposalpipe/Destroy()
-	var/obj/structure/disposalholder/H = locate() in src
-	if(H)
-		H.active = FALSE
-		expel(H, get_turf(src), 0)
+	var/obj/structure/disposalholder/holder
+	while((holder = locate() in src))
+		holder.active = FALSE
+		expel(holder, get_turf(src), NONE)
 	stored = null //The qdel is handled in expel()
 	return ..()
 
@@ -89,7 +89,7 @@
 // update the icon_state to reflect hidden status
 /obj/structure/disposalpipe/proc/update()
 	var/turf/T = get_turf(src)
-	hide(T.intact && !isspaceturf(T))	// space never hides pipes
+	hide((T.turf_flags & TURF_INTACT) && !isspaceturf(T))	// space never hides pipes
 
 // hide called by levelupdate if turf intact status changes
 // change visibility status and force update of icon
@@ -133,9 +133,8 @@
 
 // pipe affected by explosion
 /obj/structure/disposalpipe/contents_explosion(severity, target, origin)
-	var/obj/structure/disposalholder/H = locate() in src
-	if(H)
-		H.contents_explosion(severity, target, origin)
+	for(var/obj/structure/disposalholder/holder in src)
+		holder.contents_explosion(severity, target, origin)
 
 
 /obj/structure/disposalpipe/run_obj_armor(damage_amount, damage_type, damage_flag = 0, attack_dir)

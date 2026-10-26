@@ -22,6 +22,11 @@
 	/// отпускает тик): второй параллельный вход в тот же номер плодил комнату-двойник,
 	/// перезаписывал activeRooms/storedRooms и при следующем восстановлении удалял вещи игрока
 	var/list/rooms_in_flight = list()
+	/// Область, в которую прямо сейчас едет MobTransfer(). Пока перенос не закончен,
+	/// консервировать её нельзя: питомец на поводке, отброшенный назад собственным
+	/// Moved()-обработчиком, дёргал area/Exited() у ещё пустой комнаты, storeRoom()
+	/// сносил резервацию, и хозяина следом ставило на голый космос.
+	var/area/transfer_target
 	light_color = "#5692d6"
 	light_range = 5
 	light_power = 3
@@ -44,6 +49,7 @@
 
 /obj/item/hilbertshotel/Destroy()
 	SShilbertshotel.all_hilbert_spheres -= src
+	transfer_target = null // жёсткая ссылка на область, если сферу снесли посреди переноса
 	ejectRooms()
 	return ..()
 
@@ -82,7 +88,7 @@
 			"name" = room_template.name,
 			"category" = room_template.category,
 			"donator_tier" = room_template.donator_tier,
-			"ckeywhitelist" = room_template.ckeywhitelist
+			"available" = room_template.is_allowed_for(user.key)
 		))
 
 /obj/item/hilbertshotel/ui_data(mob/user)
@@ -176,6 +182,9 @@
 			var/template_name = params["room"]
 			if(!(template_name in SShilbertshotel.hotel_map_list))
 				return FALSE
+			var/datum/map_template/hilbertshotel/room_template = SShilbertshotel.hotel_map_list[template_name]
+			if(!room_template.is_allowed_for(user.key))
+				return FALSE
 			SShilbertshotel.user_data[user.ckey]["template"] = template_name
 			return TRUE
 
@@ -195,6 +204,9 @@
 			else
 				SShilbertshotel.user_data[user.ckey]["room_number"] = room_number
 			if(!room_number || !template || !(template in SShilbertshotel.hotel_map_list))
+				return FALSE
+			var/datum/map_template/hilbertshotel/room_template = SShilbertshotel.hotel_map_list[template]
+			if(!room_template.is_allowed_for(user.key))
 				return FALSE
 			SShilbertshotel.user_data[user.ckey]["status"] = STATUS_ENTERING_ROOM
 			SShilbertshotel.user_data[user.ckey]["entering_since"] = world.time
@@ -321,7 +333,7 @@
 			var/turf/T = locate(reservation.bottom_left_coords[1] + i, reservation.bottom_left_coords[2] + j, reservation.bottom_left_coords[3])
 			var/list/turfContents = list()
 			for(var/atom/movable/A in T)
-				if(istype(A, /obj/effect/overlay/water) || istype(A, /obj/effect/overlay/water/top) || istype(A, /obj/machinery/atmospherics/components)) // Skip pool water and effects, and atmos components
+				if(istype(A, /obj/machinery/atmospherics/components)) // Skip atmos components
 					continue
 				if(istype(A, /atom/movable/lighting_object)) // Оверлей света принадлежит турфу: из стока он вернётся на тайл вторым слоем и зарендерит протухшую тьму
 					continue
@@ -400,8 +412,6 @@
 		for(var/j in 0 to mapTemplate.height - 1)
 			var/turf/T = locate(roomReservation.bottom_left_coords[1] + i, roomReservation.bottom_left_coords[2] + j, roomReservation.bottom_left_coords[3])
 			for(var/atom/movable/A in T)
-				if(istype(A, /obj/effect/overlay/water) || istype(A, /obj/effect/overlay/water/top)) // Skip pool water overlays
-					continue
 				QDEL_LIST(A.contents)
 				qdel(A)
 
@@ -412,7 +422,8 @@
 	for(var/i in 0 to mapTemplate.width - 1)
 		for(var/j in 0 to mapTemplate.height - 1)
 			if(turfNumber <= stored_size)
-				for(var/atom/movable/A in stored_data[turfNumber])
+				var/list/turf_contents = stored_data[turfNumber]
+				for(var/atom/movable/A in turf_contents.Copy())
 					if(istype(A, /atom/movable/lighting_object)) // Сток, отравленный до фикса storeRoom: призрак прошлой эпохи не должен лечь на тайл поверх живого оверлея
 						qdel(A, force = TRUE)
 						continue
@@ -442,6 +453,21 @@
 	return TRUE
 
 /obj/item/hilbertshotel/proc/MobTransfer(mob/living/user, turf/T, depth = 0)
+	var/area/previous_target = transfer_target
+	transfer_target = get_area(T)
+	// Восстановление обязано пережить рантайм внутри переноса: хвостовой строкой оно
+	// пропускалось, transfer_target навсегда оставался приколот к комнате, и та уже
+	// никогда не консервировалась (см. /area/hilbertshotel/Exited), а сфера держала
+	// жёсткую ссылку на /area до конца раунда.
+	try
+		. = perform_mob_transfer(user, T, depth)
+	catch(var/exception/transfer_error)
+		transfer_target = previous_target
+		stack_trace("Hilbert's Hotel: перенос [user] упал - [transfer_error]")
+		return
+	transfer_target = previous_target
+
+/obj/item/hilbertshotel/proc/perform_mob_transfer(mob/living/user, turf/T, depth = 0)
 	depth++
 	if(depth > 4)
 		return
@@ -556,8 +582,14 @@
 	if(user.ckey && SShilbertshotel.user_data[user.ckey])
 		SShilbertshotel.user_data[user.ckey]["status"] = STATUS_IDLE
 	if(!mob_dorms[user]?.Find(roomNumber))
+		if(!mob_dorms[user])
+			RegisterSignal(user, COMSIG_PARENT_QDELETING, PROC_REF(forget_dorm_owner))
 		LAZYADD(mob_dorms[user], roomNumber)
 	return TRUE
+
+/obj/item/hilbertshotel/proc/forget_dorm_owner(mob/owner)
+	SIGNAL_HANDLER
+	mob_dorms -= owner
 
 /obj/item/hilbertshotel/proc/linkTurfs(var/datum/turf_reservation/currentReservation, var/currentRoomnumber, var/chosen_room)
 	var/area/hilbertshotel/currentArea = get_area(locate(currentReservation.bottom_left_coords[1], currentReservation.bottom_left_coords[2], currentReservation.bottom_left_coords[3]))
@@ -629,13 +661,13 @@
 	desc = "Stylish dark wood with extra reinforcement. Secured firmly to the floor to prevent tampering."
 	icon_state = "wood"
 	footstep = FOOTSTEP_WOOD
-	tiled_dirt = FALSE
+	turf_flags = TURF_FLAGS_DEFAULT
 
 /turf/open/indestructible/hoteltile
 	desc = "Smooth tile with extra reinforcement. Secured firmly to the floor to prevent tampering."
 	icon_state = "showroomfloor"
 	footstep = FOOTSTEP_FLOOR
-	tiled_dirt = FALSE
+	turf_flags = TURF_FLAGS_DEFAULT
 
 /turf/open/space/bluespace
 	name = "\proper bluespace hyperzone"
@@ -645,10 +677,17 @@
 	explosion_block = INFINITY
 	var/obj/item/hilbertshotel/parentSphere
 
-/turf/open/space/bluespace/Entered(atom/movable/A)
+/turf/open/space/bluespace/Entered(atom/movable/arrived, atom/old_loc)
 	. = ..()
-	if (parentSphere)
-		A.forceMove(get_turf(parentSphere))
+	if(!parentSphere)
+		return
+	// Exited() исходного турфа успевает утащить или вовсе удалить пришедшего: гиперспейс
+	// сбрасывает предмет в космос, а TRAIT_DEL_ON_SPACE_DUMP - qdel-ит его. Тогда наш
+	// forceMove бил по qdel-нутому (прод-раунд 10150, ящики донк-покетов). Гард ровно
+	// тот же, что стоит у /turf/open/space/Entered и /turf/open/space/transit/Entered.
+	if(QDELETED(arrived) || arrived.loc != src)
+		return
+	arrived.forceMove(get_turf(parentSphere))
 
 /turf/closed/indestructible/hoteldoor
 	name = "Hotel Door"
@@ -823,7 +862,7 @@
 			if(L.mind)
 				stillPopulated = TRUE
 				break
-		if(!stillPopulated)
+		if(!stillPopulated && parentSphere?.transfer_target != src)
 			storeRoom()
 
 /area/hilbertshotelstorage
@@ -853,6 +892,14 @@
 	if(ismob(AM))
 		var/mob/M = AM
 		M.mob_transforming = FALSE
+	if(QDELETED(AM))
+		forget_stored_atom(AM)
+
+/// Атом, удалённый внутри стока (истёкший визуал, дым), уходит из списков комнаты: иначе они держат его до восстановления.
+/obj/item/abstracthotelstorage/proc/forget_stored_atom(atom/movable/gone)
+	var/list/room_turfs = parentSphere?.storedRooms["[roomNumber]"]
+	for(var/list/turf_contents in room_turfs)
+		turf_contents -= gone
 
 #undef STATUS_IDLE
 #undef STATUS_ENTERING_ROOM

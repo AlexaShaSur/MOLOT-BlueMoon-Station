@@ -104,7 +104,7 @@
 	death = FALSE
 	random = TRUE
 	mob_species = /datum/species/human
-	mob_name = "a wandering hermit"
+	mob_name = "a rmit"
 	short_desc = "You are a hermit abandoned by fate."
 	flavour_text = "You've survived weeks in this hellish place. Maybe you want to live here with ash tribe or return to civilisation. \
 	Only you know how you got to this planetoid, whether this place in which you woke up was one of your shelters, or you just stumbled upon it."
@@ -238,6 +238,32 @@
 	loadout_enabled = TRUE
 	category = "inteq"
 
+/datum/outfit/inteqspace/inteq_crew/post_equip(mob/living/carbon/human/H)
+	H.faction |= ROLE_INTEQ
+	GLOB.inteq_pact_siege.register_defender(H)
+
+	var/obj/item/radio/R = H.ears
+	R.set_frequency(FREQ_GHOST_INTEQ)
+	R.freqlock = TRUE
+	R.independent = TRUE
+
+/obj/effect/mob_spawn/human/inteqspace/comms
+	name = "InteQ Field Comms Agent"
+	short_desc = "Вы Офицер Прослушки InteQ. Ваш приказ - поддерживать целостность своего объекта и оказывать информационную поддержку доступным агентам. Вы находитесь на враждебной территории, сохраняйте незаметность."
+	flavour_text = "InteQ счел нужным оказать поддержку полевым агентам в системе. Приведите объект под вашей ответственностью к успеху, который планировался, либо умрите - стараясь."
+	important_info = "Используйте коммуникационное оборудование для оказания поддержки любым полевым агентам."
+	can_load_appearance = TRUE
+	outfit = /datum/outfit/inteqspace/inteq_comms
+	antagonist_type = /datum/antagonist/ghost_role/inteq/comms
+
+/datum/outfit/inteqspace/inteq_comms/post_equip(mob/living/carbon/human/H)
+	H.faction |= ROLE_INTEQ
+
+	var/obj/item/radio/R = H.ears
+	R.set_frequency(FREQ_GHOST_INTEQ)
+	R.freqlock = TRUE
+	R.independent = TRUE
+
 /obj/effect/mob_spawn/human/inteqspace/engineer
 	name = "InteQ Field Engineer"
 	short_desc = "Вы - Полевой Инженер Авангарда InteQ, очнувшийся на захваченной базе в враждебном космосе."
@@ -246,23 +272,9 @@
 	can_load_appearance = TRUE
 	outfit = /datum/outfit/inteqspace/inteq_engineer
 
-/obj/effect/mob_spawn/human/inteqspace/dyson_gate
-	name = "InteQ Dyson Sphere Crew Member"
-	short_desc = "Вы - Оперативник  InteQ на обшивке Дайсон Сферы, и на вашей части базы произошло ЧП."
-	flavour_text = "Вы являетесь частью персонала,что обслуживает аванпост на обшивке Дайсон Сферы. За вашу смену произошло много ЧП и сейчас на базе орудуют монстры, что явились снаружи. \
-					ПАКТ каким то образом смогли получить коды от Гейта и начали развертывать свои силы."
-	important_info = "Востановите ваш аванпост и приготовтесь отражать нападение. Не нападайте на лагерь ПАКТа, пока они сами не нападут."
-
-/datum/outfit/inteqspace/inteq_crew/post_equip(mob/living/carbon/human/H)
-	H.faction |= ROLE_INTEQ
-
-	var/obj/item/radio/R = H.ears
-	R.set_frequency(FREQ_GHOST_INTEQ)
-	R.freqlock = TRUE
-	R.independent = TRUE
-
 /datum/outfit/inteqspace/inteq_engineer/post_equip(mob/living/carbon/human/H)
 	H.faction |= ROLE_INTEQ
+	GLOB.inteq_pact_siege.register_defender(H)
 
 	var/obj/item/radio/R = H.ears
 	R.set_frequency(FREQ_GHOST_INTEQ)
@@ -300,17 +312,12 @@
 
 /datum/outfit/inteqspace/inteq_captain/post_equip(mob/living/carbon/human/H)
 	H.faction |= ROLE_INTEQ
+	GLOB.inteq_pact_siege.register_defender(H)
 
 	var/obj/item/radio/R = H.ears
 	R.set_frequency(FREQ_GHOST_INTEQ)
 	R.freqlock = TRUE
 	R.independent = TRUE
-
-/obj/effect/mob_spawn/human/inteqspace/captain/dyson_gate
-	name = "InteQ Dyson Sphere Captain"
-	short_desc = "Вы -Глава Авангарда InteQ в отпуске, и проходите его в выделенной для вас Зоне."
-	flavour_text = "Прошло уже три дня, как вы развлекались с одной из «игрушек», что вы прихватили из карцеров на базе. Но сейчас там обьявлен полный карантин и вам туда не пройти. Вы можете продолжить свой неожиданный отпуск или подняться выше, на орбитальную часть, где находиться аванпост с остатками сил."
-	important_info = "Не пытайтесь проникнуть в подземную часть базы, где обьявлена биологическая тревога. Не напдайте на лагерь ПАКТа, пока они сами не нападут."
 
 /obj/effect/mob_spawn/human/inteqspace/captain/Destroy()
 	new/obj/structure/fluff/empty_sleeper/syndicate/captain(get_turf(src))
@@ -387,6 +394,26 @@
 
 	id = /obj/item/card/id/inteq/captain_id
 	backpack_contents = list(/obj/item/documents/syndicate/red, /obj/item/paper/fluff/ruins/forgottenship/password)
+	implants = list(/obj/item/implant/deathrattle/inteqcrew, /obj/item/implant/weapons_auth)
+
+/datum/outfit/inteqspace/inteq_comms
+	name = "InteQ Field Comms Agent"
+
+	suit = /obj/item/clothing/suit/armor/inteq/honorable_vanguard
+	uniform = /obj/item/clothing/under/inteq
+	shoes = /obj/item/clothing/shoes/combat/swat/knife
+	gloves = /obj/item/clothing/gloves/combat
+
+	head = /obj/item/clothing/head/HoS/pmc_leader_beret
+	mask = /obj/item/clothing/mask/gas/inteq
+	ears = /obj/item/radio/headset/inteq/alt/leader
+	belt = /obj/item/storage/belt/military/assault/inteq_captain
+
+	l_pocket = /obj/item/extinguisher/mini
+	r_pocket = /obj/item/tank/internals/emergency_oxygen/double
+
+	id = /obj/item/card/id/inteq/captain_id
+	backpack_contents = list(/obj/item/documents/syndicate/red)
 	implants = list(/obj/item/implant/deathrattle/inteqcrew, /obj/item/implant/weapons_auth)
 
 // Ghost Cafe Spawner (VR Version)

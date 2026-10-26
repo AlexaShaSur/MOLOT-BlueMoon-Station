@@ -19,6 +19,7 @@
 	var/list/research_logs = list()								//IC logs.
 	var/largest_values = list()
 	var/organization = "Third-Party"							//Organization name, used for display.
+	var/pays_research_bounty = TRUE
 	var/list/next_income = list()								//To be applied on the next passive techweb income
 	var/list/last_bitcoins = list()								//Current per-second production, used for display only.
 	var/list/discovered_mutations = list()                           //Mutations discovered by genetics, this way they are shared and cant be destroyed by destroying a single console
@@ -27,6 +28,13 @@
 	/// на техвебе, а не в ещё одном глобальном списке: открытие принадлежит науке
 	/// и вместе с ней переносится на диск или в чужую сеть.
 	var/list/synthesized_gases = list()
+	//BLUEMOON ADD START: пул задач Problem Computer'ов — свой у каждой РНД-сети.
+	//У станции, Синдиката, ИнтеКью и каждой изолированной сети («хермиты») свои 5 задач.
+	var/problem_computer_max_charges = 5
+	var/problem_computer_charges = 5
+	var/problem_computer_charge_time = 90 SECONDS
+	var/problem_computer_last_charge_time = 0
+	//BLUEMOON ADD END
 
 /datum/techweb/New()
 	hidden_nodes = SSresearch.techweb_nodes_hidden.Copy()
@@ -35,9 +43,32 @@
 		research_node(DN, TRUE, FALSE)
 	return ..()
 
+//BLUEMOON ADD START: пул задач сети дозревает лениво — без таймеров и подсистемы.
+//Каждая сеть копит свои задачи независимо от остальных.
+/datum/techweb/proc/get_problem_computer_charges()
+	if(problem_computer_charges < problem_computer_max_charges)
+		var/elapsed = world.time - problem_computer_last_charge_time
+		if(elapsed >= problem_computer_charge_time)
+			var/gained = round(elapsed / problem_computer_charge_time)
+			problem_computer_charges = min(problem_computer_max_charges, problem_computer_charges + gained)
+			// Засчитываем только целые периоды: остаток времени не теряем.
+			problem_computer_last_charge_time += gained * problem_computer_charge_time
+	return problem_computer_charges
+
+/datum/techweb/proc/get_problem_computer_max_charges()
+	return problem_computer_max_charges
+
+/datum/techweb/proc/consume_problem_computer_charge()
+	if(get_problem_computer_charges() > 0)
+		problem_computer_charges -= 1
+		return TRUE
+	return FALSE
+//BLUEMOON ADD END
+
 /datum/techweb/admin
 	id = "ADMIN"
 	organization = "CentCom"
+	pays_research_bounty = FALSE
 
 /datum/techweb/admin/New()	//All unlocked.
 	. = ..()
@@ -76,6 +107,32 @@
 
 //BLUEMOON ADD END
 
+/datum/techweb/isolated
+	id = "ISOLATED"
+	organization = "Isolated"
+
+/datum/techweb/syndicate_isolated
+	id = "SYNDICATE_NET"
+	organization = "Syndicate"
+
+/datum/techweb/syndicate_isolated/New()
+	. = ..()
+	var/datum/techweb_node/syndicate_basic/Node = new()
+	research_node(Node, TRUE)
+
+/datum/techweb/tarkoff
+	id = "TAPKOV_NET" //ikr im really funny
+	organization = "Tarkoff"
+
+/datum/techweb/inteq
+	id = "INTEQ_NET"
+	organization = "InteQ"
+
+/datum/techweb/inteq/New()
+	. = ..()
+	var/datum/techweb_node/syndicate_basic/Node = new()
+	research_node(Node, TRUE)
+
 /datum/techweb/science	//Global science techweb for RND consoles.
 	id = "SCIENCE"
 	organization = "Nanotrasen"
@@ -86,6 +143,8 @@
 
 /datum/techweb/bepis/New()
 	. = ..()
+	if(!length(SSresearch.techweb_nodes_experimental))
+		return
 	var/bepis_id = pick(SSresearch.techweb_nodes_experimental)	//To add a new tech to the BEPIS, add the ID to this pick list.
 	var/datum/techweb_node/BN = (SSresearch.techweb_node_by_id(bepis_id))
 	hidden_nodes -= BN.id				//Has to be removed from hidden nodes
@@ -330,7 +389,7 @@
 	for(var/id in node.design_ids)
 		add_design_by_id(id)
 	update_node_status(node)
-	if(!istype(src, /datum/techweb/admin))
+	if(pays_research_bounty)
 		var/datum/bank_account/D = SSeconomy.get_dep_account(ACCOUNT_SCI)
 		if(D)
 			D.adjust_money(SSeconomy.techweb_bounty)

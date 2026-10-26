@@ -32,6 +32,10 @@
 	/// и подсовывать туда выровненное число значило бы пересоздавать цикл на
 	/// каждый запрос.
 	var/scheduled_delay = 1
+	/// Точная цена следующего шага (с диагональю). Её держат лупы подсистем с fractional_steps.
+	var/step_cost = 1
+	/// Сколько тиков расписание уже переплатило против step_cost; вычитается из следующего интервала.
+	var/step_remainder = 0
 	///The next time we should process
 	///Used primarially as a hint to be reasoned about by our [controller], and as the id of our bucket
 	///Should not be modified directly outside of [start_loop]
@@ -55,6 +59,7 @@
 
 	src.delay = max(delay, world.tick_lag) //Please...
 	src.scheduled_delay = movement_quantize_delay(src.delay, world.tick_lag)
+	step_cost = src.delay
 	src.lifetime = timeout
 	return TRUE
 
@@ -98,6 +103,7 @@
 /datum/move_loop/proc/set_delay(new_delay)
 	delay =  max(new_delay, world.tick_lag)
 	scheduled_delay = movement_quantize_delay(delay, world.tick_lag)
+	step_cost = delay
 
 ///Pauses the move loop for some passed in period
 ///This functionally means shifting its timer up, and clearing it from its current bucket
@@ -134,8 +140,14 @@
 
 	SEND_SIGNAL(src, COMSIG_MOVELOOP_POSTPROCESS, success, delay * visual_delay)
 
-	if(QDELETED(src) || !success) //Can happen
+	if(QDELETED(src))
 		return
+	if(!success)
+		step_remainder = 0
+		return
+
+	if(controller.fractional_steps)
+		scheduled_delay = plan_fractional_interval()
 
 	if(flags & MOVEMENT_LOOP_IGNORE_GLIDE)
 		return
@@ -143,6 +155,15 @@
 	// Расписание считается по выровненной цене, значит и glide обязан: иначе
 	// спрайт покроет тайл не за то число тиков, которое реально пройдёт.
 	moving.set_glide_size(MOVEMENT_ADJUSTED_GLIDE_SIZE(scheduled_delay, visual_delay))
+
+/// Интервал до следующего шага, кратный тику, с переносом остатка: в среднем ровно step_cost, как у дробного шага игрока.
+/datum/move_loop/proc/plan_fractional_interval()
+	var/cost = max(world.tick_lag, step_cost)
+	var/interval = movement_ticks_until(cost - step_remainder, 0, world.tick_lag) * world.tick_lag
+	step_remainder = clamp(interval - cost + step_remainder, 0, world.tick_lag)
+	if(step_remainder < MOVEMENT_TICK_EPSILON)
+		step_remainder = 0
+	return interval
 
 ///Handles the actual move, overriden by children
 ///Returns FALSE if nothing happen, TRUE otherwise
@@ -430,15 +451,18 @@
 	// AI chases bound the search to distance + detour slack so a walled-off close target
 	// costs a small diamond, not the whole max_path_length one. Bots keep the full radius.
 	var/effective_max = istype(controller) ? ai_effective_path_radius(moving, target, max_path_length) : max_path_length
-	var/list/new_path = get_path_to(moving, target, effective_max, minimum_distance, id, simulated_only, avoid, skip_first, src)
+	// Отчёт о поиске нужен только фолбэку ИИ ниже: остальные муверы за него не платят.
+	var/list/jps_status = istype(controller) ? list() : null
+	var/list/new_path = get_path_to(moving, target, effective_max, minimum_distance, id, simulated_only, avoid, skip_first, src, jps_status)
 	if(QDELETED(src))
 		return
 	if(!length(new_path))
+		// Фолбэк идёт только на исчерпанном открытом списке: пустой ответ по другой причине недостижимости не доказывает.
 		// A target beyond the full budget is unreachable by either pathfinder, so
 		// skip the breach fallback entirely instead of blocking on a pathfinder slot
 		// for a search that can only fail. Gate on the real budget, search the bounded
 		// radius. The cheap direct loop keeps closing the gap.
-		if(istype(controller) && (!max_path_length || get_dist(moving, target) <= max_path_length))
+		if(istype(controller) && jps_status[JPS_SEARCH_EXHAUSTED] && (!max_path_length || get_dist(moving, target) <= max_path_length))
 			new_path = controller.get_path_through_obstacles(target, effective_max, minimum_distance, id, simulated_only, avoid, skip_first, src)
 	if(QDELETED(src))
 		return
@@ -488,7 +512,9 @@
 	// По фактическому направлению: заблокированная диагональ может пройти одной
 	// кардинальной половиной, и за неё диагональной цены нет.
 	if(. && !QDELETED(moving))
-		scheduled_delay = movement_step_delay(delay, ISDIAGONALDIR(get_dir(old_loc, moving.loc)), world.tick_lag)
+		var/jps_diagonal = ISDIAGONALDIR(get_dir(old_loc, moving.loc))
+		scheduled_delay = movement_step_delay(delay, jps_diagonal, world.tick_lag)
+		step_cost = jps_diagonal ? delay * SQRT_2 : delay
 
 	// this check if we're on exactly the next tile may be overly brittle for dense objects who may get bumped slightly
 	// to the side while moving but could maybe still follow their path without needing a whole new path
@@ -786,6 +812,7 @@
 	// по scheduled_delay сразу после move(), и glide считается от него же.
 	var/actual_dir = get_dir(old_loc, moving.loc)
 	scheduled_delay = movement_step_delay(delay, ISDIAGONALDIR(actual_dir), world.tick_lag)
+	step_cost = ISDIAGONALDIR(actual_dir) ? delay * SQRT_2 : delay
 	return TRUE
 
 
@@ -911,84 +938,3 @@
 		return FALSE
 	holder.current_pipe = next_pipe
 	return old_loc != moving?.loc
-
-// ============ Smooth polar drift (space / newtonian) — port from WhiteMoon =============
-
-/**
- * Sub-tile accrual, then a single Move; diagonal moves cost 1.4x delay. Angle is degrees, 0 = north, clockwise.
- */
-/datum/controller/subsystem/move_manager/proc/smooth_move(moving, angle, delay, timeout, subsystem, priority, flags, datum/extra_info)
-	return add_to_loop(moving, subsystem, /datum/move_loop/smooth_move, priority, flags, extra_info, delay, timeout, angle)
-
-/datum/move_loop/smooth_move
-	/// Facing in degrees; see [/proc/dir2angle]
-	var/angle = 0
-	var/x_ticker = 0
-	var/y_ticker = 0
-	var/x_rate = 0
-	var/y_rate = 1
-	var/x_sign = 1
-	var/y_sign = 1
-	/// Delay before diagonal multiplier (smooth_move can raise delay)
-	var/saved_delay
-
-/datum/move_loop/smooth_move/setup(delay, timeout, angle)
-	. = ..()
-	if(!.)
-		return FALSE
-	set_angle(angle)
-	saved_delay = delay
-
-/datum/move_loop/smooth_move/set_delay(new_delay)
-	// Выравнивал по тику сам, ещё до общего расписания. Теперь тем же помощником,
-	// чтобы у плавного дрейфа и у остальных циклов совпадали границы округления.
-	new_delay = movement_quantize_delay(new_delay, world.tick_lag)
-	. = ..()
-	saved_delay = delay
-
-/datum/move_loop/smooth_move/compare_loops(datum/move_loop/loop_type, priority, flags, extra_info, delay, timeout, new_angle)
-	SHOULD_CALL_PARENT(FALSE)
-	if(loop_type == type && priority == src.priority && flags == src.flags && delay == src.delay && timeout == lifetime && new_angle == src.angle)
-		return TRUE
-	return FALSE
-
-/datum/move_loop/smooth_move/move()
-	var/atom/old_loc = moving.loc
-	var/x_to_move = x_rate > 0 ? (1 - x_ticker) / x_rate : 2
-	var/y_to_move = y_rate > 0 ? (1 - y_ticker) / y_rate : 2
-	var/move_dist = min(x_to_move, y_to_move)
-	x_ticker += x_rate * move_dist
-	y_ticker += y_rate * move_dist
-
-	var/move_x = (x_ticker + x_rate * 0.5) > 1
-	var/move_y = (y_ticker + y_rate * 0.5) > 1
-	if(move_x)
-		x_ticker = 0
-	if(move_y)
-		y_ticker = 0
-
-	var/turf/next_turf = locate(
-		moving.x + (move_x ? x_sign : 0),
-		moving.y + (move_y ? y_sign : 0),
-		moving.z,
-	)
-	if(!next_turf)
-		return MOVELOOP_FAILURE
-	moving.Move(get_turf(next_turf), get_dir(moving, next_turf), FALSE)
-	if(old_loc == moving?.loc)
-		return MOVELOOP_FAILURE
-	delay = saved_delay
-	if(move_x && move_y)
-		delay *= 1.4
-	return MOVELOOP_SUCCESS
-
-/datum/move_loop/smooth_move/proc/set_angle(new_angle)
-	angle = new_angle
-	x_rate = sin(angle)
-	y_rate = cos(angle)
-	x_sign = SIGN(x_rate)
-	y_sign = SIGN(y_rate)
-	x_rate = abs(x_rate)
-	y_rate = abs(y_rate)
-	x_ticker = 0
-	y_ticker = 0

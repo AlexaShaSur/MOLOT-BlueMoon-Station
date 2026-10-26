@@ -15,7 +15,7 @@
 	throw_range = 4
 	custom_materials = list(/datum/material/iron = 500)
 	actions_types = list(/datum/action/item_action/set_internals)
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 10, BIO = 0, RAD = 0, FIRE = 80, ACID = 30)
+	armor_type = /datum/armor/item_tank
 	var/datum/gas_mixture/air_contents = null
 	var/distribute_pressure = ONE_ATMOSPHERE
 	var/integrity = 3
@@ -33,6 +33,7 @@
 
 	if(H.internal == src)
 		to_chat(H, "<span class='notice'>Вы закрутили вентиль [src].</span>")
+		playsound(loc, 'sound/mobs/humanoids/breathing/internals_off.ogg', 15, TRUE, SHORT_RANGE_SOUND_EXTRARANGE)
 		H.internal = null
 	else
 		if(!H.getorganslot(ORGAN_SLOT_BREATHING_TUBE))
@@ -58,9 +59,9 @@
 			to_chat(H, "<span class='notice'>Вы подключили свою маску к [src].</span>")
 		else
 			to_chat(H, "<span class='notice'>Вы провернули вентиль [src].</span>")
+		playsound(loc, 'sound/mobs/humanoids/breathing/internals_on.ogg', 15, TRUE, SHORT_RANGE_SOUND_EXTRARANGE)
 		H.internal = src
 	H.update_action_buttons_icon()
-
 
 /obj/item/tank/Initialize(mapload)
 	. = ..()
@@ -315,6 +316,8 @@
 	var/temperature = air_contents.return_temperature()
 
 	if(pressure > TANK_FRAGMENT_PRESSURE)
+		if(src.loc && istype(src.loc, /obj/item/transfer_valve) && SSmapping.level_trait(src.loc.z, ZTRAIT_PACT_SIEGE))
+			return
 		if(!istype(src.loc, /obj/item/transfer_valve))
 			message_admins("Explosive tank rupture! Last key to touch the tank was [src.fingerprintslast].")
 			log_game("Explosive tank rupture! Last key to touch the tank was [src.fingerprintslast].")

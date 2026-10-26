@@ -94,8 +94,7 @@
 		playsound(loc, pick('modular_sand/sound/interactions/bang4.ogg',
 							'modular_sand/sound/interactions/bang5.ogg',
 							'modular_sand/sound/interactions/bang6.ogg'), 70, 1, -1)
-		if(!HAS_TRAIT(target, TRAIT_LEWD_JOB))
-			new /obj/effect/temp_visual/heart(target.loc)
+		target.try_play_interaction_effect()
 
 /obj/item/reagent_containers/food/drinks/bottle/attack(mob/living/target, mob/living/user)
 
@@ -684,9 +683,10 @@
 /obj/item/reagent_containers/food/drinks/bottle/molotov/attackby(obj/item/I, mob/user, params)
 	if(I.get_temperature() && !active)
 		active = 1
-		var/message = "[ADMIN_LOOKUP(user)] has primed a [name] for detonation at [ADMIN_VERBOSEJMP(user)]."
-		add_bomber_message(message)
-		message_admins(message)
+		if(!is_antag_training_atom(user))
+			var/message = "[ADMIN_LOOKUP(user)] has primed a [name] for detonation at [ADMIN_VERBOSEJMP(user)]."
+			add_bomber_message(message)
+			message_admins(message)
 		log_game("[key_name(user)] has primed a [name] for detonation at [AREACOORD(user)].")
 
 		to_chat(user, "<span class='info'>You light [src] on fire.</span>")

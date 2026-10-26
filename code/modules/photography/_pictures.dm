@@ -4,10 +4,20 @@
 	var/caption
 	var/icon/picture_image
 	var/icon/picture_icon
+	var/picture_url
 	var/psize_x = 96
 	var/psize_y = 96
 	var/has_blueprints = FALSE
+	/// WEAKREF(mind) -> list("restrained", "unconscious", "foreign_area"): кто попал в кадр и в каком виде
+	var/list/subjects_seen
 	var/logpath						//If the picture has been logged this is the path.
+	/// Кэш base64-кодировки picture_image для tgui и иконка, с которой он снят.
+	/// Консоли записей кодировали фото на КАЖДЫЙ ui_data (список записей охраны -
+	/// по фото на каждого члена экипажа за раз), а icon2base64 - это запись в
+	/// savefile и ExportText. Иконка сравнивается по ссылке: подмена picture_image
+	/// новым объектом сбрасывает кэш сама.
+	var/base64_cache
+	var/icon/base64_cache_source
 	var/id							//this var is NOT protected because the worst you can do with this that you couldn't do otherwise is overwrite photos, and photos aren't going to be used as attack logs/investigations anytime soon.
 
 /datum/picture/New(name, desc, image, icon, size_x, size_y, bp, caption_, autogenerate_icon)
@@ -29,6 +39,15 @@
 		caption = caption_
 	if(autogenerate_icon && !picture_icon && picture_image)
 		regenerate_small_icon()
+
+/// Base64 полноразмерной картинки для tgui, с кэшем на время жизни picture_image.
+/datum/picture/proc/get_base64()
+	if(!picture_image)
+		return null
+	if(isnull(base64_cache) || base64_cache_source != picture_image)
+		base64_cache = icon2base64(picture_image)
+		base64_cache_source = picture_image
+	return base64_cache
 
 /datum/picture/proc/get_small_icon(iconstate)
 	if(!picture_icon)
@@ -156,9 +175,11 @@
 		P.picture_image = icon(picture_image)	//Copy, not reference.
 	if(picture_icon)
 		P.picture_icon = icon(picture_icon)
+	P.picture_url = picture_url
 	P.psize_x = psize_x - cropx * 2
 	P.psize_y = psize_y - cropy * 2
 	P.has_blueprints = has_blueprints
+	P.subjects_seen = subjects_seen?.Copy()
 	if(greyscale)
 		if(picture_image)
 			P.picture_image.MapColors(rgb(77,77,77), rgb(150,150,150), rgb(28,28,28), rgb(0,0,0))

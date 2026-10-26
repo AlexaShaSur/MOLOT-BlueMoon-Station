@@ -2,7 +2,7 @@
 	hitsound_on = 'sound/weapons/blade1.ogg'
 	heat = 3500
 	max_integrity = 200
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 0, RAD = 0, FIRE = 100, ACID = 30)
+	armor_type = /datum/armor/fireproof_tools_and_weapons
 	resistance_flags = FIRE_PROOF
 	var/brightness_on = 3
 	var/sword_color
@@ -82,7 +82,7 @@
 	w_class = WEIGHT_CLASS_NORMAL
 	w_class_on = WEIGHT_CLASS_HUGE
 	flags_1 = CONDUCT_1
-	armour_penetration = 100
+	armour_penetration = MELEE_AP_EXCLUSIVE
 	attack_verb_off = list("attacked", "chopped", "cleaved", "torn", "cut")
 	attack_verb_on = list()
 	light_color = "#40ceff"
@@ -108,7 +108,7 @@
 	throw_range = 5
 	sharpness = SHARP_EDGED
 	embedding = list("embed_chance" = 75, "impact_pain_mult" = 10)
-	armour_penetration = 35
+	armour_penetration = MELEE_AP_ANTAGONIST
 	block_chance = 50
 	item_flags = NEEDS_PERMIT | ITEM_CAN_PARRY
 	block_parry_data = /datum/block_parry_data/energy_sword
@@ -338,7 +338,6 @@
 	light_color = "#ff0000"
 	possible_colors = null
 
-
 /obj/item/melee/transforming/energy/blade
 	name = "energy blade"
 	desc = "A concentrated beam of energy in the shape of a blade. Very stylish... and lethal."
@@ -395,7 +394,7 @@
 	throw_range = 5
 	sharpness = SHARP_EDGED
 	embedding = list("embedded_pain_multiplier" = 6, "embed_chance" = 20, "embedded_fall_chance" = 60)
-	armour_penetration = 10
+	armour_penetration = MELEE_AP_ANTAGONIST
 	block_chance = 35
 	light_color = "#37FFF7"
 	actions_types = list()
@@ -493,7 +492,7 @@
 			It appears to have a wooden grip and a shaved down guard."
 	icon_state = "cxsword_hilt_traitor"
 	force_on = 30
-	armour_penetration = 35
+	armour_penetration = MELEE_AP_ANTAGONIST
 	embedding = list("embedded_pain_multiplier" = 10, "embed_chance" = 75, "embedded_fall_chance" = 0, "embedded_impact_pain_multiplier" = 10)
 	block_chance = 50
 	hitsound_on = 'sound/weapons/blade1.ogg'
@@ -503,3 +502,8 @@
 	playsound(user, active ? 'sound/weapons/saberon.ogg' : 'sound/weapons/saberoff.ogg', 35, 1)
 	if(!supress_message_text)
 		to_chat(user, "<span class='notice'>[src] [active ? "is now active":"can now be concealed"].</span>")
+
+/obj/item/melee/transforming/energy/sword/saber/red/darklord
+	name = "Chosen one"
+	desc = "There were no signs!"
+	throwforce_on = 35

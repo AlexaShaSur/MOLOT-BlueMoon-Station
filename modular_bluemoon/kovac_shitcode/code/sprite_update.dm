@@ -35,7 +35,8 @@
 	icon_state = "agent"
 	item_state = "agent"
 	dog_fashion = null
-	armor = list("melee" = 50, "bullet" = 40, "laser" = 40, "energy" = 45, "bomb" = 25, "bio" = 0, "rad" = 0, "fire" = 70, "acid" = 90, "wound" = 40)
+	armor_type = /datum/armor/agent
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 
 /obj/item/clothing/head/helmet/flakhelm	//Actually the M1 Helmet
 	name = "flak helmet"
@@ -48,6 +49,7 @@
 	name = "6b79 helmet"
 	icon_state = "russian_green_helmet"
 	item_state = "russian_green_helmet"
+	can_flashlight = TRUE
 	desc = "One of the newest NRI helmets, also widely spread asross space corporations security forces."
 	icon = 'modular_bluemoon/kovac_shitcode/icons/rus/obj_rus.dmi'
 	mob_overlay_icon = 'modular_bluemoon/kovac_shitcode/icons/rus/mob_rus.dmi'
@@ -59,12 +61,13 @@
 	desc = "Touch the skies and above!"
 
 /obj/item/clothing/head/helmet/aviator_helmet/no_armor
-	armor = list("melee" = 0, "bullet" = 0, "laser" = 0, "energy" = 0, "bomb" = 0, "bio" = 0, "rad" = 0, "fire" = 0, "acid" = 0, "wound" = 0)
+	armor_type = /datum/armor/none
 
 /obj/item/clothing/head/helmet/blast_helmet
 	name = "blast helmet"
 	icon_state = "blast_helmet"
 	item_state = "blast_helmet"
+	can_flashlight = TRUE
 	desc = "Generic heavy troopers helmet. Reinforced parts and plates were replaced with simpler parts."
 
 /obj/item/clothing/suit/chaplain/clownpriest
@@ -122,6 +125,17 @@
 	icon_state = "rucksack_tan"
 	item_state = "rucksack_tan"
 
+/obj/item/storage/backpack/rucksack/ert
+
+/obj/item/storage/backpack/rucksack/ert/ComponentInitialize()
+	. = ..()
+	var/datum/component/storage/STR = GetComponent(/datum/component/storage)
+	STR.max_volume = STORAGE_VOLUME_BAG_OF_HOLDING
+
+/obj/item/storage/backpack/rucksack/ert/green
+	icon_state = "rucksack_green"
+	item_state = "rucksack_green"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //// Vox suits and weapons (tau ceti). Sprites by deadmodo and coiscin /////////////////////
@@ -131,14 +145,27 @@
 	w_class = WEIGHT_CLASS_TINY
 	allowed = list(/obj/item/gun, /obj/item/melee, /obj/item/restraints, /obj/item/tank)
 	slowdown = 0.7
-	armor = list(MELEE = 60, BULLET = 50, LASER = 40, ENERGY = 15, BOMB = 30, BIO = 30, RAD = 30)
+	armor_type = /datum/armor/spacesuit_vox
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	heat_protection = CHEST|GROIN|LEGS|ARMS
 	max_heat_protection_temperature = SPACE_SUIT_MAX_TEMP_PROTECT
 	species_restricted = list("Vox")
 	tail_state = ""
 
+/obj/item/clothing/suit/space/vox/equipped(mob/user, slot)  // BLUEMOON ADD
+	. = ..()
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation += brc_mitigation_bonus
+		brc_worn = TRUE
+
+/obj/item/clothing/suit/space/vox/dropped(mob/user)  // BLUEMOON ADD
+	. = ..()
+	if(brc_worn && isliving(user))
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
+		brc_worn = FALSE
+
 /obj/item/clothing/head/helmet/space/vox
-	armor = list(MELEE = 60, BULLET = 50, LASER = 40, ENERGY = 15, BOMB = 30, BIO = 30, RAD = 30)
+	armor_type = /datum/armor/spacesuit_vox
 	flags_cover = NONE
 	species_restricted = list("Vox")
 
@@ -152,7 +179,7 @@
 	item_state = "vox-stealth"
 	desc = "A smoothly contoured, matte-black alien helmet."
 
-	armor = list(MELEE = 25, BULLET = 25, LASER = 20, ENERGY = 5, BOMB = 15, BIO = 30, RAD = 30)
+	armor_type = /datum/armor/stealth
 
 /obj/item/clothing/suit/space/vox/stealth
 	name = "alien stealth suit"
@@ -160,7 +187,7 @@
 	item_state = "vox-stealth"
 	desc = "A sleek black suit. it seems to be rather heavy."
 
-	armor = list(MELEE = 25, BULLET = 25, LASER = 20, ENERGY = 5, BOMB = 15, BIO = 30, RAD = 30)
+	armor_type = /datum/armor/stealth
 
 	slowdown = 1.4
 	actions_types = list(/datum/action/item_action/vox_stealth)
@@ -315,7 +342,7 @@
 	icon_state = "vox-medic"
 	item_state = "vox-medic"
 	desc = "An alien helmet with enormous lenseю"
-	armor = list(MELEE = 45, BULLET = 40, LASER = 45, ENERGY = 20, BOMB = 25, BIO = 30, RAD = 30)
+	armor_type = /datum/armor/medic
 
 /obj/item/clothing/suit/space/vox/medic
 	name = "alien medical armor"
@@ -324,7 +351,7 @@
 	desc = "A nonhuman pressure suit."
 	slowdown = 0.5
 	var/mob/living/carbon/human/wearer
-	armor = list(MELEE = 45, BULLET = 40, LASER = 45, ENERGY = 20, BOMB = 25, BIO = 30, RAD = 30)
+	armor_type = /datum/armor/medic
 
 /obj/item/clothing/suit/space/vox/medic/equipped(mob/user, slot)
 	..()
@@ -369,7 +396,7 @@
 	icon_state = "hardsuit0-voxcarapace"
 	item_state = "hardsuit0-voxcarapace"
 	hardsuit_type = "voxcarapace"
-	armor = list(MELEE = 65, BULLET = 50, LASER = 70, ENERGY = 20, BOMB = 30, BIO = 30, RAD = 30)
+	armor_type = /datum/armor/hardsuit_vox
 
 /obj/item/clothing/suit/space/hardsuit/syndi/vox
 	name = "alien carapace hardsuit"
@@ -378,7 +405,7 @@
 	item_state = "hardsuit0-voxcarapace"
 	hardsuit_type = "voxcarapace"
 	helmettype = /obj/item/clothing/head/helmet/space/hardsuit/syndi/vox
-	armor = list(MELEE = 65, BULLET = 50, LASER = 70, ENERGY = 20, BOMB = 30, BIO = 30, RAD = 30)
+	armor_type = /datum/armor/hardsuit_vox
 	species_restricted = list("Vox")
 	tail_state = ""
 

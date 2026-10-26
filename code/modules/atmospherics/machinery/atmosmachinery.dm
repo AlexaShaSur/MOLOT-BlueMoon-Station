@@ -11,6 +11,7 @@
 #define PIPE_HIDDEN_LEVEL 1
 
 /obj/machinery/atmospherics
+	armor_type = /datum/armor/atmospheric_standard
 	anchored = TRUE
 	move_resist = INFINITY				//Moving a connected machine without actually doing the normal (dis)connection things will probably cause a LOT of issues.
 	idle_power_usage = 0
@@ -58,6 +59,10 @@
 	///снимается только самой очередью - флаг заменяет линейный поиск по списку
 	///на каждое добавление (взрыв сыплет их сотнями за тик).
 	var/rebuild_queued = FALSE
+	///TRUE после первого atmosinit(). Машина попадает в SSair.atmos_machinery ещё
+	///из New(), а atmosinit() для шаблона догоняется только после полной загрузки -
+	///в этом окне у неё физически нет нод, и правило "нет ноды - выключайся" врёт.
+	var/atmos_initialized = FALSE
 
 /obj/machinery/atmospherics/Initialize(mapload)
 	. = ..()
@@ -117,8 +122,6 @@
 	if(pipe_flags & PIPING_CARDINAL_AUTONORMALIZE)
 		normalize_cardinal_directions()
 	nodes = new(device_type)
-	if (!armor)
-		armor = list(MELEE = 25, BULLET = 10, LASER = 10, ENERGY = 100, BOMB = 0, BIO = 100, RAD = 100, FIRE = 100, ACID = 70)
 	..()
 	if(process)
 		SSair.start_processing_machine(src)
@@ -268,6 +271,7 @@
 			if(can_be_node(target, i))
 				nodes[i] = target
 				break
+	atmos_initialized = TRUE
 	update_icon()
 
 /obj/machinery/atmospherics/proc/setPipingLayer(new_layer)
@@ -419,7 +423,7 @@
 		return ..()
 
 	var/turf/T = get_turf(src)
-	if (level==1 && isturf(T) && T.intact)
+	if (level==1 && isturf(T) && (T.turf_flags & TURF_INTACT))
 		to_chat(user, "<span class='warning'>You must remove the plating first!</span>")
 		return TRUE
 
@@ -509,7 +513,7 @@
 	setPipingLayer(set_layer)
 	var/turf/T = get_turf(src)
 	if(set_level) level = set_level
-	else level = T.intact ? 2 : 1
+	else level = (T.turf_flags & TURF_INTACT) ? 2 : 1
 	atmosinit()
 	var/list/nodes = pipeline_expansion()
 	for(var/obj/machinery/atmospherics/A in nodes)
@@ -531,6 +535,8 @@
 #define VENT_SOUND_DELAY 30
 
 /obj/machinery/atmospherics/relaymove(mob/living/user, direction)
+	if(direction & (UP|DOWN))
+		return crawl_vertically(user, direction)
 	direction &= initialize_directions
 	if(!direction || !(direction in GLOB.cardinals)) //cant go this way.
 		return
@@ -538,13 +544,12 @@
 	if(user in buckled_mobs)// fixes buckle ventcrawl edgecase fuck bug
 		return
 
-	var/obj/machinery/atmospherics/components/unary/vent_found
 	var/obj/machinery/atmospherics/target_move = findConnecting(direction, user.ventcrawl_layer)
 	if(target_move)
 		if(target_move.can_crawl_through())
 			if(is_type_in_typecache(target_move, GLOB.ventcrawl_machinery))
 				user.visible_message("<span class='notice'>Что-то вылезает из вентиляции...</span>", "<span class='notice'>Ты вылезаешь из вентиляции.")
-				if(!do_after(user, 2 SECONDS, target = vent_found))
+				if(!do_after(user, 2 SECONDS, target = target_move))
 					return
 				user.forceMove(target_move.loc) //handle entering and so on.
 
@@ -553,15 +558,33 @@
 				if(pipenetdiff.len)
 					user.update_pipe_vision(target_move)
 				user.forceMove(target_move)
-				user.client.eye = target_move  //Byond only updates the eye every tick, This smooths out the movement
+				user.client.set_eye(target_move)  //Byond only updates the eye every tick, This smooths out the movement
 				if(world.time - user.last_played_vent > VENT_SOUND_DELAY)
 					user.last_played_vent = world.time
 					playsound(src, 'sound/machines/ventcrawl.ogg', 50, 1, -3)
 	else if(is_type_in_typecache(src, GLOB.ventcrawl_machinery) && can_crawl_through()) //if we move in a way the pipe can connect, but doesn't - or we're in a vent
 		user.visible_message("<span class='notice'>Что-то вылезает из вентиляции...</span>", "<span class='notice'>Ты вылезаешь из вентиляции.")
-		if(!do_after(user, 2 SECONDS, target = vent_found))
+		if(!do_after(user, 2 SECONDS, target = src))
 			return
-		user.forceMove(target_move.loc) //handle entering and so on.
+		user.forceMove(loc) //handle entering and so on.
+
+/// Ползущий по трубам меняет этаж только в мульти-Z переходнике. TRUE, если перебрался.
+/obj/machinery/atmospherics/proc/crawl_vertically(mob/living/user, direction)
+	return FALSE
+
+/obj/machinery/atmospherics/pipe/simple/multiz/crawl_vertically(mob/living/user, direction)
+	if(user in buckled_mobs)
+		return FALSE
+	var/obj/machinery/atmospherics/pipe/simple/multiz/target = nodes[(direction & UP) ? 2 : 3]
+	if(!istype(target) || !target.can_crawl_through())
+		return FALSE
+	user.forceMove(target)
+	user.update_pipe_vision(target)
+	user.client?.set_eye(target)
+	if(world.time - user.last_played_vent > VENT_SOUND_DELAY)
+		user.last_played_vent = world.time
+		playsound(src, 'sound/machines/ventcrawl.ogg', 50, 1, -3)
+	return TRUE
 
 /obj/machinery/atmospherics/AltClick(mob/living/L)
 	if(is_type_in_typecache(src, GLOB.ventcrawl_machinery))

@@ -280,8 +280,8 @@
 		if(!roundstart_template)
 			CRASH("Invalid path ([sid]/[roundstart_template]) passed to docking port.")
 
-	if(roundstart_template)
-		SSshuttle.action_load(roundstart_template, src)
+	if(roundstart_template && !SSshuttle.action_load(roundstart_template, src))
+		stack_trace("Шаттл [roundstart_template.name] не встал в док [shuttle_id] ([x],[y],[z])")
 
 //returns first-found touching shuttleport
 /obj/docking_port/stationary/get_docked()
@@ -319,7 +319,7 @@
 	dwidth = 11
 	height = 22
 	width = 35
-	shuttlekeys = list("whiteship_meta", "whiteship_pubby", "whiteship_box", "whiteship_cere", "whiteship_kilo", "whiteship_donut", "whiteship_delta", "whiteship_fournal")
+	shuttlekeys = list("whiteship_meta", "whiteship_pubby", "whiteship_box", "whiteship_cere", "whiteship_kilo", "whiteship_donut", "whiteship_delta")
 
 /obj/docking_port/stationary/picked
 	///Holds a list of map name strings for the port to pick from
@@ -341,7 +341,7 @@
 	dwidth = 11
 	height = 22
 	width = 35
-	shuttlekeys = list("whiteship_meta", "whiteship_pubby", "whiteship_box", "whiteship_cere", "whiteship_kilo", "whiteship_donut", "whiteship_delta", "whiteship_fournal")
+	shuttlekeys = list("whiteship_meta", "whiteship_pubby", "whiteship_box", "whiteship_cere", "whiteship_kilo", "whiteship_donut", "whiteship_delta")
 
 /obj/docking_port/mobile
 	name = "shuttle"
@@ -655,6 +655,12 @@
 	var/list/ripple_turfs = list()
 
 	for(var/i in 1 to L0.len)
+		//WHITE-STEEL PORT: у стыковочных портов могут быть разные размеры
+		//(например временный порт случайной посадки), из-за чего L1 короче L0.
+		//Без этой проверки ripple_area падает "list index out of bounds" и
+		//check_effects() прерывается - шаттл вообще не приземляется.
+		if(i > L1.len)
+			continue  // out of bounds
 		var/turf/T0 = L0[i]
 		var/turf/T1 = L1[i]
 		if(!T0 || !T1)

@@ -34,6 +34,8 @@ GLOBAL_PROTECT(admin_verbs_admin)
 	/client/proc/cmd_admin_rejuvenate, // SPLURT EDIT
 	/client/proc/game_panel,			/*game panel, allows to change game-mode etc*/
 	/client/proc/mail_panel,			/*BLUEMOON ADD - панель управления почтой*/
+	/client/proc/spawn_liquid,			/*LIQUIDS ADD - spawn a liquid on admin's location*/
+	/client/proc/remove_liquid,			/*LIQUIDS ADD - remove liquids in radius*/
 	/client/proc/show_admin_ticket_stats, /*BLUEMOON ADD - панель статистики тикетов*/
 	/client/proc/check_ai_laws,			/*shows AI and borg laws*/
 	// /client/proc/ghost_pool_protection,	/*opens a menu for toggling ghost roles*/
@@ -187,6 +189,8 @@ GLOBAL_PROTECT(admin_verbs_debug)
 	/client/proc/toggle_ntnet_debug,
 	/client/proc/set_parallax_profile,
 	/client/proc/show_parallax_state,
+	/client/proc/multiz_debug_panel,
+	/client/proc/space_sectors_panel,
 	/client/proc/cmd_debug_make_powernets,
 	/client/proc/cmd_debug_mob_lists,
 	/client/proc/cmd_admin_delete,
@@ -200,6 +204,7 @@ GLOBAL_PROTECT(admin_verbs_debug)
 	/client/proc/test_snap_UI,
 	/client/proc/debugNatureMapGenerator,
 	/client/proc/movement_probe_toggle,
+	/client/proc/fractional_movement_toggle,
 	/client/proc/check_bomb_impacts,
 	/proc/machine_upgrade,
 	/client/proc/populate_world,
@@ -216,6 +221,7 @@ GLOBAL_PROTECT(admin_verbs_debug)
 	/client/proc/map_template_upload,
 	/client/proc/jump_to_ruin,
 	/client/proc/clear_dynamic_transit,
+	/client/proc/reset_tram,
 	/client/proc/toggle_medal_disable,
 	/client/proc/view_runtimes,
 	/client/proc/view_gc_failures,
@@ -250,6 +256,7 @@ GLOBAL_PROTECT(admin_verbs_debug)
 	/client/proc/discordnulls,
 	/client/proc/generate_wikichem_list, //DO NOT PRESS UNLESS YOU WANT SUPERLAG
 	/client/proc/allow_browser_inspect,
+	/client/proc/loadout_crypto_debug,
 	#ifdef TESTING
 	/datum/admins/proc/machines_benchmark,
 	#endif
@@ -347,7 +354,8 @@ GLOBAL_LIST_INIT(admin_verbs_hideable, list(
 	/client/proc/debug_huds,
 	/client/proc/cmd_admin_man_up, //CIT CHANGE - adds man up verb
 	/client/proc/cmd_admin_man_up_global, //CIT CHANGE - ditto
-	/client/proc/allow_browser_inspect
+	/client/proc/allow_browser_inspect,
+	/client/proc/loadout_crypto_debug,
 	))
 GLOBAL_PROTECT(admin_verbs_hideable)
 

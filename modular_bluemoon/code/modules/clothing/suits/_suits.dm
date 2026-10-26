@@ -1,4 +1,5 @@
 /obj/item/clothing/suit
+	armor_type = /datum/armor/none
 	/**
 	 * Одежда не будет вырезать или скрывать за собой тело тавров, а будет накладываться поверх.
 	 * Подбирается индивидуально: конретные спрайты одежды под конкретные спрайты тел тавров.
@@ -13,6 +14,7 @@
 	 * в конце иметь приписку с именем ключа в вайтлисте: "armor_type_a".
 	 */
 	var/alist/taur_types_icon_whitelist = alist()
+	var/taur_flags_inv_changed = NONE
 
 /obj/item/clothing/suit/apron/chef/AltClick()
 	. = ..()

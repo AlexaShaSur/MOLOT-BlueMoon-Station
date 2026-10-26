@@ -19,7 +19,7 @@
 	attack_verb = list("attacked", "bashed", "battered", "bludgeoned", "whacked")
 	tool_behaviour = TOOL_CROWBAR
 	toolspeed = 1
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 0, RAD = 0, FIRE = 50, ACID = 30)
+	armor_type = /datum/armor/tools_and_misc
 
 	wound_bonus = 7
 	bare_wound_bonus = 8
@@ -79,6 +79,9 @@
 	icon_state = "crowbar_large"
 	item_state = "crowbar"
 	toolspeed = 0.5
+
+/obj/item/crowbar/large/get_belt_overlay()
+	return mutable_appearance('icons/obj/clothing/belt_overlays.dmi', "crowbar")
 
 /obj/item/crowbar/large/heavy
 	name = "heavy crowbar"

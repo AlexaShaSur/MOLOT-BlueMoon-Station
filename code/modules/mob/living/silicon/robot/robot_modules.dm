@@ -156,6 +156,11 @@
 	rebuild_modules()
 
 /obj/item/robot_module/proc/remove_module(obj/item/I, delete_after)
+	var/mob/living/silicon/robot/R = loc
+	if(istype(R))
+		var/held_slot = R.held_items.Find(I)
+		if(held_slot)
+			R.unequip_module_from_slot(I, held_slot)
 	basic_modules -= I
 	modules -= I
 	emag_modules -= I
@@ -189,6 +194,9 @@
 				EG.update_icon()
 			else
 				EG.charge_tick = 0
+		else if(istype(I, /obj/item/gun/ballistic/revolver/grenadelauncher/cyborg))
+			var/obj/item/gun/ballistic/revolver/grenadelauncher/cyborg/GL = I
+			GL.recharge_from_station(coeff)
 
 	R.toner = R.tonermax
 
@@ -216,7 +224,7 @@
 		for(var/trait in R)
 			REMOVE_TRAITS_IN(R, CYBORG_MODULE_TRAIT)
 	for(var/i in held_modules)
-		if(i)
+		if(i && (i in modules))
 			R.activate_module(i)
 	if(R.hud_used)
 		R.hud_used.update_robot_modules_display()
@@ -227,6 +235,7 @@
 	if(!RM.be_transformed_to(src))
 		qdel(RM)
 		return
+	R.uneq_all()
 	R.module = RM
 	R.update_module_innate()
 	RM.rebuild_modules()
@@ -1246,7 +1255,9 @@
 		if("Feline") // SPLURT Addon (ChompS Port)
 			cyborg_base_icon = "vixsec"
 			sleeper_overlay = "vixsec-sleeper"
-			cyborg_icon_override = 'modular_citadel/icons/mob/widerobot.dmi'
+			// vixsec* лежат в splurt-файле, как и у остальных Feline-модулей; в citadel-файле
+			// их нет вовсе - борг был невидим, а меню поз отдыха выдавало "нет ни одной позы".
+			cyborg_icon_override = 'modular_splurt/icons/mob/widerobot.dmi'
 			dogborg = TRUE
 		if("Raptor V-4") // SPLURT Addon (ChompS Port)
 			cyborg_base_icon = "secraptor"
@@ -2093,6 +2104,14 @@
 	moduleselect_icon = "miner"
 	hat_offset = 0
 
+/obj/item/robot_module/miner/rebuild_modules()
+	. = ..()
+	var/mob/living/silicon/robot/R = loc
+	if(!iscyborg(R) || QDELETED(R))
+		return
+	if(!R.GetComponent(/datum/component/robot_module_component/mining_cyborg_goliath_plating))
+		R.AddComponent(/datum/component/robot_module_component/mining_cyborg_goliath_plating)
+
 /obj/item/robot_module/miner/be_transformed_to(obj/item/robot_module/old_module)
 	var/mob/living/silicon/robot/R = loc
 	var/static/list/mining_icons
@@ -2405,7 +2424,7 @@
 		/obj/item/card/emag,
 		/obj/item/pinpointer/syndicate_cyborg,
 		/obj/item/stack/medical/gauze/cyborg,
-		/obj/item/gun/medbeam,
+		/obj/item/gun/medbeam/syndicate,
 		/obj/item/organ_storage)
 	ratvar_modules = list(
 		/obj/item/clockwork/slab/cyborg/medical,

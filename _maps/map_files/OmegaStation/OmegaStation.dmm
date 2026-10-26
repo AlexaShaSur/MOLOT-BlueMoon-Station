@@ -2316,9 +2316,6 @@
 	uses = 10
 	},
 /obj/effect/turf_decal/bot/yellow,
-/obj/structure/cable/white{
-	icon_state = "2-8"
-	},
 /turf/open/floor/plasteel/dark,
 /area/ai_monitored/command/nuke_storage)
 "aeF" = (
@@ -6842,7 +6839,7 @@
 	},
 /area/cargo/miningdock)
 "anr" = (
-/obj/machinery/mineral/equipment_vendor,
+/obj/machinery/equipment_vendor,
 /obj/effect/turf_decal/stripes/yellow/line,
 /turf/open/floor/plasteel/dark/side{
 	dir = 1
@@ -11428,7 +11425,6 @@
 /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden{
 	dir = 4
 	},
-/obj/structure/cable/white,
 /obj/effect/turf_decal/stripes/yellow/line{
 	dir = 5
 	},
@@ -12931,9 +12927,6 @@
 /obj/item/radio,
 /obj/machinery/airalarm{
 	pixel_y = 23
-	},
-/obj/structure/cable/white{
-	icon_state = "0-4"
 	},
 /obj/effect/turf_decal/tile/red{
 	dir = 1
@@ -14451,9 +14444,6 @@
 	pixel_x = 26
 	},
 /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden,
-/obj/structure/cable/white{
-	icon_state = "0-2"
-	},
 /turf/open/floor/plasteel/dark/side{
 	dir = 5
 	},
@@ -15769,9 +15759,6 @@
 /obj/item/radio/intercom{
 	name = "Station Intercom";
 	pixel_x = 26
-	},
-/obj/structure/cable/white{
-	icon_state = "0-8"
 	},
 /turf/open/floor/circuit/green,
 /area/engineering/main)
@@ -31409,10 +31396,7 @@
 	},
 /area/engineering/atmos)
 "bhX" = (
-/obj/machinery/pool/filter{
-	pixel_y = 16
-	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/maintenance/starboard/aft)
 "bhZ" = (
 /obj/machinery/light_switch{
@@ -33953,7 +33937,6 @@
 	name = "Station Intercom";
 	pixel_x = 28
 	},
-/obj/machinery/atmospherics/pipe/simple/scrubbers/hidden,
 /obj/item/radio/intercom{
 	name = "Station Intercom";
 	pixel_x = 28
@@ -34129,7 +34112,6 @@
 	},
 /area/science/xenobiology)
 "cGA" = (
-/obj/machinery/pool/controller,
 /turf/open/floor/wood,
 /area/maintenance/starboard/aft)
 "cLO" = (
@@ -36001,7 +35983,6 @@
 /turf/open/floor/wood,
 /area/maintenance/starboard/aft)
 "iUa" = (
-/obj/machinery/atmospherics/pipe/simple/scrubbers/hidden,
 /obj/machinery/atmospherics/pipe/manifold/scrubbers/hidden{
 	dir = 8
 	},
@@ -37359,7 +37340,7 @@
 	dir = 1;
 	pixel_y = -24
 	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/maintenance/starboard/aft)
 "nmv" = (
 /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden,
@@ -37536,8 +37517,7 @@
 /turf/open/floor/plasteel/dark/corner,
 /area/maintenance/disposal/incinerator)
 "nXb" = (
-/obj/machinery/pool/drain,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/maintenance/starboard/aft)
 "oaV" = (
 /obj/structure/grille,
@@ -38013,9 +37993,6 @@
 	icon_state = "4-8"
 	},
 /obj/machinery/vending/wardrobe/blueshield_wardrobe,
-/obj/structure/cable/white{
-	icon_state = "4-8"
-	},
 /obj/effect/landmark/start/bridgeofficer,
 /turf/open/floor/plasteel/dark,
 /area/command/bridge)
@@ -38188,9 +38165,6 @@
 /obj/item/folder/red,
 /obj/item/book/manual/wiki/security_space_law,
 /obj/item/taperecorder,
-/obj/structure/cable/white{
-	icon_state = "1-2"
-	},
 /obj/structure/table/reinforced,
 /turf/open/floor/plasteel/dark,
 /area/command/bridge)
@@ -38662,9 +38636,6 @@
 	icon_state = "4-8"
 	},
 /obj/machinery/vending/wardrobe/bridgeofficer_wardrobe,
-/obj/structure/cable/white{
-	icon_state = "4-8"
-	},
 /obj/effect/landmark/start/bridgeofficer,
 /turf/open/floor/plasteel/dark,
 /area/command/bridge)
@@ -41540,7 +41511,7 @@
 /turf/open/floor/plasteel/airless/solarpanel,
 /area/solars/starboard/fore)
 "uCY" = (
-/turf/open/pool,
+/turf/open/pool/water,
 /area/maintenance/starboard/aft)
 "uDp" = (
 /obj/machinery/atmospherics/pipe/simple/dark/visible{

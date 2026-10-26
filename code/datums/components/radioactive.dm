@@ -6,14 +6,14 @@
 /datum/component/radioactive
 	dupe_mode = COMPONENT_DUPE_UNIQUE_PASSARGS
 
-	var/source
+	var/source_name
 
 	var/hl3_release_date //the half-life measured in ticks
 	var/strength
 	var/can_contaminate
 
 /datum/component/radioactive/Initialize(_strength=0, _source, _half_life=RAD_HALF_LIFE, _can_contaminate=TRUE)
-	source = _source
+	source_name = "[_source]"
 	hl3_release_date = _half_life
 	can_contaminate = _can_contaminate
 
@@ -72,7 +72,7 @@
 	var/turf/T = get_turf(parent)
 	if(!prob(20) || is_radiation_blocked(parent) || !T) // Кроме 20%-ного шанса, проверяем или есть защита на радиацию
 		return
-	radiation_pulse(T, strength, RAD_DISTANCE_COEFFICIENT*2, FALSE, can_contaminate)
+	radiation_pulse(T, strength, RAD_DISTANCE_COEFFICIENT*2, FALSE, can_contaminate, from_contamination = TRUE)
 
 /datum/component/radioactive/proc/check_dissipate()
 	if(strength <= RAD_BACKGROUND_RADIATION)

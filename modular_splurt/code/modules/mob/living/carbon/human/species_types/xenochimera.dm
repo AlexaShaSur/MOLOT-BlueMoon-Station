@@ -104,20 +104,19 @@
 		return
 
 	if(hair_style)
-		var/selected_string
-		var/list/datum/sprite_accessory/hair/valid_hairstyles = list()
-		for(var/hair_string in GLOB.hair_styles_list)
-			valid_hairstyles.Add(hair_string)
-		selected_string = tgui_input_list(usr, "Select a new hairstyle", "Your hairstyle", valid_hairstyles)
-		if(incapacitated())
-			to_chat(src, "<span class='warning'>You can't mess with your hair right now!</span>")
-			return
-		else if(selected_string && hair_style != selected_string)
-			hair_style = selected_string
-			regenerate_icons()
-			visible_message("<span class='notice'>[src] pauses a moment to style their hair.</span>")
-		else
-			to_chat(src, "<span class ='notice'>You're already using that style.</span>")
+		open_live_hair_style_picker(src, src, src, list("hair"), CALLBACK(src, PROC_REF(apply_tied_hair)))
+
+/mob/living/carbon/human/proc/apply_tied_hair(new_style, tab, new_color)
+	if(incapacitated())
+		to_chat(src, span_warning("You can't mess with your hair right now!"))
+		return FALSE
+	if(hair_style == new_style && (isnull(new_color) || hair_color == new_color))
+		to_chat(src, span_notice("You're already using that style."))
+		return FALSE
+	hair_style = new_style
+	regenerate_icons()
+	visible_message(span_notice("[src] pauses a moment to style their hair."))
+	return TRUE
 
 /mob/living/carbon/human
 	var/revive_ready = REVIVING_READY	// Only used for creatures that have the xenochimera regen ability, so far.
@@ -233,8 +232,8 @@
 		if(stat == DEAD)
 
 			//Reviving from ded takes extra nutrition - if it isn't provided from outside sources, it comes from you
-			if(!nutrition > 0)
-				nutrition=nutrition * 0.75
+			if(nutrition > 0)
+				adjust_nutrition(-nutrition * 0.25)
 			chimera_hatch()
 
 			visible_message("<span class='warning'><p><font size=4>The former corpse staggers to its feet, all its former wounds having vanished...</font></p></span>") //Bloody hell...
@@ -245,7 +244,7 @@
 		else
 			chimera_hatch()
 
-			visible_message("<span class='warning'><p><font size=4>[src] rises to \his feet.</font></p></span>") //Bloody hell... How beautiful! 
+			visible_message("<span class='warning'><p><font size=4>[src] rises to \his feet.</font></p></span>") //Bloody hell... How beautiful!
 			clear_alert("hatch")
 
 /mob/living/carbon/human/proc/chimera_hatch()
@@ -255,12 +254,16 @@
 	var/old_nutrition = nutrition
 	var/uninjured=quickcheckuninjured()
 	//I did have special snowflake code, but this is easier.
-	revive()
+	revive(full_heal = TRUE)
 	cure_husk()
+
+	for(var/obj/item/organ/O in internal_organs)
+		if(!(O.organ_flags & ORGAN_SYNTHETIC))
+			O.setOrganDamage(O.maxHealth * 0.2) // 20% повреждение органов при возраждении за ксенохимерку
 
 
 	if(!uninjured)
-		nutrition = old_nutrition * 0.5
+		set_nutrition(old_nutrition * 0.5)
 		//Drop everything
 		for(var/obj/item/W in src)
 			dropItemToGround(W, 1)
@@ -271,7 +274,7 @@
 		visible_message("<span class='danger'><p><font size=4>The lifeless husk of [src] bursts open, revealing a new, intact copy in the pool of viscera.</font></p></span>") //Bloody hell...
 
 	else //lower cost for doing a quick cosmetic revive
-		nutrition = old_nutrition * 0.9
+		set_nutrition(old_nutrition * 0.9)
 
 	//Unfreeze some things
 	//does_not_breathe = FALSE

@@ -260,7 +260,7 @@
 /atom/movable/screen/fullscreen/heroin
 	icon = 'modular_bluemoon/icons/screen/heroin_fullscreen.dmi'
 	plane = SPLASHSCREEN_PLANE
-	screen_loc = "CENTER-7,SOUTH"
+	screen_loc = "CENTER:-224,SOUTH"
 	icon_state = ""
 
 /datum/client_colour/heroin
@@ -316,7 +316,7 @@
 /obj/item/reagent_containers/pill/powder_heroin
 	name = "Героин"
 	desc = "Горстка порошка грязно-молочного цвета. "
-	icon = 'modular_bluemoon/icons/obj/moredrugs.dmi'
+	icon = 'modular_bluemoon/icons/obj/drugs.dmi'
 	icon_state = "heroinpowder"
 	volume = 10
 	list_reagents = list(/datum/reagent/drug/heroin = 10)

@@ -524,8 +524,11 @@
 		upgrade_reagents4 = sort_list(upgrade_reagents4, GLOBAL_PROC_REF(cmp_reagents_asc))
 	create_reagents(CHEM_DISPENSER_BASE_STORAGE, NO_REACT)
 	update_icon()
-	build_game_recipes_cache()
-	build_dispenser_recipes_cache()
+	// Книги рецептов здесь НЕ строятся: это делает ensure_recipes_asset() при первом
+	// открытии интерфейса, как и написано в его же комментарии. Эагерная сборка на
+	// инициализации машины сводила ту ленивость на нет и держала книгу (747 рецептов,
+	// в каждом вложенные списки) на каждый уникальный набор реагентов с первой секунды
+	// раунда, даже если диспенсер за раунд никто не открыл.
 
 /obj/machinery/chem_dispenser/Destroy()
 	QDEL_NULL(beaker)
@@ -535,11 +538,12 @@
 /obj/machinery/chem_dispenser/examine(mob/user)
 	. = ..()
 	if(panel_open)
-		. += "<span class='notice'>Технический люк [src] открыт!</span>"
-	if(in_range(user, src) || isobserver(user))
-		. += "<span class='notice'>Статус-дисплей сообщает:\n\
-		- Перезаряжается <b>[recharge_amount]</b> ед. заряда в цикл.\n\
-		- Энергоэффективность повышена на <b>[round((powerefficiency*1000)-100, 1)]%</b>.</span>"
+		. += span_notice("Панель техобслуживания [src] открыта!")
+
+/obj/machinery/chem_dispenser/examine_display_content(mob/user)
+	. += "\
+	– Перезаряжается <b>[recharge_amount]</b> ед. заряда в цикл.\n\
+	– Энергоэффективность повышена на <b>[round((powerefficiency*1000)-100, 1)]%</b>."
 
 /obj/machinery/chem_dispenser/process()
 	if (recharge_counter >= CHEM_DISPENSER_RECHARGE_INTERVAL)
@@ -644,7 +648,7 @@
 		ui.open()
 
 		var/client/client = user.client
-		if (CONFIG_GET(flag/use_exp_tracking) && client && client.get_exp_living(TRUE) < CHEM_DISPENSER_GRIEF_PLAYTIME_THRESHOLD)
+		if (CONFIG_GET(flag/use_exp_tracking) && client && client.get_exp_living(TRUE) < CHEM_DISPENSER_GRIEF_PLAYTIME_THRESHOLD && !is_antag_training_atom(src))
 			if(client.next_chem_grief_warning < world.time)
 				if(!istype(src, /obj/machinery/chem_dispenser/drinks) && !istype(src, /obj/machinery/chem_dispenser/mutagen) && !istype(src, /obj/machinery/chem_dispenser/mutagensaltpeter) && !istype(src, /obj/machinery/chem_dispenser/abductor)) // These types are not used for grief.
 					var/turf/T = get_turf(src)
@@ -1275,25 +1279,25 @@
 			var/mob/living/L = usr
 			if(istype(L) && L.client && L.client.prefs)
 				L.client.prefs.chem_dispenser_classic_view = !L.client.prefs.chem_dispenser_classic_view
-				L.client.prefs.save_preferences()
+				L.client.prefs.save_pref_var("chem_dispenser_classic_view")
 			. = TRUE
 		if("toggle_color_mode")
 			var/mob/living/L = usr
 			if(istype(L) && L.client && L.client.prefs)
 				L.client.prefs.chem_dispenser_use_reagent_color = !L.client.prefs.chem_dispenser_use_reagent_color
-				L.client.prefs.save_preferences()
+				L.client.prefs.save_pref_var("chem_dispenser_use_reagent_color")
 			. = TRUE
 		if("toggle_icons")
 			var/mob/living/L = usr
 			if(istype(L) && L.client && L.client.prefs)
 				L.client.prefs.chem_dispenser_show_icons = !L.client.prefs.chem_dispenser_show_icons
-				L.client.prefs.save_preferences()
+				L.client.prefs.save_pref_var("chem_dispenser_show_icons")
 			. = TRUE
 		if("toggle_sort")
 			var/mob/living/L = usr
 			if(istype(L) && L.client && L.client.prefs)
 				L.client.prefs.chem_dispenser_alphabetical_sort = !L.client.prefs.chem_dispenser_alphabetical_sort
-				L.client.prefs.save_preferences()
+				L.client.prefs.save_pref_var("chem_dispenser_alphabetical_sort")
 			. = TRUE
 		if("amount")
 			if(!is_operational() || QDELETED(beaker))
@@ -2135,7 +2139,10 @@
 /obj/machinery/chem_dispenser/mutagensaltpeter
 	name = "Botanical Chemical Dispenser"
 	desc = "Создаёт и выдаёт ботанические химикаты."
-	flags_1 = NODECONSTRUCT_1
+	//Станционная машинерия, пускай и ограниченного количества. её должно быть можно
+	//переносить, для перестройки ботаники. Были тикеты с просьбой открутить, т.к ИЦ это было невозможно
+	//Пусть будет возможно.
+	// flags_1 = NODECONSTRUCT_1
 	canStore = FALSE
 	circuit = /obj/item/circuitboard/machine/chem_dispenser/mutagensaltpeter
 

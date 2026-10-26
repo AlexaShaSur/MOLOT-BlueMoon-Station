@@ -108,7 +108,13 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 
 //Dissasociate ticket
 /datum/admin_help_tickets/proc/ClientLogout(client/C)
-	if(!C || !C.current_ticket)
+	if(!C)
+		return
+	// Любая ссылка на клиента, пережившая логаут, стоит полного обхода мира на его del().
+	for(var/datum/admin_help/owned_ticket as anything in TicketsByCKey(C.ckey))
+		if(owned_ticket.initiator == C)
+			owned_ticket.initiator = null
+	if(!C.current_ticket)
 		return
 	var/datum/admin_help/ticket = C.current_ticket
 	ticket.AddInteraction("Клиент отключился.")
@@ -405,7 +411,9 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		close_reason = "Решено"
 	GLOB.ahelp_tickets.ListInsert(src)
 
-	addtimer(CALLBACK(initiator, TYPE_PROC_REF(/client, giveadminhelpverb)), 50)
+	// CALLBACK(null, ...) становится глобальным вызовом и падает с "bad proc"
+	if(initiator)
+		addtimer(CALLBACK(initiator, TYPE_PROC_REF(/client, giveadminhelpverb)), 5 SECONDS)
 
 	AddInteraction("<font color='#4ade80'><u>Решено админом</u> [usr.ckey].</font>")
 	to_chat(initiator, examine_block("<center><span class='adminhelp'>Ваш тикет был решен со стороны [usr?.client?.holder?.fakekey? usr.client.holder.fakekey : "администратора"]. Опция Adminhelp вскоре будет возвращена вам.</span></center>"))
@@ -563,7 +571,7 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		if("reject")
 			Reject()
 		if("reply")
-			usr.client.cmd_ahelp_reply(initiator)
+			usr.client.cmd_ahelp_reply(initiator || initiator_ckey)
 		if("icissue")
 			ICIssue()
 		if("skillissue")
@@ -852,6 +860,14 @@ GLOBAL_DATUM_INIT(ahelp_tickets, /datum/admin_help_tickets, new)
 		if(client_check?.holder)
 			msglist[i] = "<u>[word]</u>"
 			admins_to_ping[ckey_check] = client_check
+
+		if(!length(ckey_check)) //проверка на роль для пинга. роль берется из admin_ranks.txt
+			continue
+		for(var/client/arank in GLOB.admins)
+			if(findtext(lowertext(arank.holder.rank.name), ckey_check))
+				msglist[i] = "<u>[word]</u>"
+				admins_to_ping[arank.ckey] = arank
+				continue
 
 	if(length(admins_to_ping))
 		admins_to_ping[ADMINSAY_PING_UNDERLINE_NAME_INDEX] = jointext(msglist, " ") // without tuples, we must make do!

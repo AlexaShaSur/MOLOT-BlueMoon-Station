@@ -34,11 +34,13 @@ require only minor tweaks.
 #define ZTRAIT_SPACE_RUINS "Space Ruins"
 #define ZTRAIT_LAVA_RUINS "Lava Ruins"
 #define ZTRAIT_LAVA_JUNGLE_RUINS "Lava Jungle Ruins" //Skyrat change
+#define ZTRAIT_PACT_SIEGE "PACT Siege"
 
 #define ZTRAIT_ICE_RUINS "Ice Ruins"
 #define ZTRAIT_ICE_RUINS_UNDERGROUND "Ice Ruins Underground"
 #define ZTRAIT_ISOLATED_RUINS "Isolated Ruins" //Placing ruins on z levels with this trait will use turf reservation instead of usual placement.
 #define ZTRAIT_VIRTUAL_REALITY "Virtual Reality"
+#define ZTRAIT_ANTAG_TRAINING "Training Ground"
 
 //boolean - weather types that occur on the level
 #define ZTRAIT_SNOWSTORM "Weather_Snowstorm"
@@ -56,6 +58,8 @@ require only minor tweaks.
 // numeric offsets - e.g. {"Down": -1} means that chasms will fall to z - 1 rather than oblivion
 #define ZTRAIT_UP "Up"
 #define ZTRAIT_DOWN "Down"
+#define ZTRAIT_NO_PLANE_STACK "No Plane Stack" //уровни связаны вертикально, но плоскостной куб на них не строится
+#define ZTRAIT_TRANSPARENT_SPACE "Transparent Space" //весь обычный космос уровня показывает этаж под ним вместо звёздной подложки
 
 // enum - how space transitions should affect this level
 #define ZTRAIT_LINKAGE "Linkage"
@@ -76,20 +80,24 @@ require only minor tweaks.
 // default trait definitions, used by SSmapping
 #define ZTRAITS_CENTCOM list(\
 	ZTRAIT_CENTCOM = TRUE, \
+	ZTRAIT_NO_PLANE_STACK = TRUE, \
 	ZTRAIT_DOWN = 0, \
 	ZTRAIT_UP = 1)
 #define ZTRAITS_CENTCOM_EVENT1 list(\
 	ZTRAIT_CENTCOM = TRUE, \
+	ZTRAIT_NO_PLANE_STACK = TRUE, \
 	ZTRAIT_LINKAGE = SELFLOOPING, \
 	ZTRAIT_DOWN = -1, \
 	ZTRAIT_UP = 1)
 #define ZTRAITS_CENTCOM_EVENT2 list(\
 	ZTRAIT_CENTCOM = TRUE, \
+	ZTRAIT_NO_PLANE_STACK = TRUE, \
 	ZTRAIT_LINKAGE = SELFLOOPING, \
 	ZTRAIT_DOWN = -1, \
 	ZTRAIT_UP = 1)
 #define ZTRAITS_CENTCOM_EVENT3 list(\
 	ZTRAIT_CENTCOM = TRUE, \
+	ZTRAIT_NO_PLANE_STACK = TRUE, \
 	ZTRAIT_LINKAGE = SELFLOOPING, \
 	ZTRAIT_DOWN = -1, \
 	ZTRAIT_UP = 0)
@@ -101,29 +109,39 @@ require only minor tweaks.
 	ZTRAIT_LAVA_RUINS = TRUE, \
 	ZTRAIT_BOMBCAP_MULTIPLIER = 5, \
 	ZTRAIT_DOWN = -1, \
-	ZTRAIT_UP = 6, \
 	ZTRAIT_BASETURF = /turf/open/lava/smooth/lava_land_surface) //You see Ivan, defines can't be modularized.
 //SKYRAT CHANGES oh a jungle
+// ZTRAIT_UP/ZTRAIT_DOWN - смещение до соседа, а не номер уровня; джунгли грузятся первыми, поверхность прямо над ними.
 #define ZTRAITS_LAVALAND_JUNGLE list(\
 	ZTRAIT_MINING = TRUE, \
 	ZTRAIT_LAVA_JUNGLE_RUINS = TRUE, \
 	ZTRAIT_BOMBCAP_MULTIPLIER = 2, \
-	ZTRAIT_UP = 7, \
-	ZTRAIT_DOWN = 5, \
+	ZTRAIT_UP = 1, \
 	ZTRAIT_BASETURF = /turf/open/lava/smooth/lava_land_surface)
 #define ZTRAITS_REEBE list(ZTRAIT_REEBE = TRUE, ZTRAIT_BOMBCAP_MULTIPLIER = 0.5)
 #define ZTRAITS_VR list(ZTRAIT_VIRTUAL_REALITY = TRUE, ZTRAIT_AWAY = TRUE)
+#define ZTRAITS_PACT_SIEGE list(ZTRAIT_PACT_SIEGE = TRUE)
 
 #define DL_NAME "name"
 #define DL_TRAITS "traits"
 #define DECLARE_LEVEL(NAME, TRAITS) list(DL_NAME = NAME, DL_TRAITS = TRAITS)
 
 // must correspond to _basemap.dm for things to work correctly
+#ifdef ABSOLUTE_MINIMUM_MODE
+#define DEFAULT_MAP_TRAITS list(\
+	DECLARE_LEVEL("CentCom", ZTRAITS_CENTCOM))
+#elif defined(UNIT_TEST_PROFILE_HERMETIC)
+// CentCom_hermetic.dmm - только z1, уровней событий над ним нет.
+#define DEFAULT_MAP_TRAITS list(\
+	DECLARE_LEVEL("CentCom", list(ZTRAIT_CENTCOM = TRUE, ZTRAIT_NO_PLANE_STACK = TRUE)))
+#else
 #define DEFAULT_MAP_TRAITS list(\
 	DECLARE_LEVEL("CentCom", ZTRAITS_CENTCOM),\
 	DECLARE_LEVEL("CentComEvent1", ZTRAITS_CENTCOM_EVENT1),\
 	DECLARE_LEVEL("CentComEvent2", ZTRAITS_CENTCOM_EVENT2),\
-	DECLARE_LEVEL("CentComEvent3", ZTRAITS_CENTCOM_EVENT3))
+	DECLARE_LEVEL("CentComEvent3", ZTRAITS_CENTCOM_EVENT3),\
+	DECLARE_LEVEL("InteQ Siege Base", ZTRAITS_PACT_SIEGE))
+#endif
 
 // Camera lock flags
 #define CAMERA_LOCK_STATION 1

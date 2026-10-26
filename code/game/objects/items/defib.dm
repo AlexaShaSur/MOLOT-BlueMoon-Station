@@ -14,7 +14,7 @@
 	throwforce = 6
 	w_class = WEIGHT_CLASS_BULKY
 	actions_types = list(/datum/action/item_action/toggle_paddles)
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 0, RAD = 0, FIRE = 50, ACID = 50)
+	armor_type = /datum/armor/clothing_and_general_objects
 
 	var/on = FALSE //if the paddles are equipped (1) or on the defib (0)
 	var/safety = TRUE //if you can zap people with the defibs on harm mode
@@ -406,7 +406,8 @@
 	update_icon()
 	sleep(time)
 	var/turf/T = get_turf(src)
-	T.audible_message("<span class='notice'>[src] beeps: Unit is recharged.</span>")
+	if(isturf(T))
+		T.audible_message("<span class='notice'>[src] beeps: Unit is recharged.</span>")
 	playsound(src, 'sound/machines/defib_ready.ogg', 50, 0)
 	cooldown = FALSE
 	update_icon()
@@ -668,8 +669,9 @@
 					user.visible_message(failed)
 					playsound(src, 'sound/machines/defib_failed.ogg', 50, 0)
 				else
+					var/breathless = HAS_TRAIT(H, TRAIT_NOBREATH)
 					//If the body has been fixed so that they would not be in crit when defibbed, give them oxyloss to put them back into crit
-					if (H.health > HALFWAYCRITDEATH)
+					if(!breathless && H.health > HALFWAYCRITDEATH)
 						H.adjustOxyLoss(H.health - HALFWAYCRITDEATH, 0)
 					else
 						var/overall_damage = total_brute + total_burn + H.getToxLoss() + H.getOxyLoss()
@@ -679,16 +681,28 @@
 							H.adjustToxLoss((mobhealth - HALFWAYCRITDEATH) * (H.getToxLoss() / overall_damage), 0)
 							H.adjustFireLoss((mobhealth - HALFWAYCRITDEATH) * (total_burn / overall_damage), 0)
 							H.adjustBruteLoss((mobhealth - HALFWAYCRITDEATH) * (total_brute / overall_damage), 0)
-					H.updatehealth() // Previous "adjust" procs don't update health, so we do it manually.
+					H.updatehealth() // Previous "adjust" procs don't update health, so we do it manually. Старокодеры сделали это, чтобы вызов выше не происходил 4 раза подряд
 					user.visible_message("<span class='notice'>[req_defib ? "[defib]" : "[src]"] пищит: Реанимация прошла успешно.</span>")
 					playsound(src, 'sound/machines/defib_success.ogg', 50, 0)
 					H.set_heartattack(FALSE)
-					H.revive()
-					H.emote("gasp")
+					H.revive(post_revive_effects = TRUE)
+					if(breathless)
+						H.emote("twitch")
+						if(H.health > HALFWAYCRITDEATH)
+							H.adjustStaminaLoss(max(STAMINA_CRIT - H.getStaminaLoss(), 0), 0) // Только после ревайва и только живой моб адекватно получит эту замену софткрита от окcи урона
+						H.AdjustConfused(rand(10, 15) SECONDS, 0, 15 SECONDS)
+					else
+						H.emote("gasp")
 					H.Jitter(100)
 					SEND_SIGNAL(H, COMSIG_LIVING_MINOR_SHOCK)
 					if(tplus > tloss)
-						H.adjustOrganLoss(ORGAN_SLOT_BRAIN,  max(0, min(99, ((tlimit - tplus) / tlimit * 100))), 150)
+						// setOrganLoss, а не adjustOrganLoss: tlimit растянут до четырёх часов
+						// ради окна реанимации, поэтому выражение почти всегда даёт ровно 99,
+						// и каждый следующий разряд добивал мозг до тяжёлой травмы. Потолок на
+						// единицу ниже BRAIN_DAMAGE_SEVERE - ровно до неё, но не в неё.
+						// revive() без full_heal органы не трогает, поэтому голая запись ещё и ЛЕЧИЛА
+						// уже накопленный урон мозга: берём максимум с текущим.
+						H.setOrganLoss(ORGAN_SLOT_BRAIN, max(H.getOrganLoss(ORGAN_SLOT_BRAIN), max(0, min(BRAIN_DAMAGE_SEVERE - 1, ((tlimit - tplus) / tlimit * 100)))))
 					log_combat(user, H, "revived", defib)
 					if(req_defib)
 						if(defib.healdisk)
@@ -708,15 +722,19 @@
 				user.visible_message("<span class='warning'>[req_defib ? "[defib]" : "[src]"] buzzes: Patient's heart is missing. Operation aborted.</span>")
 				playsound(src, 'sound/machines/defib_failed.ogg', 50, 0)
 			else if(H.undergoing_cardiac_arrest())
-				H.set_heartattack(FALSE)
+				//Безусловного перезапуска здесь быть не должно: он заводил помпу и на
+				//повреждённом сердце, после чего дефиб печатал "heart damage detected",
+				//а ближайший on_life() снова её останавливал.
 				if(!(heart.organ_flags & ORGAN_FAILING))
 					H.set_heartattack(FALSE)
 					user.visible_message("<span class='notice'>[req_defib ? "[defib]" : "[src]"] pings: Patient's heart is now beating again.</span>")
 				else
 					user.visible_message("<span class='warning'>[req_defib ? "[defib]" : "[src]"] buzzes: Resuscitation failed, heart damage detected.</span>")
 				playsound(src, 'sound/machines/defib_zap.ogg', 50, 1, -1)
-
-
+			else if(H.has_status_effect(/datum/status_effect/heretic_dance_earworm))
+				H.remove_status_effect(/datum/status_effect/heretic_dance_earworm)
+				user.visible_message("<span class='notice'>[req_defib ? "[defib]" : "[src]"] pings: Arrhythmia corrected.</span>")
+				playsound(src, 'sound/machines/defib_zap.ogg', 50, 1, -1)
 			else
 				user.visible_message("<span class='warning'>[req_defib ? "[defib]" : "[src]"] buzzes: Patient is not in a valid state. Operation aborted.</span>")
 				playsound(src, 'sound/machines/defib_failed.ogg', 50, 0)

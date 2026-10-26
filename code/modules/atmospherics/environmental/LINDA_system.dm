@@ -37,6 +37,8 @@
 	return FALSE
 
 /turf/proc/ImmediateCalculateAdjacentTurfs()
+	if(SSair)
+		SSair.decompression_geometry_revision = (SSair.decompression_geometry_revision + 1) % SHORT_REAL_LIMIT
 	var/canpass = CANATMOSPASS(src, src)
 	var/canvpass = CANVERTICALATMOSPASS(src, src)
 
@@ -107,6 +109,8 @@
 	__update_auxtools_turf_adjacency_info()
 
 /turf/proc/clear_adjacencies()
+	if(SSair)
+		SSair.decompression_geometry_revision = (SSair.decompression_geometry_revision + 1) % SHORT_REAL_LIMIT
 	block_all_conductivity()
 	for(var/turf/current_turf as anything in atmos_adjacent_turfs)
 		LAZYREMOVE(current_turf.atmos_adjacent_turfs, src)
@@ -185,6 +189,7 @@
 	else
 		ATMOS_BENCH_WAKE(src, "air_update_turf")
 		SSair.add_to_active(src)
+	liquid_update_turf() //LIQUIDS ADD - update liquids processing when the air around us changes
 
 /atom/movable/proc/move_update_air(turf/T)
 	if(isturf(T))

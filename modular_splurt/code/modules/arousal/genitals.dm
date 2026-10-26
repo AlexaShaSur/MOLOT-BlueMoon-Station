@@ -25,10 +25,18 @@
 	return size
 
 /obj/item/organ/genital/proc/get_fluid()
-	return clamp(fluid_rate * ((world.time - last_orgasmed) / (10 SECONDS)) * fluid_mult, 0, fluid_max_volume)
+	if(CHECK_BITFIELD(genital_flags, GENITAL_FUID_PRODUCTION))
+		return clamp(fluid_rate * ((world.time - last_orgasmed) / (10 SECONDS)) * fluid_mult, 0, fluid_max_volume)
+	else if(linked_organ && CHECK_BITFIELD(linked_organ.genital_flags, GENITAL_FUID_PRODUCTION))
+		return linked_organ.get_fluid()
+	return 0
 
 /obj/item/organ/genital/proc/get_fluid_fraction()
-	return get_fluid() / fluid_max_volume
+	if(CHECK_BITFIELD(genital_flags, GENITAL_FUID_PRODUCTION))
+		return get_fluid() / fluid_max_volume
+	else if(linked_organ && CHECK_BITFIELD(linked_organ.genital_flags, GENITAL_FUID_PRODUCTION))
+		return linked_organ.get_fluid_fraction()
+	return 0
 
 /obj/item/organ/genital/proc/climax_modify_size(mob/living/partner, obj/item/organ/genital/source_gen)
     return
@@ -72,3 +80,7 @@
 
 	// Send signal
 	SEND_SIGNAL(src, COMSIG_MOB_UPDATE_GENITALS)
+
+/mob/living/carbon/human/proc/is_genital_forced_visible(key)
+	return key && layers_for_apply_effect && (key in layers_for_apply_effect)
+

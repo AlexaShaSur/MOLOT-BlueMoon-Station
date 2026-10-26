@@ -193,6 +193,11 @@
 	start_empty = TRUE
 	w_class = WEIGHT_CLASS_SMALL
 
+/obj/item/ammo_box/shotgun/Initialize(mapload)
+	. = ..()
+	if(!start_empty && stored_ammo[1])
+		name = "[stored_ammo[1]] " + name
+
 /obj/item/ammo_box/shotgun/update_overlays()
 	. = ..()
 	if(stored_ammo.len)
@@ -200,7 +205,7 @@
 		for(var/A in stored_ammo)
 			var/obj/item/ammo_casing/shotgun/C = A
 			offset += pixeloffsetx
-			var/mutable_appearance/shell_overlay = mutable_appearance(icon, "[initial(C.icon_state)]-clip")
+			var/mutable_appearance/shell_overlay = mutable_appearance(C.icon, "[initial(C.icon_state)]-clip")
 			shell_overlay.pixel_x += offset
 			shell_overlay.appearance_flags = RESET_COLOR
 			. += shell_overlay
@@ -228,3 +233,64 @@
 
 /obj/item/ammo_box/shotgun/loaded/dart
 	ammo_type = /obj/item/ammo_casing/shotgun/dart
+
+//сб ревики
+
+/obj/item/ammo_box/cal41
+	name = "speed loader (.41 rubber)"
+	desc = "Designed to quickly reload revolvers."
+	icon = 'modular_bluemoon/icons/obj/ammo.dmi' 
+	icon_state = "41"
+	caliber = ".41cal"
+	ammo_type = /obj/item/ammo_casing/cal41/rubber
+	max_ammo = 6
+	multiple_sprites = 1
+	custom_materials = list(/datum/material/iron = 20000)
+	speedloader = TRUE
+	w_class = WEIGHT_CLASS_TINY
+
+/obj/item/ammo_box/cal41/lethal
+	name = "speed loader (.41)"
+	ammo_type = /obj/item/ammo_casing/cal41/lethal
+
+/obj/item/ammo_box/cal41/incendiary
+	name = "speed loader (.41 incendiary)"
+	ammo_type = /obj/item/ammo_casing/cal41/incendiary
+
+/obj/item/ammo_box/cal41/dumdum
+	name = "speed loader (.41 dumdum)"
+	ammo_type = /obj/item/ammo_casing/cal41/dumdum
+
+/obj/item/ammo_box/cal41/magnum
+	name = "speed loader (.41 magnum)"
+	ammo_type = /obj/item/ammo_casing/cal41/magnum
+
+/obj/item/ammo_box/cal41/fmj
+	name = "speed loader (.41 FMJ)"
+	ammo_type = /obj/item/ammo_casing/cal41/fmj
+
+//взрывной
+
+/obj/item/ammo_box/magnum44
+	name = "speed loader (.44 HE)"
+	desc = "Designed to quickly reload revolvers."
+	icon = 'modular_bluemoon/icons/obj/ammo.dmi' 
+	icon_state = "41"
+	caliber = ".44 magnum"
+	ammo_type = /obj/item/ammo_casing/magnum44
+	max_ammo = 6
+	multiple_sprites = 1
+	speedloader = TRUE
+	w_class = WEIGHT_CLASS_TINY
+
+/obj/item/ammo_box/magnum44_kinetic
+	name = "speed loader (.44 RC)"
+	desc = "Designed to quickly reload revolvers."
+	icon = 'modular_bluemoon/icons/obj/ammo.dmi' 
+	icon_state = "41"
+	caliber = ".44 magnum"
+	ammo_type = /obj/item/ammo_casing/magnum44_kinetic
+	max_ammo = 6
+	multiple_sprites = 1
+	speedloader = TRUE
+	w_class = WEIGHT_CLASS_TINY

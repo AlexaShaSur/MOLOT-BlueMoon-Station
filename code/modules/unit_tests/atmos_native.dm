@@ -961,13 +961,7 @@
 		member.atmos_cooldown = 0
 		SSair.remove_from_active(member)
 
-/// add_turf() appends to turf_list and only then funnels through reset_cooldowns()
-/// -> cancel_breakdown(). A turf joining the group inside the eviction window -
-/// brand new, or just-evicted and re-shared - therefore exists in neither half of
-/// the eviction partition, so a cancel that trusted the partition would drop it
-/// from turf_list while its excited_group still points at the group: breakdowns
-/// and dismantle would never reach it again, and once the group died the turf
-/// would keep a dangling pointer to an unregistered zombie datum.
+/// A turf joining the group inside the eviction window, brand new or just evicted, stays listed exactly once and points back at the group after add_turf() cancels the breakdown.
 /datum/unit_test/atmos_midevict_join_survives_cancel
 	var/list/turf/open/members
 
@@ -1008,10 +1002,7 @@
 	for(var/turf/open/member as anything in members)
 		TEST_ASSERT(istype(member), "test location is not an open turf")
 
-	// Case 1: a just-evicted member is re-added inside the window. It is still
-	// listed in turf_list (the swap has not happened yet), so the |= in add_turf
-	// is a no-op and only the back-pointer changes - the cancel must keep the
-	// turf, and keep it listed exactly once.
+	// Case 1: a just-evicted member, still listed in turf_list, is re-added inside the window.
 	var/datum/excited_group/group = new
 	var/turf/open/evicted = build_group_at_evict_window(group)
 	TEST_ASSERT_NOTNULL(evicted, "no slice left the group partly evicted, so the guarded window was never reached")
@@ -1081,6 +1072,49 @@
 	partner.atmos_cooldown = 0
 	SSair.remove_from_active(restored)
 	SSair.remove_from_active(partner)
+
+/// SKIP-замена снимает активный турф с учёта, а турф вне учёта не ищет по active_turfs.
+/datum/unit_test/atmos_changeturf_skip_trusts_excited
+	var/turf/planted_turf
+
+/datum/unit_test/atmos_changeturf_skip_trusts_excited/Destroy()
+	if(planted_turf)
+		SSair.drop_active_turf(planted_turf)
+	return ..()
+
+/datum/unit_test/atmos_changeturf_skip_trusts_excited/Run()
+	TEST_ASSERT(SSair?.initialized, "SSair was not initialized")
+	var/turf/open/origin = run_loc_floor_bottom_left
+	var/turf/open/subject = locate(origin.x + 3, origin.y + 3, origin.z)
+	TEST_ASSERT(istype(subject), "test location is not an open turf")
+	var/original_type = subject.type
+	var/list/original_baseturfs = islist(subject.baseturfs) ? subject.baseturfs.Copy() : subject.baseturfs
+	var/replacement_type = original_type == /turf/open/floor/wood ? /turf/open/floor/carpet : /turf/open/floor/wood
+
+	SSair.remove_from_active(subject)
+	SSair.add_to_active(subject, FALSE)
+	var/turf/open/swapped_in = subject.ChangeTurf(replacement_type, null, CHANGETURF_SKIP)
+	TEST_ASSERT_NOTNULL(swapped_in, "CHANGETURF_SKIP replacement did not happen")
+	TEST_ASSERT_EQUAL(!!(swapped_in in SSair.active_turfs), !!swapped_in.excited, "SKIP replacement of an active turf left a listing the new turf does not claim")
+
+	// Ссылка в хвосте без подсказки и без excited: найти её мог только линейный поиск.
+	SSair.remove_from_active(swapped_in)
+	SSair.active_turfs += swapped_in
+	planted_turf = swapped_in
+	var/turf/open/restored = swapped_in.ChangeTurf(original_type, null, CHANGETURF_SKIP)
+	TEST_ASSERT_NOTNULL(restored, "restoring the original turf type did not happen")
+	restored.baseturfs = original_baseturfs
+	restored.air.copy_from_turf(restored)
+	restored.atmos_cooldown = 0
+	var/listings = 0
+	for(var/turf/entry as anything in SSair.active_turfs)
+		if(entry == restored)
+			listings++
+	var/planted_left = listings - (restored.excited ? 1 : 0)
+	SSair.drop_active_turf(restored)
+	planted_turf = null
+	SSair.remove_from_active(restored)
+	TEST_ASSERT_EQUAL(planted_left, 1, "SKIP replacement of a turf outside active_turfs searched the whole list")
 
 /// The awake counter is maintained incrementally; exotic paths (a turf type
 /// change under a live group) can strand it. Every breakdown already walks the
@@ -1258,6 +1292,8 @@
 	SSair.decompression_areas -= drain_area
 	SSair.decompression_handled_at -= drain_area
 	SSair.decompression_pending -= drain_area
+	SSair.decompression_started_at -= drain_area
+	SSair.decompression_seen -= drain_area
 	drain_old_area.contents += drain
 
 /// Idle-heartbeat machines must wake instantly when air on their turf changes,
@@ -1547,6 +1583,12 @@
 	TEST_ASSERT_EQUAL(tiny_fan.CanAtmosPass, ATMOS_PASS_NO, "tiny fan did not block air")
 	TEST_ASSERT(!length(room.atmos_adjacent_turfs), "a tiny fan left its turf atmos-adjacent to its neighbours")
 
+	// Печать фана распространяется и на тепло: запечатанный им проём раньше
+	// тащил температуру камеры наружу коэффициентом окна.
+	TEST_ASSERT(tiny_fan.BlockThermalConductivity(), "тинифан не объявил себя барьером для тепла")
+	TEST_ASSERT_EQUAL(room.conductivity_blocked_directions & (NORTH|SOUTH|EAST|WEST), (NORTH|SOUTH|EAST|WEST), "тинифан не перекрыл теплопроводность своего турфа")
+	TEST_ASSERT(!room.conductivity_directions(), "conductivity_directions всё ещё отдаёт направление сквозь тинифан")
+
 	// The pressure difference the old safety clutch used to fail open on is
 	// exactly what the fan is built for.
 	var/datum/gas_mixture/room_air = room.return_air()
@@ -1562,9 +1604,11 @@
 	powered_fan.use_power = NO_POWER_USE
 	powered_fan.refresh_atmos_barrier()
 	TEST_ASSERT_EQUAL(powered_fan.CanAtmosPass, ATMOS_PASS_NO, "powered fan did not block air while powered")
+	TEST_ASSERT(powered_fan.BlockThermalConductivity(), "поверфан под питанием держит воздух, но не тепло")
 	powered_fan.use_power = ACTIVE_POWER_USE
 	powered_fan.refresh_atmos_barrier()
 	TEST_ASSERT_EQUAL(powered_fan.CanAtmosPass, ATMOS_PASS_YES, "unpowered fan still blocked air")
+	TEST_ASSERT(!powered_fan.BlockThermalConductivity(), "обесточенный поверфан продолжил держать тепло")
 
 	for(var/turf/open/test_turf as anything in test_turfs)
 		var/datum/gas_mixture/snapshot = saved_air[test_turf]
@@ -1795,3 +1839,185 @@
 	emptied.reaction_results = list("fire" = 1)
 	TEST_ASSERT_EQUAL(emptied.react(null), NO_REACTION, "смесь без молей отчиталась о реакции")
 	TEST_ASSERT(!length(emptied.reaction_results), "смесь без молей сохранила результат прошлой реакции")
+
+///Пол требований по бакету выносит сравнение с min_requirements из цикла реакций
+///в сбор кандидатов - до копии списка кандидатов, total_moles(), Cut() и
+///сортировки. Отсечение обязано быть ТОЧНЫМ, а не приближённым: пол это минимум
+///по бакету, реакция лежит ровно в одном бакете, поэтому газ ниже пола не
+///удовлетворяет ни одну реакцию бакета и цикл реакций отверг бы их все до
+///единой. Тест закрепляет этот инвариант и проверяет его следствие напрямую -
+///вердикт react() с гейтом и без него обязан совпадать.
+/datum/unit_test/atmos_reaction_floor_gate/Run()
+	TEST_ASSERT(SSair?.initialized, "SSair не инициализирован")
+	// Индекс мог остаться снятым от упавшего соседа: пересобираем его перед
+	// снимком, иначе тест закрепит инвариант на пустом месте.
+	SSair.auxtools_update_reactions()
+	var/list/by_gas = SSair.reactions_by_key_gas
+	var/list/floors = SSair.reactions_key_gas_floor
+	TEST_ASSERT(islist(by_gas), "индекс реакций по ключевому газу не построен")
+	TEST_ASSERT(islist(floors), "пол требований по бакету не построен")
+	TEST_ASSERT(length(floors) <= length(by_gas), "пол выдан газу без бакета: [length(floors)] полов против [length(by_gas)] бакетов")
+
+	// Газ, который производит реакция, идущая РАНЬШЕ последнего потребителя из его
+	// бакета, обязан остаться без пола: моли на сборе кандидатов ещё нулевые, а к
+	// моменту потребителя их уже хватает. Фреон - живой пример (freonformation с
+	// приоритетом 33 против freonfire с -12).
+	// Явные min/max, а не "первый и последний встреченный": оба списка сейчас
+	// действительно идут в порядке sort_index, но тест закрепляет инвариант
+	// индекса, а не способ его сборки, и держаться за порядок обхода ему нечем.
+	var/list/last_consumer_index = list()
+	var/list/first_producer_index = list()
+	for(var/datum/gas_reaction/reaction as anything in SSair.gas_reactions)
+		var/produced = reaction.synthesis_gas
+		if(!produced)
+			continue
+		var/known_producer = first_producer_index[produced]
+		first_producer_index[produced] = isnull(known_producer) ? reaction.sort_index : min(known_producer, reaction.sort_index)
+	for(var/id in by_gas)
+		for(var/datum/gas_reaction/reaction as anything in by_gas[id])
+			var/known_consumer = last_consumer_index[id]
+			last_consumer_index[id] = isnull(known_consumer) ? reaction.sort_index : max(known_consumer, reaction.sort_index)
+
+	// Инвариант точности. Пол ниже любого требования бакета - гейт не имеет права
+	// срезать реакцию, у которой был шанс пойти; пол выше минимума - гейт
+	// перестал бы быть точным выносом проверки и стал бы правкой баланса.
+	for(var/id in by_gas)
+		var/list/bucket = by_gas[id]
+		var/floor_value = floors[id]
+		var/producer_index = first_producer_index[id]
+		var/fed_before_use = !isnull(producer_index) && producer_index < last_consumer_index[id]
+		if(fed_before_use)
+			TEST_ASSERT_NULL(floor_value, "у газа [id] есть производитель раньше потребителя, но бакету всё равно выдали пол [floor_value] - реакция отложится на фаер")
+			continue
+		TEST_ASSERT_NOTNULL(floor_value, "бакет [id] остался без пола")
+		TEST_ASSERT(floor_value >= 0, "пол бакета [id] отрицательный ([floor_value])")
+		var/expected
+		for(var/datum/gas_reaction/reaction as anything in bucket)
+			var/reaction_floor = reaction.min_requirements[id]
+			if(isnull(reaction_floor))
+				reaction_floor = 0
+			TEST_ASSERT(reaction_floor >= floor_value, "реакция [reaction.id] требует [reaction_floor] газа [id] - ниже пола бакета [floor_value], гейт срежет её незаконно")
+			expected = isnull(expected) ? reaction_floor : min(expected, reaction_floor)
+		TEST_ASSERT_EQUAL(floor_value, expected, "пол бакета [id] не равен минимуму по бакету: [floor_value] против [expected]")
+
+	// Смеси для дифференциала. Первые две - обычный воздух и та самая смесь с
+	// макроскопическими трейсами, на которой микробенч намерил девятикратный
+	// разрыв против инертной. Дальше по паре на каждый бакет с положительным
+	// полом: ровно на полу (гейт обязан пропустить) и вдвое ниже (гейт режет).
+	var/list/probes = list()
+	probes += list(list(GAS_O2 = MOLES_O2STANDARD, GAS_N2 = MOLES_N2STANDARD))
+	probes += list(list(GAS_O2 = MOLES_O2STANDARD, GAS_N2 = MOLES_N2STANDARD, GAS_CO2 = 4, GAS_H2O = 0.05, GAS_NITROUS = 0.1))
+	var/list/heats = GLOB.gas_data.specific_heats
+	for(var/id in floors)
+		var/floor_value = floors[id]
+		if(floor_value <= 0 || !heats[id])
+			continue
+		// Ключ - переменная, поэтому список собирается присваиванием, а не
+		// литералом list(id = ...): в литерале левая часть читается неоднозначно.
+		var/list/at_floor = list()
+		at_floor[id] = floor_value
+		probes += list(at_floor)
+		var/list/below_floor = list()
+		below_floor[id] = floor_value * 0.5
+		probes += list(below_floor)
+
+	for(var/list/recipe as anything in probes)
+		var/datum/gas_mixture/ungated = new
+		var/datum/gas_mixture/gated = new
+		for(var/gas_id in recipe)
+			ungated.set_moles(gas_id, recipe[gas_id])
+			gated.set_moles(gas_id, recipe[gas_id])
+		ungated.set_temperature(T20C)
+		gated.set_temperature(T20C)
+		var/verdict_ungated
+		var/moles_ungated
+		// Пол снимается только на время прогона и возвращается ДО ассертов. Возврат
+		// идёт и по исключению: рантайм внутри react() (вырожденная смесь - ровно то,
+		// что здесь и собирается) рвёт стек до самого RunUnitTest, и оставленный null
+		// уехал бы во все последующие атмос-тесты как молчаливо снятый гейт. Сами
+		// смеси на этом пути не убираем: прогон и так валится, а дублировать qdel в
+		// обеих ветках дороже, чем оставить их сборщику.
+		try
+			SSair.reactions_key_gas_floor = null
+			verdict_ungated = ungated.react(null)
+			moles_ungated = ungated.total_moles()
+		catch(var/exception/probe_error)
+			SSair.reactions_key_gas_floor = floors
+			throw probe_error
+		SSair.reactions_key_gas_floor = floors
+		var/verdict_gated = gated.react(null)
+		var/moles_gated = gated.total_moles()
+		qdel(ungated)
+		qdel(gated)
+		TEST_ASSERT_EQUAL(verdict_gated, verdict_ungated, "гейт изменил вердикт react() на смеси [json_encode(recipe)]")
+		TEST_ASSERT_EQUAL(moles_gated, moles_ungated, "гейт изменил итоговые моли смеси [json_encode(recipe)]")
+
+///Сбор кандидатов идёт ПО КЛЮЧАМ газ-листа смеси, поэтому бакет газа, которого в
+///смеси нет вовсе, не заводится ни при каком поле требований. Реакция, чьё топливо
+///рождает другая реакция ТОГО ЖЕ вызова, из-за этого молча откладывалась на фаер
+///SSair: снятый пол спасал только случай "газ есть, но его мало". Инвариант
+///чинится меткой synthesis_followup_gas на производителе - тест закрепляет и
+///саму метку, и её следствие.
+///
+///Следствие проверяется на паре zauker_formation (приоритет 35) / zauker_decomp
+///(23), а не на фреоне: у фреона окна температур производителя и потребителя не
+///пересекаются (синтез от 473 К, горение до 273 К), поэтому пронаблюдать там
+///нечего - freonfire доезжает до цикла реакций и честно выходит с NO_REACTION.
+/datum/unit_test/atmos_reaction_synthesis_followup/Run()
+	TEST_ASSERT(SSair?.initialized, "SSair не инициализирован")
+	// Индекс мог остаться снятым от упавшего соседа по файлу.
+	SSair.auxtools_update_reactions()
+	TEST_ASSERT(SSair.reactions_have_synthesis_followups, "ни одной реакции-производителя с потребителем позже себя - индекс собран неверно")
+
+	// Метка на самой паре, ради которой механизм и заведён.
+	var/datum/gas_reaction/freon_producer
+	var/datum/gas_reaction/zauker_producer
+	for(var/datum/gas_reaction/reaction as anything in SSair.gas_reactions)
+		if(istype(reaction, /datum/gas_reaction/freonformation))
+			freon_producer = reaction
+		else if(istype(reaction, /datum/gas_reaction/zauker_formation))
+			zauker_producer = reaction
+	TEST_ASSERT_NOTNULL(freon_producer, "freonformation не зарегистрирована в SSair")
+	TEST_ASSERT_NOTNULL(zauker_producer, "zauker_formation не зарегистрирована в SSair")
+	TEST_ASSERT_EQUAL(freon_producer.synthesis_followup_gas, GAS_FREON, "freonformation не тащит за собой бакет фреона - freonfire не станет кандидатом на пустом фреоне")
+	TEST_ASSERT_EQUAL(zauker_producer.synthesis_followup_gas, GAS_ZAUKER, "zauker_formation не тащит за собой бакет заукера")
+	TEST_ASSERT_NULL(SSair.reactions_key_gas_floor?[GAS_ZAUKER], "бакету заукера оставили пол - распад отложится и на молях выше нуля")
+
+	// Гипернобель строго ниже REACTION_OPPRESSION_THRESHOLD: иначе nobstop (тот же
+	// бакет, приоритет INFINITY) оборвал бы цикл реакций первым же кандидатом.
+	// Заукера в смеси НЕТ - в этом весь сценарий.
+	var/list/recipe = list(
+		GAS_HYPERNOB = 1,
+		GAS_NITRIUM = 1,
+		GAS_N2 = 5,
+	)
+	var/temperature = (ZAUKER_FORMATION_MIN_TEMPERATURE + ZAUKER_FORMATION_MAX_TEMPERATURE) * 0.5
+
+	// A/B в одном прогоне и по одной переменной: механизм снимается флагом, всё
+	// остальное (сборка, смесь, порядок реакций) у обеих сторон общее.
+	var/datum/gas_mixture/without_followup = new
+	var/datum/gas_mixture/with_followup = new
+	for(var/gas_id in recipe)
+		without_followup.set_moles(gas_id, recipe[gas_id])
+		with_followup.set_moles(gas_id, recipe[gas_id])
+	without_followup.set_temperature(temperature)
+	with_followup.set_temperature(temperature)
+
+	var/zauker_without
+	// Флаг возвращается и по исключению: оставленный FALSE уехал бы во все
+	// последующие атмос-тесты как молчаливо снятый механизм.
+	try
+		SSair.reactions_have_synthesis_followups = FALSE
+		without_followup.react(null)
+		zauker_without = without_followup.get_moles(GAS_ZAUKER)
+	catch(var/exception/probe_error)
+		SSair.reactions_have_synthesis_followups = TRUE
+		throw probe_error
+	SSair.reactions_have_synthesis_followups = TRUE
+	with_followup.react(null)
+	var/zauker_with = with_followup.get_moles(GAS_ZAUKER)
+	qdel(without_followup)
+	qdel(with_followup)
+
+	TEST_ASSERT(zauker_without > 0, "предпосылка: zauker_formation обязана была синтезировать заукер, получено [zauker_without] моль")
+	TEST_ASSERT(zauker_with < zauker_without, "распад заукера не попал в тот же вызов react(): [zauker_with] против [zauker_without] моль - потребитель отложен на фаер SSair")

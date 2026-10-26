@@ -2,7 +2,7 @@
 /mob/living/carbon/get_eye_protection()
 	var/number = ..()
 
-	if(istype(src.head, /obj/item/clothing/head))			//are they wearing something on their head
+	if(istype(src.head, /obj/item/clothing/head) || istype(src.head, /obj/item/clothing/mod_part/head))			//are they wearing something on their head
 		var/obj/item/clothing/head/HFP = src.head			//if yes gets the flash protection value from that item
 		number += HFP.flash_protect
 
@@ -203,6 +203,7 @@
 
 /mob/living/carbon/emp_act(severity)
 	. = ..()
+	SEND_SIGNAL(src, COMSIG_LIVING_FORCE_EMP, severity)
 	if(. & EMP_PROTECT_CONTENTS)
 		return
 	if(isrobotic(src))
@@ -278,7 +279,80 @@
 	if(should_stun)
 		DefaultCombatKnockdown(60)
 
+/**
+ * Прок наказания при интеракции с карбоном, у которого есть квирк "Отстранённый"
+ * * punished – всегда моб/элайв/карбон, который потенциально получит сдачи за интеракт
+ */
+/mob/living/carbon/proc/distant_punishment_interaction(mob/living/carbon/punished)
+	if(HAS_TRAIT(src, TRAIT_PACIFISM) || HAS_TRAIT(punished, TRAIT_PACIFISM))
+		return FALSE
+
+	switch(rand(1, 100))
+		if(1 to 20) // Выкручивание руки
+			if((!get_bodypart(BODY_ZONE_L_ARM) && !get_bodypart(BODY_ZONE_R_ARM)) || incapacitated())
+				return FALSE
+
+			var/list/available_hands = list()
+			if(punished.get_bodypart(BODY_ZONE_L_ARM))
+				available_hands += BODY_ZONE_PRECISE_L_HAND
+			if(punished.get_bodypart(BODY_ZONE_R_ARM))
+				available_hands += BODY_ZONE_PRECISE_R_HAND
+			if(!length(available_hands))
+				return FALSE
+			var/hand = pick(available_hands)
+
+			punished.visible_message(
+				span_warning("<b>[src]</b> внезапно выкручивает руку <b>[punished]</b>!"),
+				span_boldwarning("Ты чувствуешь, как <b>[src]</b> резко выкручивает тебе руку! Лучше не трогать [ru_ego()]!"),
+				target = src,
+				target_message = span_warning("Ты ловко выкручиваешь руку <b>[punished]</b> за попытку прикоснуться к тебе.")
+			)
+			if(!HAS_TRAIT(punished, TRAIT_ROBOTIC_ORGANISM)) // роботы не кричат от боли
+				punished.emote(pick("realagony", "scream"))
+			punished.dropItemToGround(punished.get_active_held_item())
+			punished.apply_damage(50, STAMINA, hand)
+			punished.apply_damage(5, BRUTE, hand)
+			punished.Knockdown(60) // STOP TOUCHING ME!
+			if(HAS_TRAIT(punished, TRAIT_MODULAR_LIMBS) && prob(33))
+				var/obj/item/bodypart/arm = punished.get_bodypart(check_zone(hand))
+				arm?.drop_limb()
+			return TRUE
+
+		if(21 to 30) // Да, это беспонтовая версия подсечки кравмаг
+			if((!get_bodypart(BODY_ZONE_L_LEG) && !get_bodypart(BODY_ZONE_R_LEG)) || incapacitated())
+				return FALSE
+
+			face_atom(punished)
+			if(!punished.lying)
+				punished.visible_message(
+					span_warning("<b>[src]</b> внезапно делает подсечку <b>[punished]</b>!"),
+					span_boldwarning("Ты внезапно летишь на землю, как <b>[src]</b> резко делает по тебе подсечку! Лучше не трогать [ru_ego()]!"),
+					target = src,
+					target_message = span_warning("Ты даёшь <b>[punished]</b> мощную подсечку за попытку прикоснуться к тебе.")
+				)
+				punished.Paralyze(5 DECISECONDS)
+				punished.DefaultCombatKnockdown(1 SECONDS, override_hardstun = 1, override_stamdmg = 0)
+				playsound(get_turf(src), 'sound/effects/hit_kick.ogg', 50, 1, -1)
+			else
+				punished.visible_message(
+					span_warning("<b>[src]</b> даёт мощнейший пинок в челюсть <b>[punished]</b>, нокаутируя [punished.ru_ego()]!"),
+					span_boldwarning("У тебя мутнеет в глазах после того, как <b>[src]</b> со всей силы заряжает тебе по челюсти после касаний!"),
+					target = src,
+					target_message = span_warning("Ты даёшь <b>[punished]</b> пинок со всей силы за попытку прикоснуться к тебе.")
+				)
+				punished.SetSleeping(4 SECONDS)
+				punished.apply_damage(12, BRUTE, BODY_ZONE_HEAD)
+				var/hit_sounds = pick('sound/effects/hit_crunchy1.ogg', 'sound/effects/hit_crunchy2.ogg', 'sound/effects/hit_crunchy3.ogg')
+				playsound(get_turf(src), hit_sounds, 50, 1, -1)
+			return TRUE
+
+		else // Терпим
+			return FALSE
+
+
 /mob/living/carbon/proc/help_shake_act(mob/living/carbon/M)
+	if(SEND_SIGNAL(src, COMSIG_CARBON_PRE_MISC_HELP, M) & COMPONENT_BLOCK_MISC_HELP)
+		return
 	if(on_fire)
 		to_chat(M, "<span class='warning'>Вы не можете потушить [ru_ego()] голыми руками!!</span>")
 		return
@@ -311,7 +385,7 @@
 						can_shake = TRUE
 					if(istype(user.back, /obj/item/mod/control)) // обычные персонажи с активированными клешнями из МОДа на спине могут поднимать
 						var/obj/item/mod/control/MOD = user.back
-						if(MOD.active || istype(MOD.selected_module, /obj/item/mod/module/clamp))
+						if(MOD.is_active() || istype(MOD.selected_module, /obj/item/mod/module/clamp))
 							can_shake = TRUE
 
 				if(!can_shake)
@@ -352,17 +426,7 @@
 					"<span class='warning'>Вы бупаете <b>[H]</b> в нос! Кажется, [ru_ego()] глаза презрительно смещаются в вашу сторону...</span>")
 				sound_to_play = SOUND_BOOP // BLUEMOON EDIT - было playsound(src, 'sound/items/Nose_boop.ogg', 50, 0)
 				H.add_lust(-5) //Why are you touching me?
-				if(prob(20) && !HAS_TRAIT(H, TRAIT_PACIFISM) && !HAS_TRAIT(M, TRAIT_PACIFISM))
-					M.visible_message("<span class='warning'><b>[H]</b> быстро выкручивает руку <b>[M]</b>!</span>", \
-						"<span class='boldwarning'>Твоя рука выкручивается в хватке <b>[H]</b>! Может, тебе следовало понять тот явственный намек...</span>")
-					// playsound(get_turf(H), 'sound/weapons/thudswoosh.ogg', 50, 1, -1) // BLUEMOON REMOVAL - звук проигрывается в конце
-					M.emote("realagony")
-					M.dropItemToGround(M.get_active_held_item())
-					var/hand = pick(BODY_ZONE_PRECISE_L_HAND, BODY_ZONE_PRECISE_R_HAND)
-					M.apply_damage(50, STAMINA, hand)
-					M.apply_damage(5, BRUTE, hand)
-					M.Knockdown(60)//STOP TOUCHING ME! For those spam head pat individuals
-					friendly_check = FALSE
+				distant_punishment_interaction(M)
 
 			else
 			// BLUEMOON ADD END
@@ -399,18 +463,7 @@
 				M.visible_message("<span class='warning'><b>[H]</b> резко осматривается на <b>[M]</b>, когда [ru_ego()] гладят по голове! Кажется, [ru_who()] раздражен[ru_a()]...</span>", \
 					"<span class='warning'>Вы гладите <b>[H]</b> по голове! Кажется, [ru_ego()] глаза презрительно смещаются в вашу сторону...</span>")
 				H.add_lust(-5) //Why are you touching me?
-				if(prob(20) && !HAS_TRAIT(H, TRAIT_PACIFISM) && !HAS_TRAIT(M, TRAIT_PACIFISM)) // BLUEMOON EDIT - было 5%
-					M.visible_message("<span class='warning'><b>[H]</b> быстро выкручивает руку <b>[M]</b>!</span>", \
-						"<span class='boldwarning'>Твоя рука выкручивается в хватке <b>[H]</b>! Может, тебе следовало понять тот явственный намек...</span>")
-					// playsound(get_turf(H), 'sound/weapons/thudswoosh.ogg', 50, 1, -1) // BLUEMOON REMOVAL - звук проигрывается в конце
-					if(!HAS_TRAIT(M, TRAIT_ROBOTIC_ORGANISM)) // BLUEMOON ADD - роботы не кричат от боли
-						M.emote("scream")
-					M.dropItemToGround(M.get_active_held_item())
-					var/hand = pick(BODY_ZONE_PRECISE_L_HAND, BODY_ZONE_PRECISE_R_HAND)
-					M.apply_damage(50, STAMINA, hand)
-					M.apply_damage(5, BRUTE, hand)
-					M.Knockdown(60)//STOP TOUCHING ME! For those spam head pat individuals
-					friendly_check = FALSE
+				distant_punishment_interaction(M)
 
 			//BLUTEMOON ADD START (TRAIT_SPIKY)
 
@@ -563,7 +616,7 @@
 
 	return embeds
 
-/mob/living/carbon/flash_act(intensity = 1, override_blindness_check = 0, affect_silicon = 0, visual = 0, type = /atom/movable/screen/fullscreen/tiled/flash, override_protection = 0)
+/mob/living/carbon/flash_act(intensity = 1, override_blindness_check = 0, affect_silicon = 0, visual = 0, type = /atom/movable/screen/fullscreen/tiled/flash, override_protection = 0, duration = 25)
 	. = ..()
 
 	var/damage = override_protection ? intensity : intensity - get_eye_protection()

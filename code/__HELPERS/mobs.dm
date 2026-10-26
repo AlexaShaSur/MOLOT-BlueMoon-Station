@@ -184,13 +184,13 @@
 		"mam_body_markings" = list(),
 		"allow_emissives" = FALSE,
 		"emissive_parts" = list(),
-		"mam_ears" 			= snowflake_ears_list ? pick(snowflake_ears_list) : "None",
-		"mam_snouts"		= snowflake_mam_snouts_list ? pick(snowflake_mam_snouts_list) : "None",
-		"mam_tail"			= snowflake_mam_tails_list ? pick(snowflake_mam_tails_list) : "None",
+		"mam_ears" 			= length(snowflake_ears_list) ? pick(snowflake_ears_list) : "None",
+		"mam_snouts"		= length(snowflake_mam_snouts_list) ? pick(snowflake_mam_snouts_list) : "None",
+		"mam_tail"			= length(snowflake_mam_tails_list) ? pick(snowflake_mam_tails_list) : "None",
 		"mam_tail_animated" = "None",
-		"xenodorsal" 		= "Standard",
-		"xenohead" 			= "Standard",
-		"xenotail" 			= "Xenomorph Tail",
+		"xenodorsal"		= "None",
+		"xenohead"			= "None",
+		"xenotail"			= "Xenomorph Tail",
 		"hardsuit_with_tail" = FALSE,
 		"genitals_use_skintone"	= FALSE,
 		"has_cock"			= FALSE,
@@ -266,7 +266,7 @@
 		"anus_accessible" = FALSE,
 		"belly_accessible" = FALSE,
 
-		"ipc_screen"		= snowflake_ipc_antenna_list ? pick(snowflake_ipc_antenna_list) : "None",
+		"ipc_screen"		= length(snowflake_ipc_antenna_list) ? pick(snowflake_ipc_antenna_list) : "None",
 		"ipc_antenna"		= "None",
 		"flavor_text"		= "",
 		"silicon_flavor_text"		= "",
@@ -454,6 +454,17 @@ GLOBAL_LIST_EMPTY(species_datums)
 // Automatically gives the class deadsay to the whole message (message + source)
 /proc/deadchat_broadcast(message, source=null, mob/follow_target=null, turf/turf_target=null, speaker_key=null, message_type=DEADCHAT_REGULAR, admin_only=FALSE)
 	message = span_deadsay("[source][span_linkify(message)]")
+#ifdef UNIT_TESTS
+	if(GLOB.unit_test_deadchat_messages)
+		GLOB.unit_test_deadchat_messages += message
+#endif
+
+	var/atom/training_source
+	if(length(GLOB.antag_training_z) && !speaker_key && !isobserver(follow_target))
+		if(is_antag_training_atom(follow_target))
+			training_source = follow_target
+		else if(is_antag_training_atom(turf_target))
+			training_source = turf_target
 
 	for(var/mob/M in GLOB.player_list)
 		var/chat_toggles = TOGGLES_DEFAULT_CHAT
@@ -482,6 +493,8 @@ GLOBAL_LIST_EMPTY(species_datums)
 		if(M.stat != DEAD && !override)
 			continue
 		if(speaker_key && (speaker_key in ignoring))
+			continue
+		if(training_source && !antag_training_observer_hears(M, training_source))
 			continue
 
 		switch(message_type)
@@ -567,6 +580,10 @@ GLOBAL_LIST_EMPTY(species_datums)
 #define IS_BEARTRAP_ENSNARED(mob) (mob.has_status_effect(/datum/status_effect/beartrap_ensnared))
 
 /proc/set_criminal_status(mob/living/user, datum/data/record/target_records , criminal_status, comment, user_rank, list/authcard_access = list(), user_name)
+	if(target_records.locked_security_reason)
+		if(user)
+			to_chat(user, span_warning("Статус ареста заблокирован. Причина: [target_records.locked_security_reason]"))
+		return FALSE
 	var/status = criminal_status
 	var/old_status = target_records.fields["criminal"] // BLUEMOON ADD - логгирование
 	var/their_name = target_records.fields["name"]
@@ -599,7 +616,7 @@ GLOBAL_LIST_EMPTY(species_datums)
 			status = SEC_RECORD_STATUS_RELEASED
 		if("discharged", SEC_RECORD_STATUS_DISCHARGED)
 			status = SEC_RECORD_STATUS_DISCHARGED
-	target_records.fields["criminal"] = status
+	target_records.set_security_status(status)
 	// Атрибуция активности антагов для директора: объявление в розыск/на казнь означает,
 	// что СБ уже занята этим персонажем. Ищем разум по имени записи - смена личности (агент-ID)
 	// уводит от атрибуции, это приемлемая цена дешёвого поиска на редком ручном действии.
@@ -708,6 +725,12 @@ GLOBAL_LIST_EMPTY(species_datums)
 		if("hemi") return "двойной член"
 		if("hemiknot") return "двойной узловатый член"
 		if("bhemiknot") return "двойной с узлами колючий член"
+		if("pede_segmented") return "сегментированный член"
+		if("pede_hemi") return "двойной сегментированный член"
+		if("pede_knotted") return "узловатый сегментированный член"
+		if("pede_barbed") return "шипованный сегментированный член"
+		if("pede_ovipositor") return "яйцеклад"
+		if("pede_hose") return "гофрированный член-трубка"
 
 		else return "необычной формы член"
 

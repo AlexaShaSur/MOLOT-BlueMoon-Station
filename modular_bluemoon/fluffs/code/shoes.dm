@@ -67,7 +67,7 @@
 
 /obj/item/clothing/shoes/exo_legs/ComponentInitialize()
 	. = ..()
-	AddComponent(/datum/component/squeak, list('sound/effects/footstep/exo_footstep-1.ogg' = 1,'sound/effects/footstep/exo_footstep-2.ogg' = 1), 100)
+	AddComponent(/datum/component/squeak, list('sound/effects/footstep/exo_footstep-1.ogg' = 1), 100)
 	AddElement(/datum/element/polychromic, poly_colors, 1)
 
 /obj/item/clothing/shoes/blood_boots
@@ -79,3 +79,28 @@
 	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/shoes.dmi'
 	anthro_mob_worn_overlay = 'modular_bluemoon/fluffs/icons/mob/clothing/shoes_digi.dmi'
 	mutantrace_variation = STYLE_DIGITIGRADE
+
+/obj/item/clothing/shoes/black_sneakers
+	name = "black sneakers"
+	desc = "Black sneakers from limited collection. The label reads: 'Harr'."
+	icon_state = "black_sneakers"
+	item_state = "black_sneakers"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/shoes.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/shoes.dmi'
+
+/obj/item/modkit/formal_concord_boots_kit
+	name = "Formal concord boots Kit"
+	desc = "A modkit for making a MOPP boots into a Formal concord boots."
+	icon_state = "boots_kit"
+	product = /obj/item/clothing/shoes/jackboots/cbrn/mopp/formal_concord_boots
+	fromitem = list(/obj/item/clothing/shoes/jackboots/cbrn/mopp)
+
+/obj/item/clothing/shoes/jackboots/cbrn/mopp/formal_concord_boots
+	name = "Formal concord boots"
+	desc = "Удивительно, но в обувь не напихать ничего, кроме повышенного комфорта - данная обувь обладает отличными характеристиками для длительного ношения - не смотря на защищённость, лапы легко дышат, подошва подстроена под узкую стопу, а внутренние части обиты дорогой синтетикой."
+	icon_state = "formal_concord_boots"
+	item_state = "formal_concord_boots"
+	icon = 'modular_bluemoon/fluffs/icons/obj/clothing/shoes.dmi'
+	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/clothing/shoes.dmi'
+	anthro_mob_worn_overlay = 'modular_bluemoon/fluffs/icons/mob/clothing/shoes_digi.dmi'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/clothing/shoes/jackboots/cbrn/mopp/formal_concord_boots)

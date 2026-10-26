@@ -18,7 +18,7 @@
 	var/maxbloodstored = 500 // Max uints of blood bank
 	var/transfer_amount = 20 // Draining && Filling amount
 	var/efficiency = 1
-	var/datum/looping_sound/bloodbankgen/soundloop // Working sound
+	var/datum/looping_sound/machine_work/soundloop // Working sound
 
 /obj/machinery/bloodbankgen/Initialize(mapload)
 	. = ..()
@@ -36,11 +36,9 @@
 	QDEL_NULL(soundloop)
 	return ..()
 
-/obj/machinery/bloodbankgen/examine(mob/user)
-	. = ..()
-	if(in_range(user, src) || isobserver(user))
-		. += span_notice("Статус дисплей показывает: \n\
-		- Эффективность конвертации: <b>[efficiency*100]%</b>.")
+/obj/machinery/bloodbankgen/examine_display_content(mob/user)
+	. += "\
+	– Эффективность конвертации крови: <b>[efficiency*100]%</b>."
 
 /obj/machinery/bloodbankgen/handle_atom_del(atom/A)
 	..()

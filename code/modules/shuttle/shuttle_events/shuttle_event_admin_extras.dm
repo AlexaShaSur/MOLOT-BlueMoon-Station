@@ -10,7 +10,7 @@
 		active = TRUE
 	return SHUTTLE_EVENT_CLEAR
 
-/// InteQ hitchhiker — ghost role with /datum/outfit/inteq/full, gear first, optional prefs load, re-equip if prefs applied.
+/// InteQ hitchhiker — ghost role with /datum/outfit/inteq/full, optional prefs load first, then a single equip.
 /datum/shuttle_event/simple_spawner/player_controlled/human/hitchhiker/inteq
 	name = "Оперативники ИнтеКью (автостоп по гиперпространству)"
 	admin_forceable = TRUE
@@ -20,7 +20,7 @@
 	event_probability = 20
 	spawn_probability_per_process = 5
 	activation_fraction = 0.2
-	spawn_anyway_if_no_player = TRUE
+	spawn_anyway_if_no_player = FALSE
 	remove_from_list_when_spawned = TRUE
 	self_destruct_when_empty = TRUE
 	role_type = ROLE_SENTIENCE
@@ -38,9 +38,8 @@
 	var/mob/living/carbon/human/human = mob
 	equip_inteq_hitchhiker(human)
 	if(human.client)
-		if(alert(human, "Загрузить внешность, расу и имя с ваших сохранённых персонажей?", "Внешность", "Да", "Нет") == "Да")
+		if(alert(human, "Загрузить внешность, расу и имя вашего персонажа?", "Внешность", "Да", "Нет") == "Да")
 			human.load_client_appearance(human.client, FALSE)
-			equip_inteq_hitchhiker(human)
 
 /datum/shuttle_event/simple_spawner/player_controlled/human/hitchhiker/inteq/on_batch_npc_spawn(mob/living/mob)
 	if(ishuman(mob))
@@ -52,3 +51,22 @@
 	human.equipOutfit(/datum/outfit/inteq/full)
 	if(human.internal)
 		human.update_action_buttons_icon()
+
+/// Налёт InteQ на эвакуационный шаттл: спавним отряд и объявляем станции попытку угона.
+/datum/shuttle_event/simple_spawner/player_controlled/human/hitchhiker/inteq/spawn_movable(spawn_type)
+	// аргумент обязателен: базовый player_controlled/spawn_movable отсекает не-ispath,
+	// и без него ..() всегда отдаёт FALSE, из-за чего тело ниже было мёртвым кодом
+	. = ..()
+	if(!.)
+		return
+	if(port)
+		var/area/A = get_area(port)
+		var/obj/docking_port/mobile/S = A ? SSshuttle.get_containing_shuttle(A) : null
+		if(S)
+			S.setTimer(S.timeLeft(1) + 120 SECONDS)
+	priority_announce(
+		"Перехвачен сигнал: к аварийному шаттлу сближается десант ИнтеКью. Зафиксирована попытка угона - шаттл пытаются украсть.",
+		null,
+		"shuttledock",
+		"Priority",
+	)

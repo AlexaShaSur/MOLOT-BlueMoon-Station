@@ -6,6 +6,11 @@
 	range = 4
 	dismemberment = 20
 	impact_effect_type = /obj/effect/temp_visual/impact_effect/purple_laser
+	light_range = 2
+	light_power = 0.8
+	light_color = LIGHT_COLOR_PURPLE
+	glow_icon = 'icons/obj/projectiles.dmi'
+	glow_icon_state = "plasmacutter"
 	var/pressure_decrease_active = FALSE
 	var/pressure_decrease = 0.25
 	var/pressure_decrease_delimb = 0.5
@@ -36,8 +41,9 @@
 		if(range > 0)
 			return BULLET_ACT_FORCE_PIERCE
 	if(isanimal(target))
-		var/mob/living/simple_animal/S = target
-		S.apply_damage(round(damage * simplemob_damage_bonus), BRUTE)
+		var/mob/living/simple_animal/animal_target = target
+		if(!animal_target.mind)
+			animal_target.apply_damage(round((damage * simplemob_damage_bonus) * (ismegafauna(animal_target) ? 0.5 : 1)), BRUTE)
 
 /obj/item/projectile/plasma/adv
 	damage = 19
@@ -66,3 +72,7 @@
 	range = 4
 	mine_range = 0
 	simplemob_damage_bonus = 1.5
+
+/// Borg plasma cutter uses a weaker shot that costs 4x less energy from the cyborg cell.
+/obj/item/projectile/plasma/weak/cyborg
+	range = 8

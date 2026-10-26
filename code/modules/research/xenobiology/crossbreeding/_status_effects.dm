@@ -59,18 +59,32 @@
 		"<span class='notice'>Your gel second-skin dissolves!</span>")
 	return ..()
 
+/atom/movable/screen/alert/status_effect/chilling_bluespace
+	name = "Проваливание в блюспейс"
+	desc = "Вы внезапно ощущаете как неведомая сила тянет вас в блюспейс! \nСопротивляйтесь если вы хотите избежать это!"
+	icon_state = "template"
+	overlay_state = "chronofield"
+	clickable_glow = TRUE
+
+/atom/movable/screen/alert/status_effect/chilling_bluespace/Click(location, control, params)
+	. = ..()
+	if(isliving(usr))
+		var/mob/living/L = usr
+		L.resist()
+
 /datum/status_effect/slimerecall
 	id = "slime_recall"
 	duration = -1 //Will be removed by the extract.
-	alert_type = null
+	alert_type = /atom/movable/screen/alert/status_effect/chilling_bluespace
 	var/interrupted = FALSE
 	var/mob/target
 	var/icon/bluespace
 
 /datum/status_effect/slimerecall/on_apply()
 	RegisterSignal(owner, COMSIG_LIVING_RESIST, PROC_REF(resistField))
-	to_chat(owner, "<span class='danger'>You feel a sudden tug from an unknown force, and feel a pull to bluespace!</span>")
-	to_chat(owner, "<span class='notice'>Resist if you wish avoid the force!</span>")
+	to_chat(owner, span_danger("Вы внезапно ощущаете как неведомая сила тянет вас в блюспейс!</span>"))
+	to_chat(owner, span_notice("[span_eldritch_big("Сопротивляйтесь")] если вы хотите избежать это!"))
+	SEND_SOUND(owner, 'sound/magic/ethereal_enter.ogg')
 	bluespace = icon('icons/effects/effects.dmi',"chronofield")
 	owner.add_overlay(bluespace)
 	return ..()
@@ -494,7 +508,7 @@
 	for(var/mob/living/simple_animal/slime/S in range(1, get_turf(owner)))
 		if(!(owner in S.Friends))
 			to_chat(owner, "<span class='notice'>[linked_extract] pulses gently as it communicates with [S]</span>")
-			S.Friends[owner] = 1
+			S.add_friend(owner)
 	return ..()
 
 /datum/status_effect/stabilized/orange

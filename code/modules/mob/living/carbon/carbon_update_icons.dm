@@ -1,8 +1,15 @@
 /mob/living/carbon
 	var/list/overlays_standing[TOTAL_LAYERS]
+	/// Зеркальные копии части [var/overlays_standing] на эмиссивном плане. Хранятся отдельно,
+	/// чтобы в кэше оставалось только настоящее изображение персонажа (по нему ходят тесты и
+	/// код, который считает свечение).
+	var/list/overlays_emissive_blockers[TOTAL_LAYERS]
 
 /mob/living/carbon/proc/apply_overlay(cache_index)
 	if((. = overlays_standing[cache_index]))
+		refresh_emissive_blockers(cache_index)
+		if(overlays_emissive_blockers[cache_index])
+			add_overlay(overlays_emissive_blockers[cache_index])
 		add_overlay(.)
 	update_small_sprite()
 
@@ -11,7 +18,42 @@
 	if(I)
 		cut_overlay(I)
 		overlays_standing[cache_index] = null
+	remove_emissive_blockers(cache_index)
 	update_small_sprite()
+
+/// Пересобирает блокеры для слоя. На эмиссивном плане блокер стоит на своём слое (например,
+/// волосы на [HAIR_LAYER]), а свечение глаз глубже ([BODY_LAYER]) — поэтому волосы гасят
+/// свечение глаз и своё, и чужое, ровно так же, как на игровом плане. Порядок внутри слоя
+/// не важен: блокеры ничего не подсвечивают, они только стирают уже нарисованное свечение.
+/mob/living/carbon/proc/refresh_emissive_blockers(cache_index)
+	remove_emissive_blockers(cache_index)
+	if(!(cache_index in GLOB.emissive_blocked_layers))
+		return
+	var/images = overlays_standing[cache_index]
+	if(!images)
+		return
+	// Большинство слоёв (униформа, голова, обувь...) хранят один mutable_appearance, а не список.
+	// Оборачиваем его, иначе блокеры строились бы только для списка волос и одежда
+	// пропускала бы свечение тела насквозь.
+	if(!islist(images))
+		images = list(images)
+	var/list/blockers
+	for(var/image/im in images)
+		// Эмиссивную копию гасить бессмысленно: она и так на эмиссивном плане.
+		var/true_plane = PLANE_TO_TRUE(im.plane)
+		if(true_plane == EMISSIVE_PLANE || true_plane == EMISSIVE_UNBLOCKABLE_PLANE)
+			continue
+		var/blocker = emissive_blocker_copy(im, src)
+		if(blocker)
+			LAZYADD(blockers, blocker)
+	if(blockers)
+		overlays_emissive_blockers[cache_index] = blockers
+
+/mob/living/carbon/proc/remove_emissive_blockers(cache_index)
+	var/blockers = overlays_emissive_blockers[cache_index]
+	if(blockers)
+		cut_overlay(blockers)
+		overlays_emissive_blockers[cache_index] = null
 
 /mob/living/carbon/regenerate_icons()
 	if(mob_transforming)
@@ -216,6 +258,8 @@
 		apply_overlay(LEGCUFF_LAYER)
 		if(istype(legcuffed, /obj/item/restraints/legcuffs/beartrap))
 			throw_alert("legcuffed", /atom/movable/screen/alert/restrained/legcuffed/beartrap)
+		else if(legcuffed.restrained_alert)
+			throw_alert("legcuffed", legcuffed.restrained_alert)
 		else
 			throw_alert("legcuffed", /atom/movable/screen/alert/restrained/legcuffed, new_master = legcuffed)
 
@@ -284,7 +328,7 @@
 		new_limbs += BP.get_limb_icon()
 	if(new_limbs.len)
 		overlays_standing[BODYPARTS_LAYER] = new_limbs
-		limb_icon_cache[icon_render_key] = new_limbs
+		cache_limb_icons(icon_render_key, new_limbs)
 
 	apply_overlay(BODYPARTS_LAYER)
 	update_damage_overlays()
@@ -309,7 +353,9 @@
 
 //produces a key based on the mob's limbs
 
-/mob/living/carbon/proc/generate_icon_render_key()
+/mob/living/carbon/proc/generate_icon_render_key(plane_offset = LIMB_PLANE_OFFSET(src))
+	if(plane_offset)
+		. += "-floor[plane_offset]"
 	for(var/X in bodyparts)
 		var/obj/item/bodypart/BP = X
 		. += "-[BP.body_zone]"
@@ -321,10 +367,40 @@
 			. += "-organic"
 		else
 			. += "-robotic"
+		// Include any bodypart overlays (e.g. augment implants) so their sprite and
+		// state participate in cache invalidation.
+		if(BP.bodypart_overlays)
+			for(var/datum/bodypart_overlay/overlay as anything in BP.bodypart_overlays)
+				for(var/extra_key in overlay.icon_render_key(BP))
+					. += "-[overlay]-[extra_key]"
 
 	if(HAS_TRAIT(src, TRAIT_HUSK))
 		. += "-husk"
 
+
+/**
+ * Положить набор конечностей в общий кэш, вытеснив самые старые записи.
+ *
+ * Кэш статический, то есть один на весь мир и на весь процесс, а пространство ключей у
+ * generate_icon_render_key() неограниченное: сырые hex-цвета, JSON боди-маркингов, JSON
+ * эмиссивных частей. Хуже того, манекен редактора персонажа (dummy.dm обнуляет
+ * icon_render_key) пишет сюда постоянную запись на каждую перерисовку превью, а превью
+ * перерисовывается на каждый клик в меню. За прод-раунд 10121 строка этого списка в
+ * переписи памяти выросла с 4013 до 16718 слотов за двадцать пять минут и не собиралась
+ * останавливаться: ни капа, ни вытеснения, ни сброса за раунд у него не было.
+ *
+ * Вытеснение FIFO, а не LRU: Cut(1, 2) снимает первую пару ключ-значение, то есть самую
+ * раннюю вставленную (DM хранит ассоциативный список в порядке вставки), и стоит копейки.
+ * LRU потребовал бы трогать список на каждом ПОПАДАНИИ, то есть в самом горячем месте.
+ *
+ * Вытесненная запись живых мобов не ломает: у моба свой список в
+ * overlays_standing[BODYPARTS_LAYER], кэш держал лишь вторую ссылку, а промах чинится
+ * обычной перегенерацией в update_body_parts().
+ */
+/mob/living/carbon/proc/cache_limb_icons(key, list/limbs)
+	limb_icon_cache[key] = limbs
+	while(length(limb_icon_cache) > LIMB_ICON_CACHE_MAX)
+		limb_icon_cache.Cut(1, 2)
 
 //change the mob's icon to the one matching its key
 /mob/living/carbon/proc/load_limb_from_cache()
@@ -335,3 +411,14 @@
 	update_damage_overlays()
 	update_wound_overlays()
 	update_bandage_overlays()
+
+//Ключ кэша частей тела несёт смещение этажа носителя: на новом этаже набор конечностей другой.
+/mob/living/carbon/set_plane_offset(new_offset)
+	. = ..()
+	update_body()
+	for(var/cache_index in GLOB.emissive_blocked_layers)
+		if(!overlays_emissive_blockers[cache_index])
+			continue
+		refresh_emissive_blockers(cache_index)
+		if(overlays_emissive_blockers[cache_index])
+			add_overlay(overlays_emissive_blockers[cache_index])

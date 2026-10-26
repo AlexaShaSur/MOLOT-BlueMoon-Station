@@ -28,6 +28,8 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 #define CHURN_REPORT_THRESHOLD 10
 /// Сколько РАЗНЫХ ckey должны переподключиться за окно, чтобы это считалось штормом.
 #define CHURN_ALERT_DISTINCT_CKEYS 5
+/// Доля онлайна, с которой начинается шторм: при сотне игроков фон - около двух реконнектов за окно.
+#define CHURN_ALERT_ONLINE_FRACTION 0.1
 /// Окно наблюдения за переподключениями.
 #define CHURN_ALERT_WINDOW (2 MINUTES)
 /// Не чаще одного крика в эфир за этот срок.
@@ -51,7 +53,7 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 			stale += key
 	GLOB.recent_reconnects -= stale
 	var/distinct = length(GLOB.recent_reconnects)
-	if(distinct < CHURN_ALERT_DISTINCT_CKEYS)
+	if(distinct < max(CHURN_ALERT_DISTINCT_CKEYS, round(length(GLOB.clients) * CHURN_ALERT_ONLINE_FRACTION)))
 		return
 	GLOB.last_churn_alert = world.time
 	var/list/who = list()
@@ -97,6 +99,7 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 
 #undef CHURN_REPORT_THRESHOLD
 #undef CHURN_ALERT_DISTINCT_CKEYS
+#undef CHURN_ALERT_ONLINE_FRACTION
 #undef CHURN_ALERT_WINDOW
 #undef CHURN_ALERT_COOLDOWN
 
@@ -292,6 +295,9 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 	if(!target)
 		return
 	var/turf/listed = mob?.listed_turf
+	// Игрок кликает из панели только по осматриваемой клетке, админ и ментор - по ссылкам тикетов и SDQL
+	if(!holder && !mentor_datum && (!listed || (target != listed && target.loc != listed)))
+		return
 	var/refresh_listed_turf = listed && get_turf(target) == listed
 	if(refresh_listed_turf)
 		mark_listed_turf_dirty(force_icon_refresh = TRUE)
@@ -517,6 +523,11 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 	if(connection != "seeker" && connection != "web")//Invalid connection type.
 		return null
 
+	fractional_movement = new(FRACTIONAL_MOVEMENT_NATIVE)
+
+	// Цена этого подключения по этапам - см. client_connect_probe.dm
+	var/datum/client_connect_probe/connect_probe = new(ckey)
+
 	GLOB.clients += src
 	GLOB.directory[ckey] = src
 
@@ -545,6 +556,7 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 	prefs.last_ip = address				//these are gonna be used for banning
 	prefs.last_id = computer_id			//these are gonna be used for banning
 	fps = sanitize_clientfps(prefs.clientfps)
+	connect_probe.mark("prefs")
 
 	// BLUEMOON EDIT — Enable Ctrl+F find and persistent byondStorage in browser windows (BYOND 516+)
 	if(byond_version >= 516)
@@ -629,6 +641,7 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 
 
 	. = ..()	//calls mob.Login()
+	connect_probe.mark("Login")
 	// if (length(GLOB.stickybanadminexemptions))
 	// 	GLOB.stickybanadminexemptions -= ckey
 	// 	if (!length(GLOB.stickybanadminexemptions))
@@ -660,7 +673,10 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 	src << browse(file('html/statbrowser.html'), "window=statbrowser")
 	addtimer(CALLBACK(src, PROC_REF(check_panel_loaded)), 30 SECONDS)
 	tgui_panel.initialize()
-	acquire_dpi()
+	// winget за dpi - round-trip до скина клиента, на холодном кэше он отвечает секундами, а
+	// логину это значение не нужно. Асинхронно, а не таймером: таймеры не фиерят на init мира.
+	INVOKE_ASYNC(src, PROC_REF(acquire_dpi))
+	connect_probe.mark("панели")
 
 	if(alert_mob_dupe_login && !holder)
 		var/dupe_login_message = "Your ComputerID has already logged in with another key this round, please log out of this one NOW or risk being banned!"
@@ -685,6 +701,7 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 	var/breaking_version = CONFIG_GET(number/client_error_version)
 	var/breaking_build = CONFIG_GET(number/client_error_build)
 	var/warn_version = CONFIG_GET(number/client_warn_version)
+	var/warn_build = CONFIG_GET(number/client_warn_build)
 	if (byond_version < breaking_version || (byond_version == breaking_version && byond_build < breaking_build))		//Out of date client.
 		to_chat_immediate(src, span_danger("<b>Your version of BYOND is too old:</b>"))
 		to_chat_immediate(src, CONFIG_GET(string/client_error_message))
@@ -698,19 +715,20 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 			disconnect_reason = "сервер: версия BYOND ниже минимальной"
 			qdel(src)
 			return FALSE
-	else if (byond_version < warn_version)	// Bluemoon Edit: Better byond warning //We have words for this client.
+	else if (byond_version < warn_version || (byond_version == warn_version && byond_build < warn_build))
 		if(CONFIG_GET(flag/client_warn_popup))
-			var/msg = "<b>Your version of byond may be getting out of date:</b><br>"
+			var/msg = "<html><head><meta charset='UTF-8'><title>Версия BYOND</title></head><body>"
+			msg += "<b>Доступна рекомендуемая версия BYOND:</b><br>"
 			msg += CONFIG_GET(string/client_warn_message) + "<br><br>"
-			msg += "Your version: [byond_version]<br>"
-			msg += "Required version to remove this message: [warn_version] or later<br>" // Bluemoon Edit: Better byond warning
-			msg += "Visit <a href=\"https://secure.byond.com/download\">BYOND's website</a> to get the latest version of BYOND.<br>"
+			msg += "Ваша версия: [byond_version].[byond_build]<br>"
+			msg += "Рекомендуемая версия: [warn_version].[warn_build] или новее<br>"
+			msg += "Обновление доступно на <a href=\"https://www.byond.com/download/\">сайте BYOND</a>.<br></body></html>"
 			src << browse(msg, "window=warning_popup")
 		else
-			to_chat(src, "<span class='danger'><b>Your version of byond may be getting out of date:</b></span>")
+			to_chat(src, span_notice("<b>Доступна рекомендуемая версия BYOND:</b>"))
 			to_chat(src, CONFIG_GET(string/client_warn_message))
-			to_chat(src, "Your version: [byond_version]")
-			to_chat(src, "Required version to remove this message: [warn_version] or later") // Bluemoon Edit: Better byond warning
+			to_chat(src, "Ваша версия: [byond_version].[byond_build]. Рекомендуемая версия: [warn_version].[warn_build] или новее.")
+			to_chat(src, "Обновление доступно на <a href=\"https://www.byond.com/download/\">сайте BYOND</a>.")
 
 	if (connection == "web" && !connecting_admin)
 		if (!CONFIG_GET(flag/allow_webclient))
@@ -831,6 +849,8 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 	// плюс цикл коррекции. Откладываем, как это уже делает change_view.
 	addtimer(CALLBACK(src, VERB_REF(fit_viewport)), LOGIN_FIT_VIEWPORT_DELAY)
 	Master.UpdateTickRate()
+	connect_probe.mark("хвост")
+	connect_probe.finish(round_login_index)
 
 /// Отсутствие окна кэша ассетов означает кастомный скин - предупреждаем и только.
 /// Зовётся таймером после логина: winexists ждёт ответа скина, и на входе в игру
@@ -892,10 +912,10 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 
 	prefs.ui_zoom_preferences[safe_window_key] = safe_zoom
 	// Зум приходит пачкой, пока игрок тянет рамку окна, а запись savefile
-	// синхронная - она морозит весь процесс, а не только вызывающего. Откладываем
-	// на дебаунс: таймер держит ссылку на префы сам, поэтому запись переживает
-	// логаут даже если клиент ушёл раньше срабатывания.
-	prefs.queue_save_pref(PREF_SAVE_COOLDOWN, TRUE)
+	// синхронная - она морозит весь процесс, а не только вызывающего. Кладём один
+	// ключ в буфер склейки: он уйдёт на диск одним открытием savefile, а не полным
+	// сейвом префов, и переживёт логаут - флаш висит на разлогине и на Destroy датума.
+	prefs.save_single_pref("ui_zoom_preferences", prefs.ui_zoom_preferences)
 	return TRUE
 
 /client/proc/legacy_zoom_head(window_key, base_zoom = 100)
@@ -1086,6 +1106,8 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 		window_scaling_retry_count = 0
 
 	var/new_scaling = text2num(tracked_winget(src, null, "dpi"))
+	// Клиент ответил чем угодно - панель tgui, ждущая масштаб, может ехать дальше.
+	window_scaling_resolved = TRUE
 	if(isnum(new_scaling) && new_scaling > 0)
 		window_scaling = new_scaling
 		window_scaling_retry_count = 0
@@ -1122,20 +1144,18 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 		// клиентом, а держатели экранных объектов не успевали снять их до screen.Cut().
 		SEND_SIGNAL(src, COMSIG_PARENT_QDELETING, FALSE)
 		Destroy() //Clean up signals and timers.
-	// ..() здесь - это встроенное удаление, внутри которого BYOND и обходит мир,
-	// вычищая уцелевшие ссылки. Меряем именно его: половина дисконнектов прошлого
-	// раунда стоила около полусекунды заморозки, и без этой отметки детектор
-	// спайков валит их в общую кучу "внешний столл", где они выглядят как проблема
-	// хоста, а не наша. Порог тот же, что у остальной медленной работы.
+	// Логаут пишется всегда: BYOND ищет уцелевшие ссылки на клиента уже после выхода из Del(),
+	// этот столл в замер del() не попадает, а refcount после Destroy показывает, будет ли поиск.
+	var/leftover_refs = refcount(src)
 	var/deletion_started = TICK_USAGE
 	. = ..()
 	if(!SStick_spikes)
 		return
 	var/deletion_cost_ms = TICK_DELTA_TO_MS(TICK_USAGE - deletion_started)
-	if(deletion_cost_ms >= SStick_spikes.slow_work_threshold_ms)
-		SStick_spikes.record_slow_work("del", "/client (логаут)", deletion_cost_ms)
+	SStick_spikes.record_slow_work("логаут", "[ckey]: refcount после Destroy [leftover_refs], del() [round(deletion_cost_ms, 0.1)]мс", deletion_cost_ms)
 
 /client/Destroy()
+	QDEL_NULL(fractional_movement)
 	GLOB.clients -= src
 	GLOB.directory -= ckey
 	log_access("Logout: [key_name(src)] | [connection_forensics()]")
@@ -1147,6 +1167,11 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 		churn_record[3] = min(churn_record[3], lifetime_seconds)
 	else
 		GLOB.round_connection_lifetimes[ckey] = list(1, lifetime_seconds, lifetime_seconds)
+	// Отложенные одиночные записи префов ждут таймера склейки. Игрок уходит - дописываем
+	// их сейчас: датум префов переживёт логаут и таймер бы отработал, но настройка,
+	// изменённая в последние секунды, иначе доедет до диска только если сервер доживёт до
+	// срабатывания. Пустой буфер до диска не доходит, так что обычный логаут бесплатен.
+	prefs?.flush_single_prefs()
 	// Tear down listed-turf signals and any queued icon work so we don't leak refs through the signal subsystem.
 	if(listed_turf_watched || mob?.listed_turf)
 		clear_listed_turf(send_output = FALSE)
@@ -1168,6 +1193,7 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 		SSparallax.currentrun -= src
 	if(GLOB.ahelp_tickets)
 		GLOB.ahelp_tickets.ClientLogout(src)
+	GLOB.mentor_tickets?.ClientLogout(src)
 
 	if(credits)
 		QDEL_LIST(credits)
@@ -1238,9 +1264,32 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 		view_size.chief = null
 	QDEL_NULL(tooltips)
 	QDEL_NULL(parallax_holder)
+	//Ловец кликов заводится в update_clickcatcher() на первом же Login и больше
+	//нигде не удаляется: screen.Cut() ниже снимает его с экрана, а ссылка в
+	//client.click_catcher держит его, пока жив сам клиент. В раунде 10060 с нулём
+	//игроков перепись давала +31..49 click_catcher за интервал при 40-50
+	//оборванных подключениях - по одному на соединение, которое BYOND отверг до
+	//встроенного New() и чей /client так и не дошёл до Del.
+	QDEL_NULL(click_catcher)
 	QDEL_NULL(void)
 	QDEL_NULL(void_right)
 	QDEL_NULL(void_bottom)
+	SSmouse_entered.hovers -= src
+	SSchat.payload_by_client -= src
+	GLOB.requests.client_logout(src)
+	if(plug13?.owner == src)
+		plug13.owner = null
+	if(mentor_datum?.owner == src)
+		mentor_datum.owner = null
+	GLOB.mentors -= src
+	var/datum/tattoo_manager/tattoo_manager = GLOB.tattoo_managers[ckey]
+	if(tattoo_manager)
+		GLOB.tattoo_managers -= ckey
+		qdel(tattoo_manager)
+	for(var/menu_id in GLOB.radial_menus)
+		var/datum/radial_menu/menu = GLOB.radial_menus[menu_id]
+		if(menu?.current_user == src)
+			menu.current_user = null
 	screen.Cut()
 	images.Cut()
 
@@ -1267,7 +1316,7 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 	return max(REALTIMEOFDAY - connection_realtimeofday, 0) / 10
 
 /client/proc/connection_forensics()
-	var/list/parts = list("вход №[round_login_index]")
+	var/list/parts = list(round_login_index ? "вход №[round_login_index]" : "не дошёл до входа")
 	if(connection_realtimeofday)
 		parts += "жил [round(connection_lifetime_seconds(), 0.1)]с"
 	if(connection_time)
@@ -1276,7 +1325,7 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 		parts += "последний пинг [round((world.time - lastping_at) / 10, 0.1)]с назад, rtt [round(lastping_rtt_raw, 1)]мс (сред [round(avgping_rtt || 0, 1)], джиттер [round(avgping_jitter || 0, 1)])"
 	else
 		parts += "пинга не было ни разу"
-	parts += "без ввода [round(inactivity / 10, 0.1)]с"
+	parts += "без ввода [round((world.time - last_activity) / 10, 0.1)]с"
 	parts += "моб [mob ? "[mob.type]" : "нет"]"
 	parts += "инициатор: [disconnect_reason || "клиент/сеть"]"
 	return parts.Join(" | ")
@@ -1587,6 +1636,7 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 	. = token
 	log_access("Failed Login: [key] [computer_id] [address] - CID randomizer check")
 	var/url = tracked_winget(src, null, "url")
+	disconnect_reason = "сервер: CID-проверка, редирект на реконнект с токеном"
 	//special javascript to make them reconnect under a new window.
 	src << browse({"<a id='link' href="byond://[url]?token=[token]">byond://[url]?token=[token]</a><script type="text/javascript">document.getElementById("link").click();window.location="byond://winset?command=.quit"</script>"}, "border=0;titlebar=0;size=1x1;window=redirect")
 	to_chat(src, {"<a href="byond://[url]?token=[token]">You will be automatically taken to the game, if not, click here to be taken manually</a>"})
@@ -1760,6 +1810,11 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 		addtimer(CALLBACK(SSassets.transport, TYPE_PROC_REF(/datum/asset_transport, send_assets_slow), src, SSassets.transport.preload), 5 SECONDS)
 
 	#if (PRELOAD_RSC == 0)
+	// Книга недатумных аллокаций: каталог VOX уходит каждому входящему по игровому
+	// соединению отдельной копией, и бюджет на него держит preload_size_budgets.dm.
+	// Отмечаем весь каталог одной записью и по общему промеру: per-file length(file)
+	// завышал впятеро и заодно дёргал книгу 1596 раз на каждый вход.
+	note_nondatum_alloc(NONDATUM_LEDGER_RSC_BYTES, get_vox_preload_bytes())
 	for (var/type in GLOB.vox_types)
 		if(QDELETED(src))
 			return
@@ -1820,9 +1875,18 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 	view = new_size
 	var/list/actualview = getviewsize(view)
 	update_clickcatcher()
-	parallax_holder?.Reset()
+	if(old_view[1] != actualview[1] || old_view[2] != actualview[2])
+		parallax_holder?.Reset()
 	mob?.hud_used?.screentip_text?.update_view()
-	mob.reload_fullscreen()
+	// Гарды на mob здесь и на SEND_SIGNAL ниже: change_view зовётся из /datum/view_data/New()
+	// (view.dm:86 apply -> chief.change_view) ещё внутри /client/New() - client_procs.dm:826,
+	// то есть в момент, когда моба у клиента может не быть. Локально на MetaStation это
+	// воспроизводилось каждым подключением DreamSeeker: "Cannot execute null.reload
+	// fullscreen()", следом "Cannot read null.comp_lookup", а упавший /client/New() BYOND
+	// трактует как отказ и рвёт соединение. На проде этого рантайма нет ни разу за 144 логина
+	// раунда 10048, то есть там моб к этому моменту уже назначен - но соседние строки этот же
+	// моб и так спрашивают через ?., здесь просто потерян знак вопроса.
+	mob?.reload_fullscreen()
 	if (isliving(mob))
 		var/mob/living/M = mob
 		M.update_damage_hud()
@@ -1830,7 +1894,8 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 		// Отложено, чтобы не дёргать winget во время логина. Задержка обязана стоять
 		// аргументом addtimer: внутри CALLBACK она уходит в сам верб, и таймер срабатывает сразу.
 		addtimer(CALLBACK(src, VERB_REF(fit_viewport)), 1 SECONDS)
-	SEND_SIGNAL(mob, COMSIG_MOB_CLIENT_CHANGE_VIEW, src, old_view, actualview)
+	if(mob)
+		SEND_SIGNAL(mob, COMSIG_MOB_CLIENT_CHANGE_VIEW, src, old_view, actualview)
 
 /client/proc/generate_clickcatcher()
 	if(!void)
@@ -1854,19 +1919,29 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 
 /client/proc/show_character_previews(mutable_appearance/source)
 	LAZYINITLIST(char_render_holders)
-	if(!LAZYLEN(char_render_holders))
-		for(var/plane_master_path as anything in subtypesof(/atom/movable/screen/plane_master))
-			var/atom/movable/screen/plane_master/plane_master = new plane_master_path()
-			char_render_holders["plane_master-[plane_master.plane]"] = plane_master
-			plane_master.backdrop(mob)
-			screen |= plane_master
+	if(!char_preview_planes)
+		//Через попап-группу: мастера без худа плодят реле на основной карте и заявляют те же имена render_target, что и худ игрока.
+		char_preview_planes = new /datum/plane_master_group/popup/on_demand(PLANE_GROUP_POPUP_WINDOW("character_preview"), "character_preview_map")
+		for(var/plane_key in char_preview_planes.plane_masters)
+			var/atom/movable/screen/plane_master/plane_master = char_preview_planes.plane_masters[plane_key]
+			plane_master.refresh_backdrop(mob)
 			plane_master.screen_loc = "character_preview_map:0,CENTER"
+		char_preview_planes.register_to_client(src)
 		// Disable lighting on the preview — no lighting objects exist there,
 		// and the blur edge-fix filter would force the empty plane opaque black
-		var/atom/movable/screen/plane_master/lighting_pm = char_render_holders["plane_master-[LIGHTING_PLANE]"]
-		if(lighting_pm)
-			lighting_pm.alpha = LIGHTING_PLANE_ALPHA_INVISIBLE
+		for(var/plane_key in char_preview_planes.plane_masters)
+			var/atom/movable/screen/plane_master/lighting/lighting_pm = char_preview_planes.plane_masters[plane_key]
+			if(!istype(lighting_pm))
+				continue
+			lighting_pm.set_alpha(LIGHTING_PLANE_ALPHA_INVISIBLE)
 			lighting_pm.filters = null
+		// The emissive plane only exists to feed the lighting plane's alpha mask, which is disabled
+		// above. Without that mask the raw white emissive overlays would blow out the whole preview,
+		// so hide the emissive plane in the character preview too.
+		var/atom/movable/screen/plane_master/emissive_pm = char_render_holders["plane_master-[EMISSIVE_PLANE]"]
+		if(emissive_pm)
+			emissive_pm.alpha = LIGHTING_PLANE_ALPHA_INVISIBLE
+			emissive_pm.filters = null
 
 	var/pos = 0
 	for(var/dir in GLOB.cardinals)
@@ -1881,6 +1956,8 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 		preview.screen_loc = "character_preview_map:0,[pos]"
 
 /client/proc/clear_character_previews()
+	char_preview_planes?.unregister_from_client(src)
+	QDEL_NULL(char_preview_planes)
 	if(!LAZYLEN(char_render_holders))
 		char_render_holders = null
 		return
@@ -1906,6 +1983,8 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 
 ///Redirect proc that makes it easier to call the unlock achievement proc. Achievement type is the typepath to the award, user is the mob getting the award, and value is an optional variable used for leaderboard value increments
 /client/proc/give_award(achievement_type, mob/user, value = 1)
+	if(user?.training_origin)
+		return FALSE
 	return	player_details.achievements.unlock(achievement_type, user, value)
 
 ///Redirect proc that makes it easier to get the status of an achievement. Achievement type is the typepath to the award.
@@ -1961,24 +2040,20 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 
 //increment progress for an unlockable loadout item
 /client/proc/increment_progress(key, amount)
-	if(prefs)
-		var/savefile/S = new /savefile(prefs.path)
-		var/list/unlockable_loadout_data = prefs.unlockable_loadout_data
-		if(!length(unlockable_loadout_data))
-			unlockable_loadout_data = list()
-			unlockable_loadout_data[key] = amount
-			WRITE_FILE(S["unlockable_loadout"], safe_json_encode(unlockable_loadout_data))
-			prefs.unlockable_loadout_data = unlockable_loadout_data
-			return TRUE
-		else
-			if(unlockable_loadout_data[key])
-				unlockable_loadout_data[key] += amount
-			else
-				unlockable_loadout_data[key] = amount
-			WRITE_FILE(S["unlockable_loadout"], safe_json_encode(unlockable_loadout_data))
-			prefs.unlockable_loadout_data = unlockable_loadout_data
-			return TRUE
-	return FALSE
+	if(!prefs || !key)
+		return FALSE
+	var/list/unlockable_loadout_data = prefs.unlockable_loadout_data
+	if(!islist(unlockable_loadout_data))
+		unlockable_loadout_data = list()
+	// null не равен нулю, поэтому сложение через isnull, а не через прямое +=
+	var/current = unlockable_loadout_data[key]
+	unlockable_loadout_data[key] = (isnull(current) ? 0 : current) + amount
+	prefs.unlockable_loadout_data = unlockable_loadout_data
+	// Прежде тут открывался savefile и писался WRITE_FILE напрямую, мимо замера
+	// блокирующих вызовов: каждая вымытая плитка уходила синхронно на диск, а
+	// детектор спайков видел её как безымянный "внешний столл". Ключ один, так что
+	// пишем его одиночной записью и под тем же прибором, что и остальные префы.
+	return prefs.save_single_pref("unlockable_loadout", safe_json_encode(unlockable_loadout_data))
 
 /client/proc/open_filter_editor(atom/in_atom)
 	if(holder)
@@ -1998,6 +2073,15 @@ GLOBAL_VAR_INIT(last_churn_alert, 0)
 
 	var/mob/dead/observer/observer = mob
 	observer.ManualFollow(target)
+
+/// Единственный путь смены client.eye: худ узнаёт о новом глазе по сигналу.
+/client/proc/set_eye(atom/new_eye)
+	if(new_eye == eye)
+		return
+	var/atom/old_eye = eye
+	eye = new_eye
+	SEND_SIGNAL(src, COMSIG_CLIENT_SET_EYE, old_eye, new_eye)
+	mob?.refresh_hud_view_group()
 
 /// Clears the client's screen, aside from ones that opt out
 /client/proc/clear_screen()

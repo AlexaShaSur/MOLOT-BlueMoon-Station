@@ -157,6 +157,25 @@
 						/mob/living/simple_animal/hostile/clockwork/clocktank = 2)
 	triggersound = 'modular_bluemoon/sound/ambience/storm/clock_storm.ogg'
 
+/datum/round_event_control/portal_storm_mise
+	name = "Portal Storm: Mise"
+	typepath = /datum/round_event/portal_storm/portal_storm_mise
+	weight = 12
+	min_players = 40
+	earliest_start = 60 MINUTES
+	max_occurrences = 1
+	category = EVENT_CATEGORY_INVASION
+	family = "portal_storm" // восемь вариантов одного шаблона: общий фолл-офф и пауза, чтобы не шли подряд
+
+/datum/round_event/portal_storm/portal_storm_mise
+	boss_types = list(/mob/living/simple_animal/hostile/mouse/admin = 1)
+	hostile_types = list(/mob/living/simple_animal/hostile/syndimouse = 8,\
+						/mob/living/simple_animal/mouse/boommouse = 8,\
+						/mob/living/simple_animal/hostile/bigmouse = 6,\
+						/mob/living/simple_animal/hostile/mouse/mentor = 4,\
+						/mob/living/simple_animal/mouse = 20)
+	triggersound = 'modular_bluemoon/sound/ambience/storm/syndie_storm.ogg'
+
 /datum/round_event/portal_storm
 	start_when = 7
 	end_when = 999
@@ -191,7 +210,7 @@
 
 /datum/round_event/portal_storm/proc/do_announce()
 	set waitfor = FALSE
-	sound_to_playing_players('sound/magic/lightning_chargeup.ogg')
+	announcement_sound_to_playing_players('sound/magic/lightning_chargeup.ogg')
 	sleep(80)
 	var/announce_body
 	if(anchor_turf)
@@ -205,7 +224,7 @@
 		announce_body = "На [station_name()] зафиксирована крупная блюспейс-аномалия. Приготовьтесь к столкновению с угрозами."
 	priority_announce(announce_body, "Центральное Командование, Отдел Работы с Реальностью", triggersound)
 	sleep(20)
-	sound_to_playing_players('sound/magic/lightningbolt.ogg')
+	announcement_sound_to_playing_players('sound/magic/lightningbolt.ogg')
 
 /datum/round_event/portal_storm/tick()
 	var/do_hostile = spawn_hostile()

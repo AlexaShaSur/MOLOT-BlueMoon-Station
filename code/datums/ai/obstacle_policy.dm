@@ -26,6 +26,10 @@
 		return barrier.dir == barrier_side
 	return istype(barrier, /obj/machinery/door) && barrier.loc == to_turf
 
+///Моб фракции экипажа (питомец отдела, оживлённый лазарем, приручённый) имущество на пути не ломает.
+/proc/ai_pawn_spares_crew_property(mob/living/pawn)
+	return ("neutral" in pawn.faction)
+
 /datum/obstacle_policy
 	///Открывать ли двери по доступу (обесточенные - всегда, если TRUE)
 	var/opens_doors = TRUE
@@ -45,6 +49,17 @@
 	var/wall_breach_cost = 12
 	var/reinforced_wall_breach_cost = 24
 	var/hit_breach_cost = 4
+	///Машинерия, которая остаётся преградой пути для мобов слабее босса
+	var/static/list/smashable_machinery = typecacheof(list(
+		/obj/machinery/door,
+		/obj/machinery/vending,
+	))
+	///Постройки фракций: тип -> фракция, чьи мобы их не ломают
+	var/static/list/faction_structures = list(
+		/obj/structure/alien = ROLE_ALIEN,
+		/obj/structure/blob = ROLE_BLOB,
+		/obj/structure/spider = "spiders",
+	)
 
 ///Whether opening/destroying a pressure barrier on this edge is safe for pawn.
 /datum/obstacle_policy/proc/step_preserves_atmosphere(mob/living/pawn, turf/from_turf, turf/to_turf)
@@ -73,14 +88,68 @@
 	if(whitelist && !is_type_in_typecache(blocker, whitelist))
 		return FALSE
 	var/mob/living/simple_animal/simple_pawn = pawn
-	if(!istype(simple_pawn))
+	if(!istype(simple_pawn) || ai_pawn_spares_crew_property(simple_pawn))
 		return FALSE
+	if(ismachinery(blocker) && !(simple_pawn.environment_smash & ENVIRONMENT_SMASH_RWALLS) && !is_type_in_typecache(blocker, smashable_machinery))
+		return FALSE
+	if(is_kin_structure(simple_pawn, blocker) || is_abandoned_obstacle(controller, blocker))
+		return FALSE
+	var/hits_needed = get_smash_hits_needed(simple_pawn, blocker)
+	return hits_needed && hits_needed <= AI_OBSTACLE_MAX_SMASH_HITS
+
+///Ударов до разрушения преграды по реальной формуле attack_animal -> take_damage; 0 - урона не будет.
+/datum/obstacle_policy/proc/get_smash_hits_needed(mob/living/simple_animal/simple_pawn, obj/blocker)
+	if(blocker.obj_integrity <= 0)
+		return 0
 	var/attack_damage = simple_pawn.obj_damage || simple_pawn.melee_damage_upper
-	return attack_damage > blocker.damage_deflection
+	var/hit_damage = blocker.run_obj_armor(attack_damage, simple_pawn.melee_damage_type, MELEE, null, simple_pawn.armour_penetration)
+	if(hit_damage < DAMAGE_PRECISION)
+		return 0
+	return CEILING(blocker.obj_integrity / hit_damage, 1)
+
+///Своё гнездо и постройки своей фракции моб на пути не ломает.
+/datum/obstacle_policy/proc/is_kin_structure(mob/living/simple_animal/simple_pawn, obj/blocker)
+	var/datum/component/spawner/nest = blocker.GetComponent(/datum/component/spawner)
+	if(nest)
+		return simple_pawn.nest == nest || faction_check(simple_pawn.faction, nest.faction)
+	for(var/structure_type in faction_structures)
+		if(istype(blocker, structure_type))
+			return (faction_structures[structure_type] in simple_pawn.faction)
+	return FALSE
+
+/datum/obstacle_policy/proc/is_abandoned_obstacle(datum/ai_controller/controller, obj/blocker)
+	var/list/abandoned = controller.blackboard[BB_AI_ABANDONED_OBSTACLES]
+	if(!length(abandoned) || !blocker.weak_reference)
+		return FALSE
+	return abandoned[blocker.weak_reference] > world.time
+
+///Считает удары подряд по одной преграде; сверх лимита моб бросает её и ищет другой путь.
+/datum/obstacle_policy/proc/count_smash_attempt(datum/ai_controller/controller, obj/blocker)
+	var/datum/weakref/blocker_ref = WEAKREF(blocker)
+	var/attempts = 1
+	if(controller.blackboard[BB_AI_SMASH_BLOCKER] == blocker_ref)
+		attempts += controller.blackboard[BB_AI_SMASH_ATTEMPTS]
+	controller.blackboard[BB_AI_SMASH_BLOCKER] = blocker_ref
+	if(attempts <= AI_OBSTACLE_SMASH_ATTEMPT_LIMIT)
+		controller.blackboard[BB_AI_SMASH_ATTEMPTS] = attempts
+		return TRUE
+	controller.blackboard[BB_AI_SMASH_ATTEMPTS] = 0
+	var/list/abandoned = controller.blackboard[BB_AI_ABANDONED_OBSTACLES]
+	if(!abandoned)
+		abandoned = list()
+		controller.blackboard[BB_AI_ABANDONED_OBSTACLES] = abandoned
+	for(var/datum/weakref/stale_ref as anything in abandoned)
+		if(abandoned[stale_ref] <= world.time)
+			abandoned -= stale_ref
+	abandoned[blocker_ref] = world.time + AI_OBSTACLE_ABANDON_TIME
+	AI_TRACE(controller, "move", "бросил преграду [blocker]: [AI_OBSTACLE_SMASH_ATTEMPT_LIMIT] ударов без результата")
+	return FALSE
 
 /datum/obstacle_policy/proc/can_smash_turf(mob/living/pawn, turf/blocked_turf)
 	var/mob/living/simple_animal/hostile/hostile_pawn = pawn
 	if(!istype(hostile_pawn) || !hostile_pawn.environment_smash || !hostile_pawn.CanSmashTurfs(blocked_turf))
+		return FALSE
+	if(ai_pawn_spares_crew_property(hostile_pawn))
 		return FALSE
 	if(istype(blocked_turf, /turf/closed/wall/r_wall))
 		return hostile_pawn.environment_smash & ENVIRONMENT_SMASH_RWALLS
@@ -122,10 +191,7 @@
 
 	if(!can_smash_blocker(pawn, controller, blocker))
 		return 0
-	var/mob/living/simple_animal/simple_pawn = pawn
-	var/attack_damage = max(simple_pawn.obj_damage || simple_pawn.melee_damage_upper, 1)
-	var/effective_damage = max(attack_damage - blocker.damage_deflection, 1)
-	return max(hit_breach_cost, CEILING(blocker.obj_integrity / effective_damage, 1) * hit_breach_cost)
+	return max(hit_breach_cost, get_smash_hits_needed(pawn, blocker) * hit_breach_cost)
 
 ///Cost of a cardinal step for the breach A*: 0 means impossible.
 /datum/obstacle_policy/proc/get_breach_step_cost(mob/living/pawn, datum/ai_controller/controller, turf/from_turf, turf/to_turf, simulated_only, turf/avoid, obj/item/card/id/id, check_environment = TRUE)
@@ -278,7 +344,7 @@
 
 ///Выломать плотный объект (с учётом вайтлиста профиля)
 /datum/obstacle_policy/proc/try_smash(mob/living/pawn, datum/ai_controller/controller, obj/blocker)
-	if(!can_smash_blocker(pawn, controller, blocker))
+	if(!can_smash_blocker(pawn, controller, blocker) || !count_smash_attempt(controller, blocker))
 		return FALSE
 	//Атаки NPC по объектам не логировались нигде: цепочка attack_animal ->
 	//attack_generic -> take_damage не зовёт log_combat, и единственный объект,
@@ -313,31 +379,8 @@
 	opens_doors = FALSE
 	forces_powered_doors = FALSE
 
-///A small weighted A* node. This pathfinder is a fallback only: ordinary JPS
+///A small weighted A* over turfs. This pathfinder is a fallback only: ordinary JPS
 ///must first prove that no route without demolition exists.
-/datum/ai_breach_node
-	var/turf/tile
-	var/datum/ai_breach_node/parent
-	var/travel_cost
-	var/steps
-	var/f_score
-
-/datum/ai_breach_node/New(turf/tile, datum/ai_breach_node/parent, travel_cost, steps, turf/goal)
-	. = ..()
-	src.tile = tile
-	src.parent = parent
-	src.travel_cost = travel_cost
-	src.steps = steps
-	f_score = travel_cost + abs(tile.x - goal.x) + abs(tile.y - goal.y)
-
-/datum/ai_breach_node/Destroy(force, ...)
-	parent = null
-	tile = null
-	return ..()
-
-/proc/HeapAIBreachWeightCompare(datum/ai_breach_node/a, datum/ai_breach_node/b)
-	return b.f_score - a.f_score
-
 /datum/ai_breach_pathfinder
 	var/mob/living/pawn
 	var/datum/ai_controller/controller
@@ -352,8 +395,17 @@
 	var/obj/item/card/id/id
 	var/check_environment = FALSE
 	var/datum/cancel_source
-	var/datum/heap/open
+	/// Открытый список: параллельные плоские списки турфов и их f-оценок.
+	var/list/open_tiles
+	var/list/open_scores
+	/// turf -> минимальная известная стоимость пути до него.
 	var/list/best_cost
+	/// turf -> число кардинальных шагов до него по лучшему пути.
+	var/list/best_steps
+	/// turf -> предыдущий турф лучшего пути; по нему разворачивается маршрут.
+	var/list/came_from
+	/// turf -> TRUE, когда турф уже развёрнут окончательно.
+	var/list/closed
 
 /datum/ai_breach_pathfinder/New(mob/living/pawn, datum/ai_controller/controller, datum/obstacle_policy/policy, turf/start, turf/goal, max_distance, minimum_distance, simulated_only, turf/avoid, obj/item/card/id/id, datum/cancel_source)
 	. = ..()
@@ -370,8 +422,12 @@
 	src.cancel_source = cancel_source
 	var/mob/living/simple_animal/simple_pawn = pawn
 	check_environment = istype(simple_pawn) && simple_pawn.requires_safe_atmosphere()
-	open = new /datum/heap(/proc/HeapAIBreachWeightCompare)
+	open_tiles = list()
+	open_scores = list()
 	best_cost = list()
+	best_steps = list()
+	came_from = list()
+	closed = list()
 
 /datum/ai_breach_pathfinder/Destroy(force, ...)
 	pawn = null
@@ -382,12 +438,54 @@
 	avoid = null
 	id = null
 	cancel_source = null
-	// Nodes still queued in the heap are freed by its Destroy. Popped nodes are left to
-	// GC through their broken parent chains, exactly like JPS jps_nodes - tracking and
-	// qdel-ing every expanded node instead flooded SSgarbage (was the top breach cost).
-	QDEL_NULL(open)
+	open_tiles = null
+	open_scores = null
 	best_cost = null
+	best_steps = null
+	came_from = null
+	closed = null
 	return ..()
+
+#define AI_BREACH_HEAP_ROOT 1
+#define AI_BREACH_HEAP_BRANCHING 2
+#define AI_BREACH_HEAP_PARENT_FACTOR 0.5
+
+///Кладёт турф в открытый список, сохраняя свойство двоичной кучи по f-оценке.
+/datum/ai_breach_pathfinder/proc/open_push(turf/tile, score)
+	open_tiles += tile
+	open_scores += score
+	var/index = length(open_tiles)
+	while(index > AI_BREACH_HEAP_ROOT)
+		var/parent_index = round(index * AI_BREACH_HEAP_PARENT_FACTOR)
+		if(open_scores[parent_index] <= open_scores[index])
+			return
+		open_tiles.Swap(index, parent_index)
+		open_scores.Swap(index, parent_index)
+		index = parent_index
+
+///Снимает турф с наименьшей f-оценкой; null - открытый список пуст.
+/datum/ai_breach_pathfinder/proc/open_pop()
+	var/count = length(open_tiles)
+	if(!count)
+		return null
+	. = open_tiles[AI_BREACH_HEAP_ROOT]
+	open_tiles[AI_BREACH_HEAP_ROOT] = open_tiles[count]
+	open_scores[AI_BREACH_HEAP_ROOT] = open_scores[count]
+	open_tiles.Cut(count)
+	open_scores.Cut(count)
+	count--
+	var/index = AI_BREACH_HEAP_ROOT
+	while(TRUE)
+		var/child_index = index * AI_BREACH_HEAP_BRANCHING
+		if(child_index > count)
+			return
+		if(child_index < count && open_scores[child_index + 1] < open_scores[child_index])
+			child_index++
+		if(open_scores[index] <= open_scores[child_index])
+			return
+		open_tiles.Swap(index, child_index)
+		open_scores.Swap(index, child_index)
+		index = child_index
 
 /datum/ai_breach_pathfinder/proc/search(skip_first = TRUE)
 	if(!pawn || !controller || !start || !goal || start.z != goal.z || start == goal)
@@ -399,43 +497,55 @@
 		if(max_distance < minimum_cardinal_steps)
 			return list()
 
-	var/datum/ai_breach_node/start_node = new(start, null, 0, 0, goal)
-	open.insert(start_node)
 	best_cost[start] = 0
+	best_steps[start] = 0
+	open_push(start, MANHATTAN_DISTANCE(start, goal))
 	var/max_expansions = max_distance ? min(4096, max(128, max_distance * max_distance * 2)) : 2048
 	var/expansions = 0
 
-	while(!open.is_empty() && expansions < max_expansions)
+	while(length(open_tiles) && expansions < max_expansions)
 		if(QDELETED(pawn) || QDELETED(controller) || (cancel_source && QDELETED(cancel_source)))
 			return list()
-		var/datum/ai_breach_node/current = open.pop()
-		if(current.travel_cost > best_cost[current.tile])
+		var/turf/current = open_pop()
+		// Устаревшие записи из кучи не удаляются, а отбрасываются здесь: эвристика
+		// согласована по рёбрам, поэтому первое снятие турфа уже оптимально.
+		if(closed[current])
 			continue
+		closed[current] = TRUE
 		expansions++
 
-		if(current.tile == goal || (minimum_distance && get_dist(current.tile, goal) <= minimum_distance))
+		if(current == goal || (minimum_distance && get_dist(current, goal) <= minimum_distance))
+			// Собираем с конца и переворачиваем один раз, как JPS в path.dm: Insert(1, ...) квадратичен.
 			var/list/path = list()
-			var/datum/ai_breach_node/unwind = current
-			while(unwind && unwind.tile != start)
-				path.Insert(1, unwind.tile)
-				unwind = unwind.parent
+			var/turf/unwind = current
+			while(unwind && unwind != start)
+				path += unwind
+				unwind = came_from[unwind]
 			if(!skip_first)
-				path.Insert(1, start)
+				path += start
+			for(var/i = 1 to round(0.5 * length(path)))
+				path.Swap(i, length(path) - i + 1)
 			return path
 
-		if(max_distance && current.steps >= max_distance)
+		var/current_steps = best_steps[current]
+		if(max_distance && current_steps >= max_distance)
 			continue
+		var/current_cost = best_cost[current]
 		for(var/direction in GLOB.cardinals)
-			var/turf/next_turf = get_step(current.tile, direction)
-			var/step_cost = policy.get_breach_step_cost(pawn, controller, current.tile, next_turf, simulated_only, avoid, id, check_environment)
+			var/turf/next_turf = get_step(current, direction)
+			if(!next_turf || closed[next_turf])
+				continue
+			var/step_cost = policy.get_breach_step_cost(pawn, controller, current, next_turf, simulated_only, avoid, id, check_environment)
 			if(!step_cost)
 				continue
-			var/new_cost = current.travel_cost + step_cost
+			var/new_cost = current_cost + step_cost
 			var/known_cost = best_cost[next_turf]
 			if(!isnull(known_cost) && known_cost <= new_cost)
 				continue
 			best_cost[next_turf] = new_cost
-			open.insert(new /datum/ai_breach_node(next_turf, current, new_cost, current.steps + 1, goal))
+			best_steps[next_turf] = current_steps + 1
+			came_from[next_turf] = current
+			open_push(next_turf, new_cost + MANHATTAN_DISTANCE(next_turf, goal))
 		CHECK_TICK
 
 	return list()
@@ -460,3 +570,7 @@
 	qdel(pathfinder)
 	SSpathfinder.mobs.found(pathfinder_slot)
 	return path || list()
+
+#undef AI_BREACH_HEAP_ROOT
+#undef AI_BREACH_HEAP_BRANCHING
+#undef AI_BREACH_HEAP_PARENT_FACTOR

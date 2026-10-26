@@ -19,7 +19,7 @@
 				return
 		if(buckled_mobs.len > 1)
 			var/unbuckled = input(user, "Кого вы хотите отстегнуть?","Отстегнуть кого?") as null|mob in buckled_mobs
-			if(user_unbuckle_mob(unbuckled,user))
+			if(unbuckled && user_unbuckle_mob(unbuckled,user))
 				return TRUE
 		else
 			if(user_unbuckle_mob(buckled_mobs[1],user))
@@ -33,9 +33,11 @@
 	var/mob/living/carried_mob = riding_item.rider
 	if(carried_mob == user) //Piggyback user.
 		return
+	if(!check_buckle_delay(carried_mob, user))
+		return
 	user.unbuckle_mob(carried_mob)
 	carried_mob.forceMove(get_turf(src))
-	return mouse_buckle_handling(carried_mob, user)
+	return mouse_buckle_handling(carried_mob, user, delay_checked = TRUE)
 
 /atom/movable/MouseDrop_T(mob/living/M, mob/living/user)
 	. = ..()
@@ -50,9 +52,21 @@
  * M - The mob being buckled to src
  * user - The mob buckling M to src
  */
-/atom/movable/proc/mouse_buckle_handling(mob/living/M, mob/living/user)
+/atom/movable/proc/mouse_buckle_handling(mob/living/M, mob/living/user, delay_checked = FALSE)
 	if(can_buckle && istype(M) && istype(user))
+		if(!delay_checked && !check_buckle_delay(M, user))
+			return FALSE
 		return user_buckle_mob(M, user, check_loc = FALSE)
+
+/atom/movable/proc/check_buckle_delay(mob/living/M, mob/living/user)
+	if(M == user || user.a_intent == INTENT_HELP || M.incapacitated() || M.restrained())
+		return TRUE
+	var/atom/m_loc = M.loc
+	if(!do_after(user, 1.5 SECONDS, src))
+		return FALSE
+	if(QDELETED(M) || M.loc != m_loc)
+		return FALSE
+	return TRUE
 
 /atom/movable/proc/has_buckled_mobs()
 	if(!buckled_mobs)
@@ -224,5 +238,7 @@
 		return user_unbuckle_mob(buckled_mobs[1], user)
 	else
 		var/unbuckled = input(user, "Кого вы хотите отстегнуть?","Отстегнуть кого?") as null|mob in buckled_mobs
+		if(!unbuckled)
+			return
 		return user_unbuckle_mob(unbuckled, user)
 

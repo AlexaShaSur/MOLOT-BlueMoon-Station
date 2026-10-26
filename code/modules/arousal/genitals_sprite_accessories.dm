@@ -1,12 +1,3 @@
-/datum/sprite_accessory
-	var/alt_aroused = FALSE //CIT CODE if this is TRUE, then the genitals will use an alternate icon_state when aroused.
-	var/taur_icon //leave null if the genital doesn't have a taur counterpart.
-	var/accepted_taurs = STYLE_HOOF_TAURIC|STYLE_PAW_TAURIC //Types that match with the accessory.
-	var/feat_taur //the text string of the dna feature to check for those who want to opt out.
-	var/taur_dimension_y = 32
-	var/taur_dimension_x = 32
-	var/use_custom_mod_icon = FALSE
-
 /*
  * This is an example of a penis object in the code.
  * The icon_state of the penis is structured as follows:
@@ -28,6 +19,7 @@
 	alt_aroused = TRUE
 	feat_taur = "cock_taur"
 	var/ru_name = "человеческий"
+	mutant_part_string = "penis"
 
 /datum/sprite_accessory/penis/teshari
 	icon_state = "taperedteshari"
@@ -164,6 +156,7 @@
 	icon_state = "testicle"
 	name = "testicle"		//the preview name of the accessory
 	color_src = "balls_color"
+	mutant_part_string = "testicles"
 
 /datum/sprite_accessory/testicles/single
 	icon_state = "single"
@@ -193,6 +186,7 @@
 	name = "vagina"
 	color_src = "vag_color"
 	alt_aroused = TRUE
+	mutant_part_string = "vagina"
 
 /datum/sprite_accessory/vagina/human
 	icon_state = "human"
@@ -260,6 +254,7 @@
 	icon = 'icons/obj/genitals/breasts_onmob.dmi'
 	name = "breasts"
 	color_src = "breasts_color"
+	mutant_part_string = "breasts"
 
 /datum/sprite_accessory/breasts/pair
 	icon_state = "pair"
@@ -279,6 +274,7 @@
 	icon_state = "butt"
 	name = "butt"
 	color_src = "butt_color"
+	mutant_part_string = "butt"
 
 /datum/sprite_accessory/butt
 	icon = 'modular_splurt/icons/obj/genitals/butt_onmob.dmi'
@@ -293,6 +289,7 @@
 	icon_state = "belly"
 	name = "belly"
 	color_src = "belly_color"
+	mutant_part_string = "belly"
 
 //there literally shouldn't be any other ass types besides one because that'd be weird, this is just here to keep things consistent for the genital system.
 /datum/sprite_accessory/belly/pair

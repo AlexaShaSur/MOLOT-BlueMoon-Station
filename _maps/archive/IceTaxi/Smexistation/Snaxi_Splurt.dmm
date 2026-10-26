@@ -633,7 +633,7 @@
 /turf/open/floor/plating,
 /area/engineering/atmospherics_engine)
 "afp" = (
-/obj/machinery/mineral/equipment_vendor,
+/obj/machinery/equipment_vendor,
 /obj/structure/disposalpipe/segment{
 	dir = 4
 	},
@@ -4530,9 +4530,6 @@
 /obj/structure/cable{
 	icon_state = "4-8"
 	},
-/obj/structure/cable{
-	icon_state = "4-8"
-	},
 /obj/effect/mapping_helpers/airlock/cyclelink_helper{
 	dir = 8
 	},
@@ -8215,9 +8212,6 @@
 	dir = 4
 	},
 /obj/structure/fans/tiny,
-/obj/structure/cable/yellow{
-	icon_state = "4-8"
-	},
 /turf/open/floor/plasteel/dark,
 /area/construction)
 "ciO" = (
@@ -12705,7 +12699,6 @@
 /turf/open/floor/plating,
 /area/service/lawoffice)
 "dYL" = (
-/obj/machinery/pool/drain,
 /turf/open/pool,
 /area/commons/fitness/pool)
 "dYS" = (
@@ -12968,7 +12961,6 @@
 /turf/open/floor/plasteel,
 /area/hallway/secondary/exit/departure_lounge)
 "eei" = (
-/obj/machinery/pool/controller,
 /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden/layer4{
 	dir = 5
 	},
@@ -30353,9 +30345,6 @@
 /turf/closed/wall/mineral/wood,
 /area/maintenance/bar)
 "lHe" = (
-/obj/machinery/pool/filter{
-	pixel_y = 24
-	},
 /turf/open/pool,
 /area/commons/fitness/pool)
 "lHl" = (
@@ -43076,9 +43065,6 @@
 /obj/structure/cable{
 	icon_state = "4-8"
 	},
-/obj/structure/cable{
-	icon_state = "4-8"
-	},
 /obj/effect/turf_decal/tile/blue{
 	dir = 1
 	},
@@ -43433,9 +43419,6 @@
 /turf/open/floor/plasteel,
 /area/hallway/primary/starboard/fore)
 "rjQ" = (
-/obj/structure/cable{
-	icon_state = "4-8"
-	},
 /obj/structure/cable{
 	icon_state = "4-8"
 	},
@@ -44704,7 +44687,6 @@
 /turf/open/floor/plating,
 /area/construction)
 "rNp" = (
-/obj/machinery/pool/drain,
 /obj/item/fuel_rod/material,
 /turf/open/pool,
 /area/engineering/main/reactor_core)
@@ -45470,9 +45452,6 @@
 /obj/structure/fans/tiny,
 /obj/machinery/door/airlock/external{
 	req_access_txt = "13"
-	},
-/obj/structure/cable{
-	icon_state = "4-8"
 	},
 /turf/open/floor/plating,
 /area/hallway/secondary/entry)
@@ -49016,9 +48995,6 @@
 	dir = 4
 	},
 /obj/structure/fans/tiny,
-/obj/structure/cable/yellow{
-	icon_state = "4-8"
-	},
 /turf/open/floor/plasteel/dark,
 /area/construction)
 "tHr" = (
@@ -49428,9 +49404,6 @@
 /turf/open/floor/plasteel,
 /area/cargo/miningdock)
 "tRf" = (
-/obj/machinery/pool/filter{
-	pixel_y = -18
-	},
 /obj/structure/cable/yellow{
 	icon_state = "1-4"
 	},
@@ -53921,9 +53894,6 @@
 	},
 /obj/machinery/light/small{
 	dir = 1
-	},
-/obj/structure/cable{
-	icon_state = "4-8"
 	},
 /turf/open/floor/plating,
 /area/hallway/secondary/entry)
@@ -58505,7 +58475,6 @@
 /turf/open/floor/plating,
 /area/maintenance/disposal/incinerator)
 "xJb" = (
-/obj/machinery/pool/controller,
 /obj/structure/cable/yellow{
 	icon_state = "4-8"
 	},

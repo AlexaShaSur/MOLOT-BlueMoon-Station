@@ -25,6 +25,11 @@ SUBSYSTEM_DEF(mapping)
 	var/list/shelter_templates = list()
 
 	var/list/areas_in_z = list()
+	/// z -> вся его связка снизу вверх, сосед снизу, сосед сверху (0, если соседа нет). Списки общие для связки, только на чтение.
+	var/list/z_level_to_stack = list()
+	var/list/z_level_below = list()
+	var/list/z_level_above = list()
+	var/list/transparent_space_applied = list()
 	/// List of z level (as number) -> plane offset of that z level
 	/// Used to maintain the plane cube
 	var/list/z_level_to_plane_offset = list()
@@ -48,6 +53,8 @@ SUBSYSTEM_DEF(mapping)
 	var/max_plane_offset = 0
 
 	var/loading_ruins = FALSE
+	/// Имя z-уровня, который грузится прямо сейчас. Только для чёрного ящика МК, см. map_template.dm.
+	var/loading_template
 	var/list/turf/unused_turfs = list()				//Not actually unused turfs they're unused but reserved for use for whatever requests them. "[zlevel_of_turf]" = list(turfs)
 	var/list/datum/turf_reservations		//list of turf reservations
 	var/list/used_turfs = list()				//list of turf = datum/turf_reservation
@@ -74,6 +81,8 @@ SUBSYSTEM_DEF(mapping)
 	var/list/z_to_station_z_index
 
 	var/stat_map_name = "Loading..."
+	// Единый выбор защиты внешних станционных окон на весь раунд.
+	var/station_window_firelocks = FALSE
 
 	/// Lookup list for random generated IDs.
 	var/list/random_generated_ids_by_original = list()
@@ -88,7 +97,13 @@ SUBSYSTEM_DEF(mapping)
 #ifdef FORCE_MAP
 		config = load_map_config(FORCE_MAP)
 #else
-		config = load_map_config(error_if_missing = FALSE)
+#ifdef UNIT_TESTS
+		var/test_map = world.params[UNIT_TEST_MAP_PARAMETER]
+		if(test_map)
+			config = load_map_config(test_map)
+#endif
+		if(!config)
+			config = load_map_config(error_if_missing = FALSE)
 #endif
 	stat_map_name = config.map_name
 
@@ -96,10 +111,18 @@ SUBSYSTEM_DEF(mapping)
 	if(!obfuscation_secret)
 		obfuscation_secret = md5(GUID())		//HAH! Guess this!
 
+/datum/controller/subsystem/mapping/last_task()
+	if(loading_template)
+		return "грузится z-уровень [loading_template]"
+	if(loading_ruins)
+		return "расстановка руин"
+	return "z-уровней [world.maxz], резервных [num_of_res_levels]"
+
 /datum/controller/subsystem/mapping/Initialize(timeofday)
 	HACK_LoadMapConfig()
 	if(initialized)
 		return
+	station_window_firelocks = prob(STATION_WINDOW_FIRELOCKS_CHANCE)
 	if(config.defaulted)
 		var/old_config = config
 		config = global.config.defaultmap
@@ -114,6 +137,8 @@ SUBSYSTEM_DEF(mapping)
 	preloadTemplates()
 
 #ifndef LOWMEMORYMODE
+	load_space_sectors()
+
 	// Create space ruin levels
 	while (space_levels_so_far < config.space_ruin_levels)
 		++space_levels_so_far
@@ -164,9 +189,11 @@ SUBSYSTEM_DEF(mapping)
 	if (space_ruins.len)
 		seedRuins(space_ruins, CONFIG_GET(number/space_budget), list(/area/space), space_ruins_templates)
 
+	seed_space_sector_ruins()
+
 	// Generate station space ruins
 	var/list/station_ruins = levels_by_trait(ZTRAIT_STATION)
-	if (station_ruins.len)
+	if (station_ruins.len && GLOB.areas_by_type[/area/space/station_ruins])
 		seedRuins(station_ruins, (SSmapping.config.station_ruin_budget < 0) ? CONFIG_GET(number/station_space_budget) : SSmapping.config.station_ruin_budget, list(/area/space/station_ruins), station_ruins_templates)
 	SSmapping.seedStation()
 
@@ -181,6 +208,7 @@ SUBSYSTEM_DEF(mapping)
 	setup_map_transitions()
 	generate_station_area_list()
 	initialize_reserved_level(transit.z_value)
+	preload_training_levels()
 	return ..()
 
 /* Nuke threats, for making the blue tiles on the station go RED
@@ -236,6 +264,7 @@ SUBSYSTEM_DEF(mapping)
 /datum/controller/subsystem/mapping/Recover()
 	flags |= SS_NO_INIT
 	initialized = SSmapping.initialized
+	station_window_firelocks = SSmapping.station_window_firelocks
 	map_templates = SSmapping.map_templates
 	ruins_templates = SSmapping.ruins_templates
 	space_ruins_templates = SSmapping.space_ruins_templates
@@ -257,7 +286,23 @@ SUBSYSTEM_DEF(mapping)
 	z_list = SSmapping.z_list
 	gravity_by_z_level = SSmapping.gravity_by_z_level
 
-/datum/controller/subsystem/mapping/proc/LoadGroup(list/errorList, name, path, files, list/traits, list/default_traits, silent = FALSE, orientation = SOUTH)
+	space_sectors = SSmapping.space_sectors
+	space_sector_sets = SSmapping.space_sector_sets
+	space_grid = SSmapping.space_grid
+
+	plane_offset_to_true = SSmapping.plane_offset_to_true
+	true_to_offset_planes = SSmapping.true_to_offset_planes
+	plane_to_offset = SSmapping.plane_to_offset
+	plane_offset_blacklist = SSmapping.plane_offset_blacklist
+	render_offset_blacklist = SSmapping.render_offset_blacklist
+	critical_planes = SSmapping.critical_planes
+	max_plane_offset = SSmapping.max_plane_offset
+	transparent_space_applied = SSmapping.transparent_space_applied
+	//Вертикаль дешевле пересобрать из z_list, чем переносить по списку и забыть один.
+	build_z_stacks()
+
+/datum/controller/subsystem/mapping/proc/LoadGroup(list/errorList, name, path, files, list/traits, list/default_traits, silent = FALSE, orbital_body_type, orientation = SOUTH)
+
 	. = list()
 	var/start_time = REALTIMEOFDAY
 
@@ -290,9 +335,16 @@ SUBSYSTEM_DEF(mapping)
 	// preload the relevant space_level datums
 	var/start_z = world.maxz + 1
 	var/i = 0
+	var/list/datum/space_level/space_levels = list()
 	for (var/level in traits)
-		add_new_zlevel("[name][i ? " [i + 1]" : ""]", level)
+		space_levels += add_new_zlevel("[name][i ? " [i + 1]" : ""]", level)
 		++i
+	// Shared orbital body for the whole group (supercruise system)
+	if(orbital_body_type)
+		var/datum/orbital_object/z_linked/orbital_body = new orbital_body_type()
+		for(var/datum/space_level/level as() in space_levels)
+			level.orbital_body = orbital_body
+			orbital_body.link_to_z(level)
 
 	// load the maps
 	for (var/P in parsed_maps)
@@ -305,13 +357,10 @@ SUBSYSTEM_DEF(mapping)
 
 /datum/controller/subsystem/mapping/proc/setup_station_z_index()
 	z_to_station_z_index = list()
-	var/sz = 1
-	var/cz = station_start
-	if(islist(config.map_file))
-		for(var/map in config.map_file)
-			z_to_station_z_index["[cz++]"] = sz++
-	else
-		z_to_station_z_index["[station_start]"] = 1
+	//Один файл карты может нести несколько этажей: номер нужен каждому станционному z, а не каждому файлу.
+	var/station_index = 1
+	for(var/station_z in levels_by_trait(ZTRAIT_STATION))
+		z_to_station_z_index["[station_z]"] = station_index++
 
 /datum/controller/subsystem/mapping/proc/loadWorld()
 	//if any of these fail, something has gone horribly, HORRIBLY, wrong
@@ -323,7 +372,8 @@ SUBSYSTEM_DEF(mapping)
 	// load the station
 	station_start = world.maxz + 1
 	INIT_ANNOUNCE("Loading [config.map_name]...")
-	LoadGroup(FailedZs, "Station", config.map_path, config.map_file, config.traits, ZTRAITS_STATION, FALSE, config.orientation)
+	LoadGroup(FailedZs, "Station", config.map_path, config.map_file, config.traits, ZTRAITS_STATION, FALSE, orbital_body_type = /datum/orbital_object/z_linked/station, orientation = config.orientation)
+	load_queued_map_modules()
 
 	setup_station_z_index()
 
@@ -342,7 +392,7 @@ SUBSYSTEM_DEF(mapping)
 
 	// load mining
 	if(config.minetype == "lavaland")
-		LoadGroup(FailedZs, "Lavaland", "map_files/Mining", "Lavaland.dmm", traits = list(ZTRAITS_LAVALAND_JUNGLE, ZTRAITS_LAVALAND), default_traits = ZTRAITS_LAVALAND)
+		LoadGroup(FailedZs, "Lavaland", "map_files/Mining", "Lavaland.dmm", traits = list(ZTRAITS_LAVALAND_JUNGLE, ZTRAITS_LAVALAND), default_traits = ZTRAITS_LAVALAND, orbital_body_type = /datum/orbital_object/z_linked/lavaland)
 	else if (!isnull(config.minetype) && config.minetype != "none")
 		INIT_ANNOUNCE("WARNING: An unknown minetype '[config.minetype]' was set! This is being ignored! Update the maploader code!")
 #endif
@@ -427,12 +477,33 @@ GLOBAL_LIST_EMPTY(the_station_areas)
 		to_chat(world, "<span class='boldannounce'>Map rotation has chosen [VM.map_name] for next round!</span>")
 
 /datum/controller/subsystem/mapping/proc/changemap(var/datum/map_config/VM)
-	if(!VM.MakeNextMap())
-		next_map_config = load_map_config(default_to_box = TRUE)
-		message_admins("Failed to set new map with next_map.json for [VM.map_name]! Using default as backup!")
-		return
+	var/datum/map_config/selected_map = VM
+	if(VM.map_variants?.len) // Напрямую считываем по переменной-листу, есть ли несколько карт на выбор
+		var/variant_path = pick(VM.map_variants)
+		selected_map = load_map_config(variant_path)
+		if(!selected_map || selected_map.defaulted)
+			log_world("ERROR: Failed to load random map variant: [variant_path]")
+			message_admins("Failed to load random map variant: [variant_path]")
+			selected_map = global.config.defaultmap
+			if(!selected_map || selected_map.map_variants?.len)
+				selected_map = load_map_config(default_to_box = TRUE)
+			message_admins("Using default map [selected_map.map_name] after map variant failure.")
 
-	next_map_config = VM
+	// Если случилось так, что карту не выбрало - по любым причинам - загружаем дефолт.
+	if(!selected_map.MakeNextMap())
+		var/datum/map_config/default_map = global.config.defaultmap
+		if(!default_map || default_map.map_variants?.len)
+			default_map = load_map_config(default_to_box = TRUE) // Если дефолтная мапа это рандомный список - застрахуемся боксом
+
+		if(default_map != selected_map && default_map.MakeNextMap())
+			selected_map = default_map
+			message_admins("Failed to set next_map.json for the selected map. Using default map [selected_map.map_name].")
+		else
+			log_world("ERROR: Failed to set next_map.json for [selected_map.map_name] and its default fallback.")
+			message_admins("Failed to set next_map.json for [selected_map.map_name] and its default fallback.")
+			return FALSE
+
+	next_map_config = selected_map
 
 	. = TRUE
 
@@ -450,10 +521,13 @@ GLOBAL_LIST_EMPTY(the_station_areas)
 
 /datum/controller/subsystem/mapping/proc/preloadRuinTemplates()
 	// Still supporting bans by filename
-	var/list/banned = generateMapList("[global.config.directory]/lavaruinblacklist.txt")
-	banned += generateMapList("[global.config.directory]/spaceruinblacklist.txt")
-	banned += generateMapList("[global.config.directory]/iceruinblacklist.txt")
-	banned += generateMapList("[global.config.directory]/stationruinblacklist.txt")
+	var/list/banned = list()
+	// Имена в config/ в смешанном регистре, а на Linux регистр важен; конфиг сервера может быть и в нижнем.
+	for(var/blacklist in list("lavaRuinBlacklist.txt", "spaceRuinBlacklist.txt", "iceruinblacklist.txt", "stationRuinBlacklist.txt"))
+		var/blacklist_path = "[global.config.directory]/[blacklist]"
+		if(!fexists(blacklist_path))
+			blacklist_path = "[global.config.directory]/[lowertext(blacklist)]"
+		banned += generateMapList(blacklist_path)
 
 	for(var/item in sort_list(subtypesof(/datum/map_template/ruin), GLOBAL_PROC_REF(cmp_ruincost_priority)))
 		var/datum/map_template/ruin/ruin_type = item
@@ -545,13 +619,14 @@ GLOBAL_LIST_EMPTY(the_station_areas)
 				return
 			away_name = "[mapfile] custom"
 			to_chat(usr,"<span class='notice'>Loading [away_name]...</span>")
-			var/datum/map_template/template = new(mapfile, choice, ztraits)
-			away_level = template.load_new_z(ztraits)
+			// ztraits только именованным: третий позиционный у New() - кэш разбора, а у load_new_z() - ориентация.
+			var/datum/map_template/template = new(mapfile, choice)
+			away_level = template.load_new_z(ztraits = ztraits)
 		else
 			away_name = answer
 			to_chat(usr,"<span class='notice'>Loading [away_name]...</span>")
 			var/datum/map_template/template = new(away_name, choice)
-			away_level = template.load_new_z(ztraits)
+			away_level = template.load_new_z(ztraits = ztraits)
 
 	message_admins("Admin [key_name_admin(usr)] has loaded [away_name] away mission.")
 	log_admin("Admin [key_name(usr)] has loaded [away_name] away mission.")
@@ -646,10 +721,15 @@ GLOBAL_LIST_EMPTY(the_station_areas)
 		var/datum/biome/biome_instance = new biome_path()
 		biomes[biome_path] += biome_instance
 
-/datum/controller/subsystem/mapping/proc/reg_in_areas_in_z(list/areas)
+/// area_floors (зона -> z её новых клеток) дописывает уже известные зоны под эти z без обхода всех их клеток.
+/datum/controller/subsystem/mapping/proc/reg_in_areas_in_z(list/areas, list/area_floors)
 	for(var/B in areas)
 		var/area/A = B
-		A.reg_in_areas_in_z()
+		var/list/floors = area_floors?[A]
+		if(floors)
+			A.reg_on_floors(floors)
+		else
+			A.reg_in_areas_in_z()
 
 /datum/controller/subsystem/mapping/proc/get_isolated_ruin_z()
 	if(!isolated_ruins_z)

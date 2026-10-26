@@ -1,53 +1,53 @@
 // Radios use a large variety of predefined frequencies.
 
 //say based modes like binary are in living/say.dm
-
-#define RADIO_CHANNEL_COMMON "Common"
+// BlueMoon Edited
+#define RADIO_CHANNEL_COMMON "Com"
 #define RADIO_KEY_COMMON ";"
 
-#define RADIO_CHANNEL_SECURITY "Security"
+#define RADIO_CHANNEL_SECURITY "Sec"
 #define RADIO_KEY_SECURITY "s"
 #define RADIO_TOKEN_SECURITY ":s"
 
-#define RADIO_CHANNEL_ENGINEERING "Engineering"
+#define RADIO_CHANNEL_ENGINEERING "Engi"
 #define RADIO_KEY_ENGINEERING "e"
 #define RADIO_TOKEN_ENGINEERING ":e"
 
-#define RADIO_CHANNEL_COMMAND "Command"
+#define RADIO_CHANNEL_COMMAND "Cmd"
 #define RADIO_KEY_COMMAND "c"
 #define RADIO_TOKEN_COMMAND ":c"
 
-#define RADIO_CHANNEL_SCIENCE "Science"
+#define RADIO_CHANNEL_SCIENCE "Sci"
 #define RADIO_KEY_SCIENCE "n"
 #define RADIO_TOKEN_SCIENCE ":n"
 
-#define RADIO_CHANNEL_MEDICAL "Medical"
+#define RADIO_CHANNEL_MEDICAL "Med"
 #define RADIO_KEY_MEDICAL "m"
 #define RADIO_TOKEN_MEDICAL ":m"
 
-#define RADIO_CHANNEL_SUPPLY "Supply"
+#define RADIO_CHANNEL_SUPPLY "Sup"
 #define RADIO_KEY_SUPPLY "u"
 #define RADIO_TOKEN_SUPPLY ":u"
 
-#define RADIO_CHANNEL_SERVICE "Service"
+#define RADIO_CHANNEL_SERVICE "Srv"
 #define RADIO_KEY_SERVICE "v"
 #define RADIO_TOKEN_SERVICE ":v"
 
-#define RADIO_CHANNEL_AI_PRIVATE "AI Private"
+#define RADIO_CHANNEL_AI_PRIVATE "AI"
 #define RADIO_KEY_AI_PRIVATE "o"
 #define RADIO_TOKEN_AI_PRIVATE ":o"
 
 
-#define RADIO_CHANNEL_SYNDICATE "Syndicate"
+#define RADIO_CHANNEL_SYNDICATE "Synd"
 #define RADIO_KEY_SYNDICATE "t"
 #define RADIO_TOKEN_SYNDICATE ":t"
 
-#define RADIO_CHANNEL_CENTCOM "CentCom"
+#define RADIO_CHANNEL_CENTCOM "CntCom"
 #define RADIO_KEY_CENTCOM "y"
 #define RADIO_TOKEN_CENTCOM ":y"
 
-#define RADIO_CHANNEL_CTF_RED "Red Team"
-#define RADIO_CHANNEL_CTF_BLUE "Blue Team"
+#define RADIO_CHANNEL_CTF_RED "Red"
+#define RADIO_CHANNEL_CTF_BLUE "Blue"
 
 
 #define MIN_FREE_FREQ 1201 // -------------------------------------------------
@@ -113,12 +113,12 @@
 #define RADIO_CHANNEL_DS1 "DS-1"
 #define RADIO_KEY_DS1 "q"
 #define RADIO_TOKEN_DS1 ":q"
-#define FREQ_DS1 1210
+#define FREQ_DS1 1209
 
 #define RADIO_CHANNEL_DS2 "DS-2"
 #define RADIO_KEY_DS2 "w"
 #define RADIO_TOKEN_DS2 ":w"
-#define FREQ_DS2 1209
+#define FREQ_DS2 1210
 
 #define RADIO_CHANNEL_PIRATE "Illegal"
 #define RADIO_KEY_PIRATE "z"

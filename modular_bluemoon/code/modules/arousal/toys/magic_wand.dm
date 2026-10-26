@@ -100,8 +100,7 @@
 				M.Stun(3)
 				if(prob(50))
 					M.emote("moan")
-		if(!HAS_TRAIT(M, TRAIT_LEWD_JOB))
-			new /obj/effect/temp_visual/heart(M.loc)
+		M.try_play_interaction_effect()
 	else if(user.a_intent == INTENT_HARM)
 		return ..()
 
@@ -145,8 +144,7 @@
 				if(prob(50))
 					M.emote("moan")
 
-		if(!HAS_TRAIT(M, TRAIT_LEWD_JOB))
-			new /obj/effect/temp_visual/heart(M.loc)
+		M.try_play_interaction_effect()
 
 /obj/item/magicwand/equipped(mob/living/carbon/M)
 	. = ..()
@@ -170,7 +168,7 @@
 		return
 
 	timer -= delta_time
-	if(timer >= 0) // chech interval
+	if(timer > 0)
 		return
 	else
 		timer = interval

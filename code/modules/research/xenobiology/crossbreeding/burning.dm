@@ -33,7 +33,7 @@ Burning extracts:
 /obj/item/slimecross/burning/grey/do_effect(mob/user)
 	var/mob/living/simple_animal/slime/S = new(get_turf(user),"grey")
 	S.visible_message("<span class='danger'>A baby slime emerges from [src], and it nuzzles [user] before burbling hungrily!</span>")
-	S.Friends[user] = 20 //Gas, gas, gas
+	S.add_friend(user, 20) //Gas, gas, gas
 	S.bodytemperature = T0C + 400 //We gonna step on the gas.
 	S.set_nutrition(S.get_hunger_nutrition()) //Tonight, we fight!
 	..()
@@ -49,6 +49,7 @@ Burning extracts:
 	var/datum/effect_system/smoke_spread/chem/smoke = new
 	smoke.set_up(R, 7, get_turf(user))
 	smoke.start()
+	qdel(R)
 	..()
 
 /obj/item/slimecross/burning/purple
@@ -118,6 +119,7 @@ Burning extracts:
 	var/datum/effect_system/smoke_spread/chem/smoke = new
 	smoke.set_up(R, 7, get_turf(user))
 	smoke.start()
+	qdel(R)
 	..()
 
 /obj/item/slimecross/burning/silver
@@ -186,10 +188,10 @@ Burning extracts:
 	for(var/mob/living/simple_animal/slime/S in view(7, get_turf(user)))
 		if(user in S.Friends)
 			var/friendliness = S.Friends[user]
-			S.Friends = list()
-			S.Friends[user] = friendliness
+			S.drop_all_friends()
+			S.add_friend(user, friendliness)
 		else
-			S.Friends = list()
+			S.drop_all_friends()
 		S.rabid = 1
 		S.visible_message("<span class='danger'>The [S] is driven into a dangerous frenzy!</span>")
 	..()
@@ -431,7 +433,7 @@ Burning extracts:
 	w_class = WEIGHT_CLASS_BULKY
 	force = 15
 	throwforce = 10
-	armour_penetration = 15
+	armour_penetration = MELEE_AP_COMBAT
 	hitsound = 'sound/weapons/bladeslice.ogg'
 	attack_verb = list("attacked", "slashed", "stabbed", "sliced", "torn", "ripped", "diced", "cut")
 	sharpness = SHARP_EDGED
@@ -478,7 +480,7 @@ Burning extracts:
 	icon_state = "adamshield"
 	item_state = "adamshield"
 	w_class = WEIGHT_CLASS_HUGE
-	armor = list(MELEE = 50, BULLET = 50, LASER = 50, ENERGY = 0, BOMB = 30, BIO = 0, RAD = 0, FIRE = 80, ACID = 70)
+	armor_type = /datum/armor/base_and_adamantineshield
 	slot_flags = ITEM_SLOT_BACK
 	block_chance = 75
 	force = 0

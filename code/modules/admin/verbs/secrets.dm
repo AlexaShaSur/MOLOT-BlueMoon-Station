@@ -42,6 +42,10 @@
 	data["is_funmin"] = is_funmin
 	return data
 
+/proc/check_user_confimation(confirmation_data)
+	if(confirmation_data == "Yes")
+		return TRUE
+
 /datum/secrets_menu/ui_act(action, params)
 	. = ..()
 	if(.)
@@ -121,6 +125,10 @@
 			if(choice == "Да")
 				message_admins("[key_name_admin(holder)] has rejuvenated all players.")
 				for(var/mob/living/M in GLOB.mob_list)
+					if(QDELETED(M))
+						continue
+					if(!M.mind)
+						continue
 					M.revive(full_heal = 1, admin_revive = 1)
 		if("list_bombers")
 			var/dat = "<B>Bombing List</B><HR>"
@@ -256,6 +264,9 @@
 		if("virus")
 			if(!is_funmin)
 				return
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите выпустить вирус?", "Trigger Outbreak", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Virus Outbreak"))
 			switch(alert("Do you want this to be a random disease or do you have something in mind?",,"Make Your Own","Random","Choose"))
 				if("Make Your Own")
@@ -313,6 +324,9 @@
 			holder.triple_ai()
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Triple AI"))
 		if("onlyone")
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите начать highlander ивент?", "THERE CAN ONLY BE", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			var/response = alert("Delay by 40 seconds?", "There can, in fact, only be one", "Instant!", "40 seconds (crush the hope of a normal shift)")
@@ -322,6 +336,9 @@
 				holder.only_one_delayed()
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("There Can Be Only One"))
 		if("guns")
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите раздать всем оружие?", "Summon Guns", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Summon Guns"))
@@ -334,6 +351,9 @@
 
 			rightandwrong(SUMMON_GUNS, holder, survivor_probability)
 		if("magic")
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите раздать всем магию?", "Summon Magic", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Summon Magic"))
@@ -346,6 +366,9 @@
 
 			rightandwrong(SUMMON_MAGIC, holder, survivor_probability)
 		if("events")
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите спровоцировать случайные магические события?", "Summon Events", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			if(!SSdirector.wizardmode)
@@ -364,6 +387,9 @@
 		if("eagles")
 			if(!is_funmin)
 				return
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите убрать доступы со всех шлюзов?", "Egalitarian Station", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Egalitarian Station"))
 			for(var/obj/machinery/door/airlock/W in GLOB.machines)
 				if(is_station_level(W.z) && !istype(get_area(W), /area/command) && !istype(get_area(W), /area/commons) && !istype(get_area(W), /area/service) && !istype(get_area(W), /area/command/heads_quarters) && !istype(get_area(W), /area/security/prison))
@@ -371,6 +397,9 @@
 			message_admins("[key_name_admin(holder)] activated Egalitarian Station mode")
 			priority_announce("CentCom airlock control override activated. Please take this time to get acquainted with your coworkers.", null, SSstation.announcer.get_rand_report_sound())
 		if("ancap")
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите убрать ограничения с ролей по количеству слотов?", "Ancap Station", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Anarcho-capitalist Station"))
@@ -381,6 +410,9 @@
 			else
 				priority_announce("The NAP has been revoked.", null, SSstation.announcer.get_rand_report_sound())
 		if("inteq_displays")
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите объявить притязания InteQ на этот сектор?", "InteQ Displays", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("InteQ Displays on Station"))
@@ -398,6 +430,9 @@
 		if("synd_displays")
 			if(!is_funmin)
 				return
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите объявить притязания Syndicate на этот сектор?", "Syndicate Displays", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Syndicate Displays on Station"))
 			message_admins("[key_name_admin(holder)] toggled Syndicate Displays")
 			priority_announce("Синдикат берёт Космическую Станцию в свою ответственность.", null, 'sound/machines/AISyndiHack.ogg')
@@ -411,6 +446,9 @@
 				chosenboard.install(beepboop.laws, usr)
 				qdel(new_board)
 		if("aikofication")
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите сделать всех персонажей, подобным вашему?", "Aiko everyone", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			var/choice = alert(usr, "Только для станции или для всех?","Подумай дважды","Для всех", "Для станции")
@@ -440,6 +478,9 @@
 			log_admin("[key_name(holder)] has transformed everyone ([amount_modified] player\s) into [GLOB.dna_for_copying.real_name].")
 
 		if("blackout")
+			var/user_confimation = tgui_input_list(holder, "Вы уверены, что хотите сломать все лампочки везде?", "Сломать все лампочки", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Break All Lights"))
@@ -536,6 +577,12 @@
 			log_admin("[key_name(holder)] changed the bomb cap to [GLOB.MAX_EX_DEVESTATION_RANGE], [GLOB.MAX_EX_HEAVY_RANGE], [GLOB.MAX_EX_LIGHT_RANGE]")
 		//buttons that are fun for exactly you and nobody else.
 		if("monkey")
+			var/user_confimation = tgui_input_list(holder, "Вы ТОЧНО уверены, что желаете превратить ВСЕХ в мартышек?", "Мартышкофикация", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
+			var/user_confimation_two = tgui_input_list(holder, "А если хорошо подумать?", "Мартышкофикация", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation_two))
+				return
 			if(!is_funmin)
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Monkeyize All Humans"))
@@ -544,6 +591,9 @@
 				INVOKE_ASYNC(H, TYPE_PROC_REF(/mob/living/carbon, monkeyize))
 			ok = TRUE
 		if("traitor_all")
+			var/user_confimation = tgui_input_list(holder, "Вы точно уверены, что хотите всех сделать предателями?", "Traitors everyone", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			if(!SSticker.HasRoundStarted())
@@ -570,6 +620,9 @@
 			message_admins("<span class='adminnotice'>[key_name_admin(holder)] used everyone is a traitor secret. Objective is [objective]</span>")
 			log_admin("[key_name(holder)] used everyone is a traitor secret. Objective is [objective]")
 		if("ak47s")
+			var/user_confimation = tgui_input_list(holder, "Вы точно уверены, что хотите выдать всем автоматы Калашникова?", "AK47 FOR EVERYONE!!!", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			if(!SSticker.HasRoundStarted())
@@ -580,6 +633,9 @@
 			sound_to_playing_players('sound/misc/ak47s.ogg')
 
 		if("massbraindamage")
+			var/user_confimation = tgui_input_list(holder, "Вы точно уверены, что желаете наложить всем повреждения мозга?", "Mass brain damage", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			SSblackbox.record_feedback("nested tally", "admin_secrets_fun_used", 1, list("Mass Braindamage"))
@@ -589,8 +645,14 @@
 			message_admins("[key_name_admin(holder)] made everybody brain damaged!")
 			log_admin("[key_name(holder)] made everybody brain damage!")
 		if("floorlava")
+			var/user_confimation = tgui_input_list(holder, "Вы точно уверены, что хотите сыграть со станцией в игру Пол - это лава?", "floorlava", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			SSweather.run_weather(/datum/weather/floor_is_lava)
 		if("anime")
+			var/user_confimation = tgui_input_list(holder, "Вы точно уверены, что хотите стилизовать всех под стиль аниме?", "anime", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			var/animetype = alert("Would you like to have the clothes be changed?",,"Да","Нет","Отмена")
@@ -631,6 +693,9 @@
 				else
 					to_chat(H, "<span class='warning'>You're not kawaii enough for this!</span>", confidential = TRUE)
 		if("masspurrbation")
+			var/user_confimation = tgui_input_list(holder, "Вы точно уверены, что хотите включить массовую пуррррр~ бацию?", "masspurrbation", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			mass_purrbation()
@@ -646,6 +711,9 @@
 			log_admin("[key_name(holder)] has removed everyone from purrbation.")
 		// Shh!! Don't let badmins know this isn't actually a button!
 		if("massimmerse")
+			var/user_confimation = tgui_input_list(holder, "Вы точно уверены, что игроки должны дышать и моргать ВРУЧНУЮ??", "massimmerse", list("Yes", "No"))
+			if(!check_user_confimation(user_confimation))
+				return
 			if(!is_funmin)
 				return
 			mass_immerse()

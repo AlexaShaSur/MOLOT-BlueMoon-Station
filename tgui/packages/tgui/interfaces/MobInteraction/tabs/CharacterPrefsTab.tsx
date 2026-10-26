@@ -1,7 +1,23 @@
 import { useBackend, useLocalState } from '../../../backend';
-import { Box, Button, Flex, LabeledList, Modal, Tooltip } from '../../../components';
+import { Box, Button, Flex, LabeledList, Modal, Stack, Tooltip } from '../../../components';
+
+type AntagOptInLevel = {
+  value: number,
+  name: string,
+  color: string,
+  description: string,
+}
+
+type AntagOptInInfo = {
+  level: number,
+  effective: number,
+  levels: AntagOptInLevel[],
+  thresholds: string,
+  disclaimer: string,
+}
 
 type CharacterPrefsInfo = {
+  antag_opt_in?: AntagOptInInfo,
   erp_pref: number,
   noncon_pref: number,
   vore_pref: number,
@@ -29,6 +45,7 @@ const CONFIRM_DESCRIPTIONS: Record<string, string> = {
 export const CharacterPrefsTab = (props) => {
   const { act, data } = useBackend<CharacterPrefsInfo>();
   const {
+    antag_opt_in,
     erp_pref,
     noncon_pref,
     vore_pref,
@@ -86,167 +103,284 @@ export const CharacterPrefsTab = (props) => {
       )}
       <LabeledList>
         <LabeledList.Item label={<Tooltip content="Эротические взаимодействия"><span>ERP Preference</span></Tooltip>}>
-          <Button
-            icon={"check"}
-            color={erp_pref === 1 ? "green" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'erp_pref',
-              value: 1,
-            })} />
-          <Button
-            icon={"question"}
-            color={erp_pref === 2 ? "yellow" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'erp_pref',
-              value: 2,
-            })} />
-          <Button
-            icon={"times"}
-            color={erp_pref === 0 ? "red" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'erp_pref',
-              value: 0,
-            })} />
+          <Stack textAlign="center">
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"check"}
+                color={erp_pref === 1 ? "green" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'erp_pref',
+                  value: 1,
+                })} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"question"}
+                color={erp_pref === 2 ? "yellow" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'erp_pref',
+                  value: 2,
+                })} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"times"}
+                color={erp_pref === 0 ? "red" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'erp_pref',
+                  value: 0,
+                })} />
+            </Stack.Item>
+          </Stack>
         </LabeledList.Item>
         <LabeledList.Item label={<Tooltip content="Принудительные сцены без вашего согласия"><span>Noncon Preference</span></Tooltip>}>
-          <Button
-            icon={"check"}
-            color={noncon_pref === 1 ? "green" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'noncon_pref',
-              value: 1,
-            })} />
-          <Button
-            icon={"question"}
-            color={noncon_pref === 2 ? "yellow" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'noncon_pref',
-              value: 2,
-            })} />
-          <Button
-            icon={"times"}
-            color={noncon_pref === 0 ? "red" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'noncon_pref',
-              value: 0,
-            })} />
+          <Stack textAlign="center">
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"check"}
+                color={noncon_pref === 1 ? "green" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'noncon_pref',
+                  value: 1,
+                })} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"question"}
+                color={noncon_pref === 2 ? "yellow" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'noncon_pref',
+                  value: 2,
+                })} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"times"}
+                color={noncon_pref === 0 ? "red" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'noncon_pref',
+                  value: 0,
+                })} />
+            </Stack.Item>
+          </Stack>
         </LabeledList.Item>
         <LabeledList.Item label={<Tooltip content="Пожирание и переваривание."><span>Vore Preference</span></Tooltip>}>
-          <Button
-            icon={"check"}
-            color={vore_pref === 1 ? "green" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'vore_pref',
-              value: 1,
-            })} />
-          <Button
-            icon={"question"}
-            color={vore_pref === 2 ? "yellow" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'vore_pref',
-              value: 2,
-            })} />
-          <Button
-            icon={"times"}
-            color={vore_pref === 0 ? "red" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'vore_pref',
-              value: 0,
-            })} />
+          <Stack textAlign="center">
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"check"}
+                color={vore_pref === 1 ? "green" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'vore_pref',
+                  value: 1,
+                })} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"question"}
+                color={vore_pref === 2 ? "yellow" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'vore_pref',
+                  value: 2,
+                })} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"times"}
+                color={vore_pref === 0 ? "red" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'vore_pref',
+                  value: 0,
+                })} />
+            </Stack.Item>
+          </Stack>
         </LabeledList.Item>
         <LabeledList.Item label={<Tooltip content="Татуировки"><span>Tattoo Preference</span></Tooltip>}>
-          <Button
-            icon={"check"}
-            color={tattoo_pref === 1 ? "green" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'tattoo_pref',
-              value: 1,
-            })} />
-          <Button
-            icon={"question"}
-            color={tattoo_pref === 2 ? "yellow" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'tattoo_pref',
-              value: 2,
-            })} />
-          <Button
-            icon={"times"}
-            color={tattoo_pref === 0 ? "red" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'tattoo_pref',
-              value: 0,
-            })} />
+          <Stack textAlign="center">
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"check"}
+                color={tattoo_pref === 1 ? "green" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'tattoo_pref',
+                  value: 1,
+                })} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"question"}
+                color={tattoo_pref === 2 ? "yellow" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'tattoo_pref',
+                  value: 2,
+                })} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"times"}
+                color={tattoo_pref === 0 ? "red" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'tattoo_pref',
+                  value: 0,
+                })} />
+            </Stack.Item>
+          </Stack>
         </LabeledList.Item>
         <LabeledList.Item label={<Tooltip content="Грязные взаимодействия, моча, смегма, запахи"><span>Unholy Preference</span></Tooltip>}>
-          <Button
-            icon={"check"}
-            color={unholy_pref === 1 ? "green" : "default"}
-            onClick={() => confirmAndAct('unholy_pref', 1)} />
-          <Button
-            icon={"question"}
-            color={unholy_pref === 2 ? "yellow" : "default"}
-            onClick={() => confirmAndAct('unholy_pref', 2)} />
-          <Button
-            icon={"times"}
-            color={unholy_pref === 0 ? "red" : "default"}
-            onClick={() => confirmAndAct('unholy_pref', 0)} />
+          <Stack textAlign="center">
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"check"}
+                color={unholy_pref === 1 ? "green" : "default"}
+                onClick={() => confirmAndAct('unholy_pref', 1)} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"question"}
+                color={unholy_pref === 2 ? "yellow" : "default"}
+                onClick={() => confirmAndAct('unholy_pref', 2)} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"times"}
+                color={unholy_pref === 0 ? "red" : "default"}
+                onClick={() => confirmAndAct('unholy_pref', 0)} />
+            </Stack.Item>
+          </Stack>
         </LabeledList.Item>
         <LabeledList.Item label={<Tooltip content="Особые грязные взаимодействия, коричневое золото, газы, другое"><span>Unholy Hard Preference</span></Tooltip>}>
-          <Button
-            icon={"check"}
-            color={unholy_hard_pref === 1 ? "green" : "default"}
-            onClick={() => confirmAndAct('unholy_hard_pref', 1)} />
-          <Button
-            icon={"question"}
-            color={unholy_hard_pref === 2 ? "yellow" : "default"}
-            onClick={() => confirmAndAct('unholy_hard_pref', 2)} />
-          <Button
-            icon={"times"}
-            color={unholy_hard_pref === 0 ? "red" : "default"}
-            onClick={() => confirmAndAct('unholy_hard_pref', 0)} />
+          <Stack textAlign="center">
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"check"}
+                color={unholy_hard_pref === 1 ? "green" : "default"}
+                onClick={() => confirmAndAct('unholy_hard_pref', 1)} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"question"}
+                color={unholy_hard_pref === 2 ? "yellow" : "default"}
+                onClick={() => confirmAndAct('unholy_hard_pref', 2)} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"times"}
+                color={unholy_hard_pref === 0 ? "red" : "default"}
+                onClick={() => confirmAndAct('unholy_hard_pref', 0)} />
+            </Stack.Item>
+          </Stack>
         </LabeledList.Item>
         <LabeledList.Item label={<Tooltip content="Экстремальные сцены"><span>Extreme Preference</span></Tooltip>}>
-          <Button
-            icon={"check"}
-            color={extreme_pref === 1 ? "green" : "default"}
-            onClick={() => confirmAndAct('extreme_pref', 1)} />
-          <Button
-            icon={"question"}
-            color={extreme_pref === 2 ? "yellow" : "default"}
-            onClick={() => confirmAndAct('extreme_pref', 2)} />
-          <Button
-            icon={"times"}
-            color={extreme_pref === 0 ? "red" : "default"}
-            onClick={() => confirmAndAct('extreme_pref', 0)} />
+          <Stack textAlign="center">
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"check"}
+                color={extreme_pref === 1 ? "green" : "default"}
+                onClick={() => confirmAndAct('extreme_pref', 1)} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"question"}
+                color={extreme_pref === 2 ? "yellow" : "default"}
+                onClick={() => confirmAndAct('extreme_pref', 2)} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"times"}
+                color={extreme_pref === 0 ? "red" : "default"}
+                onClick={() => confirmAndAct('extreme_pref', 0)} />
+            </Stack.Item>
+          </Stack>
         </LabeledList.Item>
         {extreme_pref ? (
           <LabeledList.Item label={<Tooltip content="Особо жестокие сцены"><span>Extreme Harm</span></Tooltip>}>
-            <Button
-              icon={"check"}
-              color={extreme_harm ? "green" : "default"}
-              onClick={() => confirmAndAct('extreme_harm', 1)} />
-            <Button
-              icon={"times"}
-              color={extreme_harm ? "default" : "red"}
-              onClick={() => confirmAndAct('extreme_harm', 0)} />
+            <Stack textAlign="center">
+              <Stack.Item grow>
+                <Button
+                  fluid
+                  icon={"check"}
+                  color={extreme_harm ? "green" : "default"}
+                  onClick={() => confirmAndAct('extreme_harm', 1)} />
+              </Stack.Item>
+              <Stack.Item grow>
+                <Button
+                  fluid
+                  icon={"times"}
+                  color={extreme_harm ? "default" : "red"}
+                  onClick={() => confirmAndAct('extreme_harm', 0)} />
+              </Stack.Item>
+            </Stack>
           </LabeledList.Item>
         ) : (null)}
         <LabeledList.Item label={<Tooltip content="Принудительный секс с мобами"><span>Mob Noncon Sex</span></Tooltip>}>
-          <Button
-            icon={"check"}
-            color={mobsex_pref ? "green" : "default"}
-            onClick={() => act('char_pref', {
-              char_pref: 'mobsex_pref',
-              value: 1,
-            })} />
-          <Button
-            icon={"times"}
-            color={mobsex_pref ? "default" : "red"}
-            onClick={() => act('char_pref', {
-              char_pref: 'mobsex_pref',
-              value: 0,
-            })} />
+          <Stack textAlign="center">
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"check"}
+                color={mobsex_pref ? "green" : "default"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'mobsex_pref',
+                  value: 1,
+                })} />
+            </Stack.Item>
+            <Stack.Item grow>
+              <Button
+                fluid
+                icon={"times"}
+                color={mobsex_pref ? "default" : "red"}
+                onClick={() => act('char_pref', {
+                  char_pref: 'mobsex_pref',
+                  value: 0,
+                })} />
+            </Stack.Item>
+          </Stack>
         </LabeledList.Item>
+        {antag_opt_in ? (
+          <LabeledList.Item label={<Tooltip content={`Может ли персонаж выпасть целью в заданиях антагонистов. Новый уровень действует на следующие выборы целей. ${antag_opt_in.thresholds}`}><span>Задания антагов</span></Tooltip>}>
+            <Box mb={0.5} color="average">
+              {antag_opt_in.disclaimer}
+            </Box>
+            <Stack vertical>
+              {antag_opt_in.levels.map((level) => (
+                <Stack.Item key={level.value}>
+                  <Button
+                    fluid
+                    content={level.name}
+                    tooltip={level.description}
+                    color={antag_opt_in.level === level.value ? "green" : "default"}
+                    onClick={() => act('antag_opt_in', { level: level.value })} />
+                </Stack.Item>
+              ))}
+            </Stack>
+            {antag_opt_in.effective !== antag_opt_in.level ? (
+              <Box mt={0.5} color={antag_opt_in.levels[antag_opt_in.effective]?.color}>
+                Итоговый уровень с учётом порога: {antag_opt_in.levels[antag_opt_in.effective]?.name}
+              </Box>
+            ) : null}
+          </LabeledList.Item>
+        ) : null}
       </LabeledList>
     </Flex>
   );

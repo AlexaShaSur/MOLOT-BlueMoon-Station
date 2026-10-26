@@ -5,8 +5,7 @@
 		return
 	if(!bypass_logging)
 		var/logstring = "Wave explosion at [COORD(target)]: [power]/[factor]/[constant]/[flash]/[fire]/[speed] initial/factor/constant/flash/fire/speed"
-		log_game(logstring)
-		message_admins(logstring)
+		antag_training_game_log(target, logstring, logstring)
 	return new /datum/wave_explosion(target, power, factor, constant, flash, fire, source, speed, silent, start_immediately, block_resistance)
 
 /**
@@ -184,9 +183,7 @@
 				baseshakeamount = sqrt((sqrt(power_initial) - dist)*0.1)
 			// If inside the blast radius + world.view - 2
 			if(dist <= round(2 * sqrt(power_initial) + world.view - 2, 1))
-				M.playsound_local(closest_to[M], null, 100, 1, frequency, max_distance = 5, S = explosion_sound)
-				if(baseshakeamount > 0)
-					shake_camera(M, 25, clamp(baseshakeamount, 0, 10))
+				generate_explosion_near_sounds(M, closest_to[M], dist, 2 * sqrt(power_initial), sqrt(power_initial), frequency, 5, explosion_sound)
 			// You hear a far explosion if you're outside the blast radius. Small bombs shouldn't be heard all over the station.
 			else if(dist <= far_dist)
 				var/far_volume = clamp(far_dist, 30, 50) // Volume is based on explosion size and dist
@@ -198,7 +195,8 @@
 	for(var/mob/living/L as anything in to_flash)
 		L.flash_act()
 
-	SSblackbox.record_feedback("associative", "wave_explosion", 1, feedback)
+	if(!length(_starting) || !is_antag_training_atom(_starting[1]))
+		SSblackbox.record_feedback("associative", "wave_explosion", 1, feedback)
 
 	if(!cycle)
 		cycle = 1

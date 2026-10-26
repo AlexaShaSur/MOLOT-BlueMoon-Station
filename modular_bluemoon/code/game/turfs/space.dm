@@ -4,6 +4,8 @@
 	prefix = "_maps/RandomRuins/SpaceRuins/BlueMoon/"
 	allow_duplicates = FALSE
 	id = "tarkoff-base"
+	always_place = TRUE
+
 
 /datum/map_template/ruin/space/tarkoff/New()
 	var/num = rand(0, 3)
@@ -18,6 +20,48 @@
 			suffix = "defcon2.dmm"
 	. = ..()
 
+/datum/map_template/ruin/space/listeningstation
+	name = "Listening Station"
+	id = "listeningstation"
+	prefix = "_maps/RandomRuins/SpaceRuins/BlueMoon/listening/"
+	description = "Listening stations form the backbone of the syndicate's information gathering operations. \
+	Assignment to these stations is dreaded by most agents, as it entails long and lonely shifts listening to nearby stations chatter incessently about the most meaningless things."
+	allow_duplicates = FALSE
+	unpickable = TRUE
+	suffix = "inteq_listening_default.dmm"
+	var/variant_chosen = FALSE
+
+/datum/map_template/ruin/space/listeningstation/New()
+	. = ..()
+	SSticker?.OnRoundstart(CALLBACK(src, PROC_REF(late_spawn)))
+
+/datum/map_template/ruin/space/listeningstation/proc/choose_variant()
+	if(variant_chosen)
+		return
+	variant_chosen = TRUE
+	if(GLOB.round_type == ROUNDTYPE_EXTENDED)
+		suffix = prob(50) ? "syndie_listening_default.dmm" : "syndie_listening_siege.dmm"
+	else
+		suffix = pick("inteq_listening_default.dmm", "inteq_listening_cult.dmm", "inteq_listening_syndicate.dmm")
+	mappath = prefix + suffix
+	preload_size(mappath)
+
+/datum/map_template/ruin/space/listeningstation/proc/late_spawn()
+	var/list/space_levels = SSmapping.levels_by_trait(ZTRAIT_SPACE_RUINS)
+	if(!length(space_levels))
+		return
+	var/list/valid_levels = space_levels.Copy()
+	for(var/obj/effect/landmark/ruin/ruin_landmark as anything in GLOB.ruin_landmarks)
+		if(istype(ruin_landmark.ruin_template, /datum/map_template/ruin/space/deepspacetwo))
+			valid_levels -= ruin_landmark.z
+	if(!length(valid_levels))
+		return
+	try_to_place(pick(valid_levels), list(/area/space))
+
+/datum/map_template/ruin/space/listeningstation/try_to_place(z, allowed_areas, forced_turf)
+	choose_variant()
+	. = ..()
+
 //DS2.
 /datum/map_template/ruin/space/deepspacetwo
 	name = "Deep Space Two"
@@ -27,56 +71,14 @@
 	always_place = TRUE
 	id = "ds2-base"
 
-/datum/map_template/ruin/station/forgottenship
-	name = "SCSBC-12"
-	description = "InteQ хотели бы напомнить своим сотрудникам, что любой линейный крейсер будет обслуживаться соответствующим образом, как и экипаж."
-	prefix = "_maps/RandomRuins/SpaceRuins/BlueMoon/"
-	suffix = "forgotten_ship.dmm"
-	allow_duplicates = FALSE
-	always_place = FALSE
-	cost = 1000
-	id = "forgottenship"
-	// This 299 KiB DMM is deliberately loaded one minute into the round. Template
-	// construction already parses it during mapping init, so keep that result instead
-	// of repeating the expensive parse while clients are playing.
-	keep_cached_map = TRUE
-
-/datum/map_template/ruin/station/forgottenship/New()
-	. = ..()
-	// build_cache() is the second CPU-heavy text phase normally deferred until
-	// load(). The cache is mode-independent (see build_cache()), so this one eager
-	// build serves the +60s late load no matter what state SSatoms is in by then.
-	cached_map?.build_cache()
-
-/datum/map_template/ruin/station/forgottenship/load(turf/T, centered = FALSE, orientation = SOUTH, annihilate = default_annihilate, force_cache = FALSE, rotate_placement_to_orientation = FALSE)
-	. = ..()
-	// The retained parse exists to survive until this one late load. The landmark
-	// makes exactly one attempt and qdels itself right after, so there is no retry
-	// to keep the parse for: release it once the attempt is over whether or not
-	// placement succeeded, or a failed load (say, the landmark ending up too close
-	// to the world edge after a map edit) would strand the quarter-megabyte DMM
-	// and its model cache for the rest of the round with no possible consumer.
-	if(!force_cache)
-		cached_map = null
-
 /datum/map_template/ruin/station/forgottenship/sol
 	name = "SCSBC-13"
 	description = "SolFed хотели бы напомнить своим сотрудникам, что любой линейный крейсер будет обслуживаться соответствующим образом, как и экипаж."
 	prefix = "_maps/RandomRuins/SpaceRuins/BlueMoon/"
 	suffix = "sol_ship.dmm"
 	allow_duplicates = FALSE
-	always_place = FALSE
-	cost = 1000
+	cost = 10
 	id = "forgottenship_sol"
-
-/datum/map_template/ruin/space/forgottenship/nothing
-	name = "SCSBC-14"
-	description = "Nobody хотели бы напомнить своим сотрудникам, что любой линейный крейсер будет обслуживаться соответствующим образом, как и экипаж."
-	prefix = "_maps/RandomRuins/SpaceRuins/BlueMoon/"
-	suffix = "nothing_ship.dmm"
-	allow_duplicates = FALSE
-	always_place = TRUE
-	id = "forgottenship_nothing"
 
 /datum/map_template/ruin/space/abductorcrush
 	name = "Crushed Abductor Ship"

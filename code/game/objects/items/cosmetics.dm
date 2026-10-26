@@ -85,7 +85,7 @@
 
 /obj/item/lipstick/mime
 	name = "Kiss of Mute"
-	desc = "Тихий тюбик помады. Он говорит о многом без слов."
+	desc = "Тихий тюбик помады. Наносить её может только мим. Воздушный поцелуй (*kiss) вводит углеродной цели 1 единицу Mute Toxin; контактный поцелуй через меню взаимодействий — 1–2 единицы, только при намерении навредить."
 	colour = "#808080"
 	closed_icon_state = "lipstick_mime"
 	lipstick_trait = TRAIT_KISS_MIME
@@ -227,6 +227,7 @@
 
 /obj/item/razor/attack(mob/M, mob/user)
 	if(ishuman(M) && extended == 1 && user.a_intent != INTENT_HARM)
+		. = STOP_ATTACK_PROC_CHAIN
 		var/mob/living/carbon/human/H = M
 		var/location = user.zone_selected
 		var/mirror = FALSE
@@ -297,6 +298,6 @@
 												"<span class='notice'>You shave [H]'s head bald.</span>")
 							shave(H, location)
 		else
-			..()
+			return ..()
 	else
-		..()
+		return ..()

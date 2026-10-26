@@ -23,6 +23,7 @@ GLOBAL_LIST_EMPTY(ghost_records)
 	desc = "An interface between crew and the cryogenic storage/teleporter storage oversight systems."
 	icon = 'icons/obj/Cryogenic2.dmi'
 	icon_state = "cellconsole_1"
+	icon_screen = null
 	icon_keyboard = null
 	circuit = /obj/item/circuitboard/cryopodcontrol
 	density = FALSE
@@ -33,7 +34,7 @@ GLOBAL_LIST_EMPTY(ghost_records)
 
 	max_integrity = 10000
 	resistance_flags = LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF | FREEZE_PROOF
-	armor = list(MELEE = 10, BULLET = 60, LASER = 60, ENERGY = 60, BOMB = 30, BIO = 100, RAD = 100, FIRE = 100, ACID = 100)
+	armor_type = /datum/armor/computer_cryopod_and_cryopod
 
 
 	// Used for logging people entering cryosleep and important items they are carrying.
@@ -166,7 +167,7 @@ GLOBAL_LIST_EMPTY(ghost_records)
 
 	resistance_flags = LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF | FREEZE_PROOF
 	max_integrity = 500
-	armor = list(MELEE = 10, BULLET = 60, LASER = 60, ENERGY = 60, BOMB = 30, BIO = 100, RAD = 100, FIRE = 100, ACID = 100)
+	armor_type = /datum/armor/computer_cryopod_and_cryopod
 	flags_1 = NODECONSTRUCT_1
 	interaction_flags_machine = INTERACT_MACHINE_WIRES_IF_OPEN | INTERACT_MACHINE_ALLOW_SILICON | INTERACT_MACHINE_OPEN_SILICON | INTERACT_MACHINE_SET_MACHINE | INTERACT_MACHINE_OFFLINE
 
@@ -410,7 +411,19 @@ GLOBAL_LIST_EMPTY(ghost_records)
 
 // This function can not be undone; do not call this unless you are sure
 /obj/machinery/cryopod/proc/despawn_occupant()
+	charge_cryo_exit()
 	cryoMob(occupant, control_computer_weakref, src, tele, initial(name))
+
+/obj/machinery/cryopod/proc/charge_cryo_exit()
+	var/mob/living/mob_occupant = occupant
+	if(!mob_occupant?.ckey || !SSmetadollars)
+		return
+	var/old_balance = SSmetadollars.get_metadollars(mob_occupant.ckey)
+	SSmetadollars.metadollar_adjust(-1, mob_occupant.ckey)
+	var/new_balance = SSmetadollars.get_metadollars(mob_occupant.ckey)
+	log_game("[key_name(mob_occupant)] cryo exit: charged 1 M$ (balance [old_balance] -> [new_balance]).")
+	if(mob_occupant.client)
+		to_chat(mob_occupant, span_warning("Уход в крио забрал 1 М$ из вашего счёта метадолларов."))
 
 /proc/cryoMob(mob/living/mob_occupant, datum/weakref/control_computer_weakref, obj/machinery/cryopod/pod, is_teleporter, initial_name, effects = FALSE)
 	var/list/crew_member = list()
@@ -597,6 +610,12 @@ GLOBAL_LIST_EMPTY(ghost_records)
 /obj/effect/mob_spawn/human/Initialize(mapload)
 	. = ..()
 	ghost_team = new /datum/team/ghost_role()
+
+/obj/effect/mob_spawn/human/Destroy()
+	if(ghost_team && !length(ghost_team.members))
+		qdel(ghost_team)
+	ghost_team = null
+	return ..()
 
 /obj/effect/mob_spawn/human/special(mob/living/carbon/human/spawned_mob, datum/team/ghost_role/ghostovich)
 	. = ..()

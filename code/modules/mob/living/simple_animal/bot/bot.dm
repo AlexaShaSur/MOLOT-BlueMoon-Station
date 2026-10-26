@@ -185,7 +185,6 @@
 	bot_core = new bot_core_type(src)
 
 	//Adds bot to the diagnostic HUD system
-	prepare_huds()
 	for(var/datum/atom_hud/data/diagnostic/diag_hud in GLOB.all_huds)
 		diag_hud.add_to_hud(src)
 	diag_hud_set_bothealth()
@@ -341,7 +340,7 @@
 			open = !open
 			to_chat(user, "<span class='notice'>Панель технического обслуживания [open ? "открыта" : "закрыта"].</span>")
 		else
-			to_chat(user, "<span class='warning'>Панель тех-обслуживания закрыта.</span>")
+			to_chat(user, "<span class='warning'>Панель техобслуживания закрыта.</span>")
 	else if(istype(W, /obj/item/card/id) || istype(W, /obj/item/modular_computer/pda))
 		if(bot_core.allowed(user) && !open && !emagged)
 			locked = !locked
@@ -370,7 +369,7 @@
 				to_chat(user, "<span class='warning'>[src] не требует ремонта!</span>")
 				return
 			if(!open)
-				to_chat(user, "<span class='warning'>Невозможно чинить с закрытой панелью тех-обслуживания!</span>")
+				to_chat(user, "<span class='warning'>Невозможно чинить с закрытой панелью техобслуживания!</span>")
 				return
 
 			if(W.use_tool(src, user, 0, volume=40))
@@ -892,8 +891,10 @@ Pass a positive integer as an argument to override a bot's default speed.
 		return
 	switch(action)
 		if("power")
-			on = !on
-			update_appearance()
+			if(on)
+				turn_off()
+			else
+				turn_on()
 		if("maintenance")
 			open = !open
 		if("patrol")
@@ -1038,6 +1039,10 @@ Pass a positive integer as an argument to override a bot's default speed.
 	path = newpath ? newpath : list()
 	if(!path_hud)
 		return
+	var/list/path_images = hud_list?[DIAG_PATH_HUD]
+	if(!length(newpath) && !length(path_images))
+		return
+	var/static/list/path_icon_keys = list(DIAG_PATH_HUD)
 	var/list/path_huds_watching_me = list()
 	var/datum/atom_hud/diagnostic_hud = GLOB.huds[DATA_HUD_DIAGNOSTIC_ADVANCED]
 	if(diagnostic_hud)
@@ -1046,9 +1051,10 @@ Pass a positive integer as an argument to override a bot's default speed.
 	for(var/datum/atom_hud/H as anything in path_huds_watching_me)
 		if(!H)
 			continue
-		H.remove_from_hud(src)
+		if(length(path_images))
+			for(var/mob/viewer as anything in H.hudusers)
+				H.remove_from_single_hud(viewer, src, path_icon_keys)
 
-	var/list/path_images = hud_list?[DIAG_PATH_HUD]
 	if(isnull(path_images))
 		path_images = list()
 		hud_list[DIAG_PATH_HUD] = path_images
@@ -1082,7 +1088,7 @@ Pass a positive integer as an argument to override a bot's default speed.
 			MA.icon = path_image_icon
 			MA.icon_state = path_image_icon_state
 			MA.layer = ABOVE_OPEN_TURF_LAYER
-			MA.plane = 0
+			SET_PLANE(MA, GAME_PLANE, T)
 			MA.appearance_flags = RESET_COLOR|RESET_TRANSFORM
 			MA.color = path_image_color
 			MA.dir = direction
@@ -1091,10 +1097,13 @@ Pass a positive integer as an argument to override a bot's default speed.
 			path[T] = I
 			path_images += I
 
+	var/bot_z_group = get_hud_z_group_cached()
 	for(var/datum/atom_hud/H as anything in path_huds_watching_me)
-		if(!H)
+		if(!H || !length(path_images))
 			continue
-		H.add_to_hud(src)
+		for(var/mob/viewer as anything in H.hudusers)
+			if(!H.queued_to_see[viewer] && viewer.get_hud_view_group_cached() == bot_z_group)
+				H.add_to_single_hud(viewer, src, path_icon_keys)
 
 
 /mob/living/simple_animal/bot/proc/increment_path()

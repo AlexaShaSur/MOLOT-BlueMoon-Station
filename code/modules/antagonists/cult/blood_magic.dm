@@ -279,7 +279,7 @@
 		SEND_SOUND(ranged_ability_user, sound('sound/effects/ghost.ogg',0,1,50))
 		var/image/C = image('icons/effects/cult_effects.dmi',H,"bloodsparkles", ABOVE_MOB_LAYER)
 		add_alt_appearance(/datum/atom_hud/alternate_appearance/basic/cult, "cult_apoc", C, FALSE)
-		addtimer(CALLBACK(H, TYPE_PROC_REF(/atom, remove_alt_appearance),"cult_apoc",TRUE), 2400, TIMER_OVERRIDE|TIMER_UNIQUE)
+		addtimer(CALLBACK(H, TYPE_PROC_REF(/atom/movable, remove_alt_appearance),"cult_apoc",TRUE), 2400, TIMER_OVERRIDE|TIMER_UNIQUE)
 		to_chat(ranged_ability_user,"<span class='cult'><b>[H] has been cursed with living nightmares!</b></span>")
 		attached_action.charges--
 		attached_action.desc = attached_action.base_desc
@@ -432,7 +432,7 @@
 
 		user.mob_light(_color = LIGHT_COLOR_BLOOD_MAGIC, _range = 3, _duration = 2)
 
-		var/anti_magic_source = L.anti_magic_check()
+		var/anti_magic_source = L.check_magic_resistance()
 		if(anti_magic_source)
 
 			L.mob_light(_color = LIGHT_COLOR_HOLY_MAGIC, _range = 2, _duration = 100)
@@ -455,6 +455,8 @@
 					if(L.move_resist < MOVE_FORCE_STRONG)
 						var/atom/throw_target = get_edge_target_turf(L, user.dir)
 						L.throw_at(throw_target, 7, 1, user)
+			else if(IS_HERETIC(L))
+				L.apply_heretic_cult_stun()
 			else if(!is_servant_of_ratvar(L))
 				L.DefaultCombatKnockdown(160)
 				L.adjustStaminaLoss(140) //Ensures hard stamcrit
@@ -601,7 +603,7 @@
 				to_chat(user, "<span class='warning'>A dark cloud emanates from your hand and swirls around the metal, twisting it into a construct shell!</span>")
 				new /obj/structure/constructshell(T)
 				SEND_SOUND(user, sound('sound/effects/magic.ogg',0,1,25))
-				post_cast(target, proximity_flag, user)
+				post_cast(target, user, proximity_flag)
 			else
 				to_chat(user, "<span class='warning'>You need 50 metal to produce a construct shell!</span>")
 		else if(istype(target, /obj/item/stack/sheet/plasteel))

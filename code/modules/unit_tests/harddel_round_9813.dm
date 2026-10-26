@@ -21,9 +21,15 @@
 
 /// Снимок цели до qdel: держать сам датум в переменной теста нельзя - фрейм
 /// пиннит его и softcheck честно провалится на чистом объекте.
+///
+/// Ref снимаем СЫРЫМ text_ref(), а не REF(): у мобов стоит DF_USE_TAG
+/// (mob_defines.dm:3), REF() для них отдаёт ТЕГ, а /datum/Destroy (datum.dm:117)
+/// обнуляет tag и снимает флаг. После qdel locate() по такой записи возвращает
+/// null - и любая проверка "собрался ли моб" молча засчитывалась как успех,
+/// каким бы держателем он ни был занят. Сырой ref живёт, пока жив сам объект.
 /datum/unit_test/harddel_9813_base/proc/target_record(datum/target, label)
 	return list(
-		"ref" = REF(target),
+		"ref" = text_ref(target),
 		"type_path" = target.type,
 		"label" = label,
 	)
@@ -46,12 +52,11 @@
 	var/datum/still_alive = locate(target["ref"])
 	TEST_ASSERT(isnull(still_alive) || !QDELING(still_alive), "[label] пережил qdel и не собран (внешних держателей: [recorded_holders(target["type_path"])])")
 
-/// ДИАГНОСТИКА: если цель ещё жива после qdel, пишет полный скан держателей
-/// в data/logs/<раунд>/harddels.log. Вызывать строго между qdel и GC-прогоном.
-/datum/unit_test/harddel_9813_base/proc/scan_holders(list/target, stage = "после qdel")
+/// ДИАГНОСТИКА: если цель пережила GC-прогон, пишет полный скан держателей
+/// в data/logs/<раунд>/harddels.log. Скан обходит весь мир, поэтому только на провале.
+/datum/unit_test/harddel_9813_base/proc/scan_holders(list/target, stage = "после GC-прогона")
 	var/datum/leaked = locate(target["ref"])
-	if(!leaked)
-		log_reftracker("=== ТЕСТ [target["label"]] ([stage]): цель уже собрана ===")
+	if(!leaked || !QDELING(leaked))
 		return
 	// EXTERNAL_REFCOUNT уже вычитает локалку этого фрейма.
 	var/holders = EXTERNAL_REFCOUNT(leaked)
@@ -134,7 +139,6 @@
 
 	begin_isolated_gc()
 	var/list/record = qdel_backseat_directly()
-	scan_holders(record)
 	run_gc_fire_cycles(2, yield_for_gc = TRUE)
 	scan_holders(record, "после GC-прогона")
 	assert_soft_collected(record)
@@ -346,14 +350,12 @@
 /datum/unit_test/gc_cryo_despawn_releases_occupant/Run()
 	begin_isolated_gc()
 	var/list/record = despawn_via_cryo()
-	scan_holders(record)
 	run_gc_fire_cycles(2, yield_for_gc = TRUE)
 	scan_holders(record, "после GC-прогона")
 	assert_soft_collected(record)
 
 	begin_isolated_gc()
 	var/list/pod_record = despawn_via_pod()
-	scan_holders(pod_record)
 	run_gc_fire_cycles(2, yield_for_gc = TRUE)
 	scan_holders(pod_record, "после GC-прогона (под)")
 	assert_soft_collected(pod_record)

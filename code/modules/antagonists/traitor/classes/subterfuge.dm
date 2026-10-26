@@ -6,20 +6,12 @@
 	assassin_prob = 25
 
 /datum/traitor_class/human/subterfuge/try_forge_assassinate_objective(datum/antagonist/traitor/T, datum/game_mode/dynamic/mode)
-	var/effective_prob = get_effective_assassin_prob(mode)
+	var/effective_prob = get_effective_assassin_prob(mode, T.owner)
 	if(!effective_prob || !prob(effective_prob))
 		return FALSE
 	if(prob(25))
-		var/datum/objective/assassinate/internal/kill_objective = new
-		kill_objective.owner = T.owner
-		kill_objective.find_target()
-		T.add_objective(kill_objective)
-	else
-		var/datum/objective/assassinate/once/kill_objective = new
-		kill_objective.owner = T.owner
-		kill_objective.find_target()
-		T.add_objective(kill_objective)
-	return TRUE
+		return add_targeted_objective(T, new /datum/objective/assassinate/internal)
+	return add_targeted_objective(T, new /datum/objective/assassinate/once)
 
 /datum/traitor_class/human/subterfuge/forge_single_objective(datum/antagonist/traitor/T)
 	var/datum/game_mode/dynamic/mode
@@ -39,8 +31,12 @@
 			weights["steal"] = length(subtypesof(/datum/objective_item/steal))
 		var/datum/objective/protect/protect_objective = new
 		protect_objective.owner = T.owner
-		if(protect_objective.find_target())
+		if(protect_objective.find_kill_target() && GLOB.round_type != ROUNDTYPE_DYNAMIC_LIGHT)	// BLUEMOON CHANGE - в Лайт-Динамик протекта не даём: защищать не от кого
 			weights["protect"] = length(subtypesof(/datum/objective_item/steal))
+		var/datum/objective/frame/frame_objective = new
+		frame_objective.owner = T.owner
+		if(!(locate(/datum/objective/frame) in T.objectives) && frame_objective.find_target())
+			weights["frame"] = length(subtypesof(/datum/objective_item/steal)) * TRAITOR_FRAME_WEIGHT_FACTOR
 		var/datum/objective/breakout/breakout_objective = null
 		if(has_manifest_prisoner())
 			breakout_objective = new
@@ -58,6 +54,7 @@
 				qdel(protect_objective)
 				if(breakout_objective)
 					qdel(breakout_objective)
+				qdel(frame_objective)	// BLUEMOON ADD
 				return TRUE
 			if("steal")
 				T.add_objective(steal_objective)
@@ -65,11 +62,21 @@
 				qdel(protect_objective)
 				if(breakout_objective)
 					qdel(breakout_objective)
+				qdel(frame_objective)	// BLUEMOON ADD
 				return TRUE
 			if("protect")
 				T.add_objective(protect_objective)
 				qdel(sabotage_objective)
 				qdel(steal_objective)
+				if(breakout_objective)
+					qdel(breakout_objective)
+				qdel(frame_objective)	// BLUEMOON ADD
+				return TRUE
+			if("frame")	// BLUEMOON ADD - цель «Подстава»
+				T.add_objective(frame_objective)
+				qdel(sabotage_objective)
+				qdel(steal_objective)
+				qdel(protect_objective)
 				if(breakout_objective)
 					qdel(breakout_objective)
 				return TRUE
@@ -78,6 +85,7 @@
 				qdel(sabotage_objective)
 				qdel(steal_objective)
 				qdel(protect_objective)
+				qdel(frame_objective)	// BLUEMOON ADD
 				return TRUE
 			if("download")
 				qdel(sabotage_objective)
@@ -85,6 +93,7 @@
 				qdel(protect_objective)
 				if(breakout_objective)
 					qdel(breakout_objective)
+				qdel(frame_objective)	// BLUEMOON ADD
 				var/datum/objective/download/download_objective = new
 				download_objective.owner = T.owner
 				download_objective.gen_amount_goal()

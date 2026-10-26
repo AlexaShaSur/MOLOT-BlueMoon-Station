@@ -26,7 +26,7 @@
 		M.add_client_colour(/datum/client_colour/psyshillium)
 	if(iscarbon(M))
 		var/mob/living/carbon/C = M
-		var/list/screens = list(C.hud_used.plane_masters["[FLOOR_PLANE]"], C.hud_used.plane_masters["[GAME_PLANE]"], C.hud_used.plane_masters["[LIGHTING_PLANE]"])
+		var/list/screens = list(C.hud_used.get_game_screen_plate())
 		var/matrix/skew = matrix()
 		skew.Scale(2)
 		var/matrix/newmatrix = skew
@@ -60,7 +60,7 @@
 		M.remove_client_colour(/datum/client_colour/psyshillium)
 	if(iscarbon(M))
 		var/mob/living/carbon/C = M
-		var/list/screens = list(C.hud_used.plane_masters["[FLOOR_PLANE]"], C.hud_used.plane_masters["[GAME_PLANE]"], C.hud_used.plane_masters["[LIGHTING_PLANE]"])
+		var/list/screens = list(C.hud_used.get_game_screen_plate())
 		for(var/whole_screen in screens)
 			animate(whole_screen, transform = matrix(), time = 5, easing = QUAD_EASING)
 	to_chat(M, "<span class='danger'>I feel mentally retarded</span>")
@@ -84,13 +84,13 @@
 
 /atom/movable/screen/fullscreen/wakeup
 	icon = 'modular_bluemoon/icons/screen/drug_fullscreen.dmi'
-	screen_loc = "CENTER-7,SOUTH"
+	screen_loc = "CENTER:-224,SOUTH"
 	icon_state = "wake_up"
 
 
 /atom/movable/screen/fullscreen/staticeffect
 	icon = 'modular_bluemoon/icons/screen/drug_fullscreen.dmi'
-	screen_loc = "CENTER-7,SOUTH"
+	screen_loc = "CENTER:-224,SOUTH"
 	icon_state = "wake_up1"
 	var/size_x = 15
 	var/size_y = 15
@@ -101,32 +101,3 @@
 /datum/client_colour/psyshillium
 	colour = list(1.2,0,0,0, 0.3,0,0,0, 0.15,0,0,0, 0,0,0,1, -0.100,0,0,-0.15)
 	priority = 6
-
-
-
-
-/obj/item/seeds/schizoshroom
-	name = "pack of podrakovinik mycelium"
-	desc = "This mycelium grows into podrakovinik mushrooms."
-	icon = 'modular_bluemoon/icons/obj/moredrugs.dmi'
-	icon_state = "mycelium-podrakovinik"
-	species = "podrakovinik"
-	plantname = "podrakovinik"
-	product = /obj/item/reagent_containers/food/snacks/grown/mushroom/schizoshroom
-	maturation = 7
-	production = 1
-	yield = 5
-	potency = 15
-	growthstages = 3
-	genes = list(/datum/plant_gene/trait/plant_type/fungal_metabolism)
-	growing_icon = 'modular_bluemoon/icons/obj/moredrugs.dmi'
-	reagents_add = list(/datum/reagent/psyshillium = 0.15, /datum/reagent/consumable/nutriment = 0.02)
-
-/obj/item/reagent_containers/food/snacks/grown/mushroom/schizoshroom
-	seed = /obj/item/seeds/schizoshroom
-	name = "Podrakovinik"
-	desc = "Те самые грибы, которые растут в общественных туалетах."
-	icon = 'modular_bluemoon/icons/obj/moredrugs.dmi'
-	icon_state = "podrakovinik"
-	filling_color = "#DAA520"
-	wine_power = 80

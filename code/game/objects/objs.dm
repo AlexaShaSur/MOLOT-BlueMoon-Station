@@ -5,7 +5,8 @@
 	var/can_astar_pass = CANASTARPASS_DENSITY
 	animate_movement = 2
 	speech_span = SPAN_ROBOT
-	vis_flags = VIS_INHERIT_PLANE //when this be added to vis_contents of something it inherit something.plane, important for visualisation of obj in openspace.
+	// Без VIS_INHERIT_PLANE: он схлопывал содержимое нижнего этажа на плоскость контейнера, ломая порядок слоёв и свет.
+	vis_flags = NONE
 	var/obj_flags = CAN_BE_HIT
 	var/set_obj_flags // ONLY FOR MAPPING: Sets flags from a string list, handled in Initialize. Usage: set_obj_flags = "EMAGGED;!CAN_BE_HIT" to set EMAGGED and clear CAN_BE_HIT.
 
@@ -19,7 +20,7 @@
 	/// If this attacks a human with no wound armor on the affected body part, add this to the wound mod. Some attacks may be significantly worse at wounding if there's even a slight layer of armor to absorb some of it vs bare flesh
 	var/bare_wound_bonus = 0
 
-	var/datum/armor/armor
+	// var/datum/armor/armor
 	var/obj_integrity	//defaults to max_integrity
 	var/max_integrity = 500
 	var/integrity_failure = 0 //0 if we have no special broken behavior, otherwise is a percentage of at what point the obj breaks. 0.5 being 50%
@@ -70,12 +71,7 @@
 	return ..()
 
 /obj/Initialize(mapload)
-	if (islist(armor))
-		armor = getArmor(arglist(armor))
-	else if (!armor)
-		armor = getArmor()
-	else if (!istype(armor, /datum/armor))
-		stack_trace("Invalid type [armor.type] found in .armor during /obj Initialize()")
+	initialize_armor()
 
 	if(obj_integrity == null)
 		obj_integrity = max_integrity
@@ -352,6 +348,19 @@
 		if(AM.pass_flags & pass_flags_self)
 			return TRUE
 	. = !density
+
+/// Упавший предмет бьёт по тому, на что приземлился; живым урон считает /mob/living/ZImpactDamage().
+/obj/onZImpact(turf/impacted_turf, levels, impact_flags = NONE)
+	. = ..()
+	var/atom/highest = impacted_turf
+	for(var/atom/thing as anything in impacted_turf.contents)
+		if(!thing.density)
+			continue
+		if(thing == src)
+			continue
+		if((isobj(thing) || ismob(thing)) && thing.layer > highest.layer)
+			highest = thing
+	throw_impact(highest)
 
 /obj/proc/check_uplink_validity()
 	return TRUE

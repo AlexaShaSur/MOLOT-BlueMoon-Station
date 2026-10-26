@@ -22,6 +22,7 @@
 #define ROLE_HERETIC				"Heretic"
 #define ROLE_BLOB					"blob"
 #define ROLE_NINJA					"space ninja"
+#define ROLE_HK47					"hk-47 assassin droid"
 #define ROLE_MONKEY					"monkey"
 #define ROLE_ABDUCTOR				"abductor"
 #define ROLE_REVENANT				"revenant"
@@ -48,6 +49,7 @@
 #define ROLE_SLAVER					"Slaver"
 #define ROLE_SLAVER_LEADER			"Slave Master"
 #define ROLE_TERROR_SPIDER			"Terror Spider"
+#define ROLE_MASS_SHOOTER			"Mass Shooter"
 //#define ROLE_MONSTERHUNTER			"monster hunter" Disabled for now
 #define ROLE_GHOSTCAFE				"ghostcafe"
 #define ROLE_GHOSTROLE				"ghostrole"
@@ -62,7 +64,7 @@
 //(in game days played) to play that role
 GLOBAL_LIST_INIT(special_roles, list(
 	ROLE_TRAITOR = /datum/game_mode/traitor,
-	ROLE_BROTHER = /datum/game_mode/traitor/bros,
+	ROLE_BROTHER,
 	ROLE_OPERATIVE = /datum/game_mode/nuclear,
 	ROLE_SLAVER,
 	ROLE_CHANGELING = /datum/game_mode/changeling,
@@ -74,6 +76,7 @@ GLOBAL_LIST_INIT(special_roles, list(
 	ROLE_CULTIST = /datum/game_mode/cult,
 	ROLE_BLOB,
 	ROLE_NINJA,
+	ROLE_HK47,
 	ROLE_MONKEY = /datum/game_mode/monkey,
 	ROLE_REVENANT,
 	ROLE_ABDUCTOR,
@@ -88,7 +91,8 @@ GLOBAL_LIST_INIT(special_roles, list(
 	ROLE_FAMILIES = /datum/game_mode/gang,
 	ROLE_SPACE_DRAGON,
 	ROLE_TERROR_SPIDER,
-	ROLE_SYNDICATE
+	ROLE_SYNDICATE,
+	ROLE_MASS_SHOOTER
 	//ROLE_MONSTERHUNTER Disabled for now
 ))
 

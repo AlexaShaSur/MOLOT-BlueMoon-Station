@@ -1,17 +1,31 @@
 /obj/item/clothing/suit/armor
 	allowed = null
-	cold_protection = CHEST|GROIN
+	cold_protection = CHEST|GROIN|ARMS
+	body_parts_covered = CHEST|GROIN|ARMS
+	heat_protection = CHEST|GROIN|ARMS
 	min_cold_protection_temperature = ARMOR_MIN_TEMP_PROTECT
-	heat_protection = CHEST|GROIN
 	max_heat_protection_temperature = ARMOR_MAX_TEMP_PROTECT
 	strip_delay = 60
 	equip_delay_other = 40
 	max_integrity = 250
 	resistance_flags = NONE
 	tail_state = "none"
-	armor = list(MELEE = 35, BULLET = 30, LASER = 30, ENERGY = 40, BOMB = 25, BIO = 0, RAD = 0, FIRE = 50, ACID = 50, WOUND = 10)
+	armor_type = /datum/armor/security_and_syndicate_basic
 	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
-	var/brc_mitigation_bonus = 0  // BLUEMOON ADD - BRC бонус брони
+	brc_mitigation_bonus = BRC_MITIGATION_10  // BLUEMOON ADD - BRC бонус брони
+
+/obj/item/clothing/suit/armor/equipped(mob/user, slot)
+	. = ..()
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation += brc_mitigation_bonus
+		brc_worn = TRUE
+
+/obj/item/clothing/suit/armor/dropped(mob/user)
+	. = ..()
+	if(brc_worn && isliving(user))
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
+		brc_worn = FALSE
+// BLUEMOON ADD END
 
 /obj/item/clothing/suit/armor/Initialize(mapload)
 	. = ..()
@@ -27,7 +41,8 @@
 	body_parts_covered = CHEST|GROIN|ARMS
 	cold_protection = CHEST|GROIN|ARMS
 	heat_protection = CHEST|GROIN|ARMS
-	armor = list(MELEE = 20, BULLET = 20, LASER = 25, ENERGY = 20, BOMB = 25, BIO = 0, RAD = 0, FIRE = 50, ACID = 50, WOUND = 10)
+	armor_type = /datum/armor/secjacket_and_vest_dragoncora
+	brc_mitigation_bonus = 10  // BLUEMOON ADD
 
 /obj/item/clothing/suit/armor/secjacket
 	name = "security officer's jacket"
@@ -45,17 +60,6 @@
 	clothing_flags = THICKMATERIAL
 	dog_fashion = /datum/dog_fashion/back
 	brc_mitigation_bonus = 10  // BLUEMOON ADD - стандартная броня СБ лучше держит свой калибр
-
-/obj/item/clothing/suit/armor/vest/equipped(mob/user, slot)
-	. = ..()
-	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
-		user.brc_mitigation += brc_mitigation_bonus
-
-/obj/item/clothing/suit/armor/vest/dropped(mob/user)
-	. = ..()
-	if(brc_mitigation_bonus > 0 && isliving(user))
-		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
-// BLUEMOON ADD END
 
 /obj/item/clothing/suit/armor/vest/alt
 	desc = "A Type I armored vest that provides decent protection against most types of damage."
@@ -101,7 +105,8 @@
 	item_state = "greatcoat"
 	tail_state = "none"
 	body_parts_covered = CHEST|GROIN|ARMS|LEGS
-	armor = list(MELEE = 40, BULLET = 40, LASER = 40, ENERGY = 50, BOMB = 25, BIO = 0, RAD = 0, FIRE = 70, ACID = 90, WOUND = 20)
+	armor_type = /datum/armor/hos_coats
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	cold_protection = CHEST|GROIN|LEGS|ARMS
 	heat_protection = CHEST|GROIN|LEGS|ARMS
 	clothing_flags = THICKMATERIAL
@@ -137,8 +142,8 @@
 	cold_protection = CHEST|ARMS
 	heat_protection = CHEST|ARMS
 	strip_delay = 80
-	armor = list(MELEE = 40, BULLET = 35, LASER = 35, ENERGY = 45, BOMB = 25, BIO = 0, RAD = 0, FIRE = 60, ACID = 60, WOUND = 15)
-	slowdown = 0.1
+	armor_type = /datum/armor/platecarrier
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
 	unique_reskin = list(
 		"Black" = list("icon_state" = "platecarrier"),
@@ -160,9 +165,9 @@
 	name = "makeshift plate carrier"
 	desc = "A hand-sown combat rig made from armor vests and security belts. Trades some protection for utility."
 	body_parts_covered = CHEST|GROIN|ARMS
-	armor = list(MELEE = 35, BULLET = 30, LASER = 30, ENERGY = 40, BOMB = 25, BIO = 0, RAD = 0, FIRE = 50, ACID = 50, WOUND = 10)
+	armor_type = /datum/armor/security_and_syndicate_basic
+	brc_mitigation_bonus = 10  // BLUEMOON ADD
 	strip_delay = 60
-	slowdown = 0.2
 
 /obj/item/clothing/suit/armor/vest/warden
 	name = "Warden's Jacket"
@@ -217,7 +222,8 @@
 	icon_state = "capcarapace"
 	item_state = "armor"
 	body_parts_covered = CHEST|GROIN
-	armor = list(MELEE = 50, BULLET = 40, LASER = 50, ENERGY = 50, BOMB = 25, BIO = 0, RAD = 0, FIRE = 100, ACID = 90, WOUND = 30)
+	armor_type = /datum/armor/command
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	dog_fashion = null
 	resistance_flags = FIRE_PROOF
 
@@ -232,8 +238,19 @@
 	icon_state = "capformal"
 	item_state = "capspacesuit"
 	body_parts_covered = CHEST|GROIN|ARMS
-	armor = list(MELEE = 50, BULLET = 40, LASER = 50, ENERGY = 50, BOMB = 25, BIO = 0, RAD = 0, FIRE = 100, ACID = 90, WOUND = 30)
+	armor_type = /datum/armor/command
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	togglename = "buttons"
+
+/obj/item/clothing/suit/toggle/captains_parade/equipped(mob/user, slot)  // BLUEMOON ADD
+	. = ..()
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation += brc_mitigation_bonus
+
+/obj/item/clothing/suit/toggle/captains_parade/dropped(mob/user)  // BLUEMOON ADD
+	. = ..()
+	if(brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
 
 /obj/item/clothing/suit/toggle/captains_parade/Initialize(mapload)
 	. = ..()
@@ -256,10 +273,13 @@
 	desc = "A suit of semi-flexible polycarbonate body armor with heavy padding to protect against melee attacks. Helps the wearer resist shoving in close quarters."
 	icon_state = "riot"
 	item_state = "riot"
+	tail_state = "inq"
+	flags_inv = HIDETAIL
 	body_parts_covered = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	cold_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	heat_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
-	armor = list(MELEE = 60, BULLET = 10, LASER = 10, ENERGY = 10, BOMB = 0, BIO = 0, RAD = 0, FIRE = 80, ACID = 80, WOUND = 30)
+	armor_type = /datum/armor/suit_riot
+	brc_mitigation_bonus = 5  // BLUEMOON ADD
 	blocks_shove_knockdown = TRUE
 	mutantrace_variation = STYLE_DIGITIGRADE
 	strip_delay = 80
@@ -271,7 +291,8 @@
 		),
 		"Without Any Mark" = list(
 			RESKIN_ICON_STATE = "riot-wm",
-			RESKIN_ITEM_STATE = "riot"
+			RESKIN_ITEM_STATE = "riot",
+			tail_state = "hos"
 		),
 	)
 	taur_types_icon_whitelist = alist(	"_canine" = list("Canine", "Feline", "Eevee", "Virgo - Synthetic Feline",\
@@ -280,6 +301,7 @@
 
 /obj/item/clothing/suit/armor/riot/wm
 	icon_state = "riot-wm"
+	tail_state = "hos"
 
 /obj/item/clothing/suit/armor/bone
 	name = "bone armor"
@@ -288,7 +310,8 @@
 	item_state = "bonearmor"
 	tail_state = ""
 	blood_overlay_type = "armor"
-	armor = list(MELEE = 35, BULLET = 25, LASER = 25, ENERGY = 35, BOMB = 25, BIO = 0, RAD = 0, FIRE = 50, ACID = 50, WOUND = 10)
+	armor_type = /datum/armor/bone
+	brc_mitigation_bonus = 10  // BLUEMOON ADD
 	body_parts_covered = CHEST|GROIN|LEGS|FEET|ARMS
 
 /obj/item/clothing/suit/armor/bulletproof
@@ -297,8 +320,13 @@
 	icon_state = "bulletproof"
 	item_state = "armor"
 	blood_overlay_type = "armor"
-	armor = list(MELEE = 15, BULLET = 60, LASER = 10, ENERGY = 10, BOMB = 40, BIO = 0, RAD = 0, FIRE = 50, ACID = 50, WOUND = 20)
-	body_parts_covered = CHEST|GROIN|LEGS|FEET|ARMS
+	tail_state = "inq"
+	armor_type = /datum/armor/bulletproof
+	brc_mitigation_bonus = 20  // BLUEMOON ADD
+	flags_inv = HIDETAIL
+	body_parts_covered = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
+	cold_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
+	heat_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	strip_delay = 70
 	equip_delay_other = 50
 	clothing_flags = THICKMATERIAL
@@ -310,7 +338,8 @@
 		),
 		"Without Any Mark" = list(
 			RESKIN_ICON_STATE = "bulletproof-wm",
-			RESKIN_ITEM_STATE = "armor"
+			RESKIN_ITEM_STATE = "armor",
+			tail_state = "hos"
 		),
 	)
 	taur_types_icon_whitelist = alist(	"_canine" = list("Canine", "Feline", "Eevee", "Virgo - Synthetic Feline",\
@@ -319,6 +348,7 @@
 
 /obj/item/clothing/suit/armor/bulletproof/wm
 	icon_state = "bulletproof-wm"
+	tail_state = "hos"
 
 /obj/item/clothing/suit/armor/vest/det_suit
 	name = "detective's armor vest"
@@ -336,7 +366,8 @@
 	desc = "An insidious combat vest designed using Syndicate nanofibers to absorb the supreme majority of kinetic blows. Although it doesn't look like it'll do too much for energy impacts."
 	icon_state = "infiltrator"
 	item_state = "infiltrator"
-	armor = list(MELEE = 40, BULLET = 40, LASER = 30, ENERGY = 40, BOMB = 70, BIO = 0, RAD = 0, FIRE = 100, ACID = 100, WOUND = 20)
+	armor_type = /datum/armor/suit_infiltrator
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	resistance_flags = FIRE_PROOF | ACID_PROOF
 	strip_delay = 80
 
@@ -356,7 +387,8 @@
 	min_cold_protection_temperature = SPACE_SUIT_MIN_TEMP_PROTECT
 	heat_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	max_heat_protection_temperature = SPACE_SUIT_MAX_TEMP_PROTECT
-	armor = list(MELEE = 80, BULLET = 80, LASER = 50, ENERGY = 50, BOMB = 100, BIO = 100, RAD = 100, FIRE = 90, ACID = 90, WOUND = 90)
+	armor_type = /datum/armor/centcom
+	brc_mitigation_bonus = 25  // BLUEMOON ADD
 
 /obj/item/clothing/suit/armor/heavy
 	name = "heavy armor"
@@ -369,15 +401,17 @@
 	body_parts_covered = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	slowdown = 3
 	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT
-	armor = list(MELEE = 80, BULLET = 80, LASER = 50, ENERGY = 50, BOMB = 100, BIO = 100, RAD = 100, FIRE = 90, ACID = 90, WOUND = 50)
+	armor_type = /datum/armor/heavy
+	brc_mitigation_bonus = 25  // BLUEMOON ADD
 
 /obj/item/clothing/suit/armor/tdome
 	body_parts_covered = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
-	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT|HIDETAUR
+	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT|HIDETAUR|HIDETAIL
 	clothing_flags = THICKMATERIAL
 	cold_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	heat_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
-	armor = list(MELEE = 80, BULLET = 80, LASER = 50, ENERGY = 50, BOMB = 100, BIO = 100, RAD = 100, FIRE = 90, ACID = 90)
+	armor_type = /datum/armor/tdome
+	brc_mitigation_bonus = 25  // BLUEMOON ADD
 
 /obj/item/clothing/suit/armor/tdome/red
 	name = "thunderdome suit"
@@ -398,7 +432,8 @@
 	desc = "A classic suit of plate armour, highly effective at stopping melee attacks."
 	icon_state = "knight_green"
 	item_state = "knight_green"
-	armor = list(MELEE = 80, BULLET = 40, LASER = 10, ENERGY = 10, BOMB = 10, BIO = 0, RAD = 0, FIRE = 80, ACID = 80, WOUND = 30)
+	armor_type = /datum/armor/suit_knight
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	slowdown = 0.5
 	flags_inv = HIDEGLOVES|HIDESHOES
 	allowed = list(
@@ -442,7 +477,8 @@
 	councilmen that wish to flaunt their opulence towards the unwashed masses."
 	icon_state = "military"
 	dog_fashion = null
-	armor = list(MELEE = 20, BULLET = 40, LASER = 40, ENERGY = 40, BOMB = 25, BIO = 0, RAD = 0, FIRE = 10, ACID = 50, WOUND = 50)
+	armor_type = /datum/armor/military
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	allowed = list(
 		/obj/item/banner,
 		/obj/item/claymore/shortsword,
@@ -456,7 +492,8 @@
 	name = "Golden Plate Armor"
 	desc = "This bulky set of armor is coated with a shiny layer of gold. It seems to almost reflect all light sources."
 	icon_state = "warlord"
-	armor = list(MELEE = 40, BULLET = 40, LASER = 40, ENERGY = 40, BOMB = 25, BIO = 0, RAD = 0, FIRE = 50, ACID = 50, WOUND = 50)
+	armor_type = /datum/armor/knight_warlord
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	w_class = WEIGHT_CLASS_BULKY
 	clothing_flags = THICKMATERIAL
 	slowdown = 0.5
@@ -472,7 +509,8 @@
 	max_integrity = 200
 	resistance_flags = FLAMMABLE
 	clothing_flags = null
-	armor = list(MELEE = 20, BULLET = 10, LASER = 30, ENERGY = 20, BOMB = 15, BIO = 0, RAD = 0, FIRE = 40, ACID = 50, WOUND = 10)
+	armor_type = /datum/armor/vest_suit_durathread
+	brc_mitigation_bonus = 5  // BLUEMOON ADD
 
 /obj/item/clothing/suit/armor/vest/russian
 	name = "russian vest"
@@ -480,7 +518,6 @@
 	alternate_screams = RUSSIAN_SCREAMS
 	icon_state = "rus_armor"
 	item_state = "rus_armor"
-	//armor = list(MELEE = 25, BULLET = 30, LASER = 0, ENERGY = 15, BOMB = 10, BIO = 0, RAD = 20, FIRE = 20, ACID = 50, WOUND = 10)
 
 /obj/item/clothing/suit/armor/vest/russian_winter_coat
 	name = "Russian Winter Coat"
@@ -492,7 +529,6 @@
 	body_parts_covered = CHEST|LEGS|FEET|ARMS|HANDS
 	cold_protection = CHEST|LEGS|FEET|ARMS|HANDS
 	min_cold_protection_temperature = SPACE_SUIT_MIN_TEMP_PROTECT
-	//armor = list(MELEE = 25, BULLET = 20, LASER = 20, ENERGY = 10, BOMB = 20, BIO = 50, RAD = 20, FIRE = -10, ACID = 50,  WOUND = 10)
 	unique_reskin = list(
 		"Default" = list("icon_state" = "rus_winter_vsr93"),
 		"Unbuttoned" = list("icon_state" = "rus_winter_vsr93_t")
@@ -508,14 +544,12 @@
 	body_parts_covered = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	cold_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	min_cold_protection_temperature = SPACE_SUIT_MIN_TEMP_PROTECT
-	//armor = list(MELEE = 55, BULLET = 65, LASER = 65, ENERGY = 65, BOMB = 40, BIO = 50, RAD = 100, FIRE = 40, ACID = 50,  WOUND = 40)
 
 /obj/item/clothing/suit/armor/vest/russian_coat/liquidator
 	name = "Liquidator Suit"
 	desc = "Костюм, используемый для борьбы со всяким дерьмом."
 	icon_state = "sov_offcoat"
 	item_state = "sov_offcoat"
-	//armor = list(MELEE = 25, BULLET = 20, LASER = 20, ENERGY = 10, BOMB = 20, BIO = 50, RAD = 50, FIRE = -10, ACID = 50,  WOUND = 10)
 
 /obj/item/clothing/suit/armor/vest/russian_coat/liquidator/Initialize(mapload)
 	. = ..()
@@ -532,7 +566,8 @@
 	icon_state = "h2armor"
 	item_state = null
 	material_flags = MATERIAL_ADD_PREFIX | MATERIAL_COLOR | MATERIAL_AFFECT_STATISTICS
-	armor = list(MELEE = 50, BULLET = 45, LASER = 55, ENERGY = 55, BOMB = 95, BIO = 100, RAD = 100, FIRE = 100, ACID = 90, WOUND = 30)
+	armor_type = /datum/armor/elder_atmosian
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	body_parts_covered = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	cold_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
 	heat_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
@@ -540,7 +575,7 @@
 	max_heat_protection_temperature = FIRE_IMMUNITY_MAX_TEMP_PROTECT
 	gas_transfer_coefficient = 0.01
 	permeability_coefficient = 0.01
-	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT|HIDETAUR
+	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT|HIDETAUR|HIDETAIL
 	clothing_flags = STOPSPRESSUREDAMAGE | THICKMATERIAL
 	strip_delay = 60
 	equip_delay_other = 60

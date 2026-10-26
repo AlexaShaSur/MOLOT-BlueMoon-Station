@@ -4,10 +4,13 @@ GLOBAL_LIST_EMPTY(station_turfs)
 /turf
 	icon = 'icons/turf/floors.dmi'
 	flags_1 = CAN_BE_DIRTY_1
-	vis_flags = VIS_INHERIT_ID|VIS_INHERIT_PLANE // Important for interaction with and visualization of openspace.
+	// Без VIS_INHERIT_PLANE: он схлопывал содержимое нижнего этажа на плоскость контейнера, ломая порядок слоёв и свет.
+	vis_flags = VIS_INHERIT_ID // Important for interaction with and visualization of openspace.
 	luminosity = 1
 
-	var/intact = 1
+	/// Битовая укладка булевых свойств турфа, см. TURF_* в code/__DEFINES/turf_flags.dm.
+	/// Одиннадцать отдельных переменных стоили по 6.4 МБ адресного пространства каждая.
+	var/turf_flags = TURF_FLAGS_DEFAULT
 
 	// baseturfs can be either a list or a single turf type.
 	// In class definition like here it should always be a single type.
@@ -31,20 +34,14 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	var/explosion_level = 0	//for preventing explosion dodging
 	var/explosion_id = 0
 
-	var/requires_activation	//add to air processing after initialize?
-	var/changing_turf = FALSE
 
 	var/bullet_bounce_sound = 'sound/weapons/bulletremove.ogg' //sound played when a shell casing is ejected ontop of the turf.
-	var/bullet_sizzle = FALSE //used by ammo_casing/bounce_away() to determine if the shell casing should make a sizzle sound when it's ejected over the turf
 							//IE if the turf is supposed to be water, set TRUE.
 
-	var/tiled_dirt = FALSE // use smooth tiled dirt decal
 
 	///the holodeck can load onto this turf if TRUE
-	var/holodeck_compatible = FALSE
 
 	/// If there's a tile over a basic floor that can be ripped out
-	var/overfloor_placed = FALSE
 
 	///ухо спатиал-грида, назначенное на этот турф текущим запросом
 	///get_hearers_in_view(); живёт только внутри одного вызова
@@ -67,6 +64,10 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		stack_trace("Warning: [src]([type]) initialized multiple times!")
 	flags_1 |= INITIALIZED_1
 
+	// Турф нижнего этажа стопки живёт на смещённых плоскостях, чтобы его собирал свой набор plane master'ов.
+	if(SSmapping.max_plane_offset)
+		SET_PLANE_W_SCALAR(src, PLANE_TO_TRUE(plane), GET_Z_PLANE_OFFSET(z))
+
 	// by default, vis_contents is inherited from the turf that was here before
 	vis_contents.Cut()
 	// Маплоадер (initTemplateBounds) инициализирует турфы ПОСЛЕ того, как ChangeTurf
@@ -78,7 +79,12 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	if(color) // is this being used? This is here because parent isn't being called
 		add_atom_colour(color, FIXED_COLOUR_PRIORITY)
 
-	temperature = initial_temperature
+	// BYOND платит за каждую ЗАПИСАННУЮ переменную инстанса независимо от того, равно ли
+	// записанное значение типовому дефолту (замерено: ~16 Б на слот, ступенями по четыре).
+	// У /turf оба дефолта - T20C, то есть на подавляющем большинстве турфов эта запись
+	// покупала слот под значение, которое там и так стояло.
+	if(temperature != initial_temperature)
+		temperature = initial_temperature
 	assemble_baseturfs()
 
 	levelupdate()
@@ -87,14 +93,16 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 	visibilityChanged()
 
-	for(var/atom/movable/AM in src)
-		Entered(AM)
+	if(length(contents))
+		//Снимок: Entered() у дыры роняет группу целиком и правит contents по ходу.
+		for(var/atom/movable/AM as anything in contents.Copy())
+			Entered(AM)
 
 	var/area/A = loc
-	if(!IS_DYNAMIC_LIGHTING(src) && IS_DYNAMIC_LIGHTING(A))
-		add_overlay(/obj/effect/fullbright)
+	if(TURF_NEEDS_OWN_FULLBRIGHT(src, A))
+		update_fullbright_overlay(A)
 
-	if(requires_activation)
+	if(turf_flags & TURF_REQUIRES_ACTIVATION)
 		CALCULATE_ADJACENT_TURFS(src)
 
 	if (light_power && light_range)
@@ -109,7 +117,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 
 	if (opacity)
-		has_opaque_atom = TRUE
+		lighting_flags |= TURF_HAS_OPAQUE_ATOM
 
 	// apply materials properly from the default custom_materials value
 	set_custom_materials(custom_materials)
@@ -135,12 +143,18 @@ GLOBAL_LIST_EMPTY(station_turfs)
 /turf/proc/Initalize_Atmos(times_fired)
 	CALCULATE_ADJACENT_TURFS(src)
 
+/turf/HandleTurfChange(turf/T)
+	for(var/obj/effect/decal/decal in src)
+		decal.HandleTurfChange(T)
+	for(var/obj/structure/transport/linear/transport_module in src)
+		transport_module.HandleTurfChange(T)
+
 /turf/Destroy(force)
 	. = QDEL_HINT_IWILLGC
-	var/is_changeturf = changing_turf
+	var/is_changeturf = turf_flags & TURF_CHANGING
 	if(!is_changeturf)
 		stack_trace("Incorrect turf deletion")
-	changing_turf = FALSE
+	turf_flags &= ~TURF_CHANGING
 	var/turf/T = SSmapping.get_turf_above(src)
 	if(T)
 		T.multiz_turf_del(src, DOWN)
@@ -172,7 +186,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		visibilityChanged()
 	QDEL_LIST(blueprint_data)
 	flags_1 &= ~INITIALIZED_1
-	requires_activation = FALSE
+	turf_flags &= ~TURF_REQUIRES_ACTIVATION
 	..()
 
 	if(!is_changeturf)
@@ -186,6 +200,15 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 /turf/proc/multiz_turf_new(turf/T, dir)
 	SEND_SIGNAL(src, COMSIG_TURF_MULTIZ_NEW, T, dir)
+
+/turf/proc/shows_level_below()
+	var/turf/our_turf = src
+	return HAS_TRAIT(our_turf, TURF_Z_TRANSPARENT_TRAIT)
+
+/turf/proc/zfall_if_on_turf(atom/movable/movable)
+	if(QDELETED(movable) || movable.loc != src)
+		return
+	zFall(movable)
 
 /**
  * Check whether the specified turf is blocked by something dense inside it with respect to a specific atom.
@@ -247,52 +270,71 @@ GLOBAL_LIST_EMPTY(station_turfs)
 /turf/proc/zAirOut(direction, turf/source)
 	return FALSE
 
-/turf/proc/zImpact(atom/movable/A, levels = 1, turf/prev_turf)
-	var/flags = NONE
-	var/mov_name = A.name
-	for(var/i in contents)
-		var/atom/thing = i
-		flags |= thing.intercept_zImpact(A, levels)
+/// Приземление: зовётся на каждый пролетевший этаж и может остановить падение. Флаги FALL_* в movement.dm.
+/turf/proc/zImpact(atom/movable/falling, levels = 1, turf/prev_turf, flags = NONE, list/falling_movables)
+	if(QDELETED(falling))
+		return FALSE
+	//Тот же состав группы, что уехал вниз в zFall(), иначе буксируемый долетит без приземления.
+	if(!falling_movables)
+		falling_movables = falling.get_z_move_affected(ZMOVE_INCLUDE_PULLED)
+	var/list/falling_mov_names = list()
+	for(var/atom/movable/falling_mov as anything in falling_movables)
+		falling_mov_names += falling_mov.name
+	for(var/atom/thing as anything in contents)
+		flags |= thing.intercept_zImpact(falling_movables, levels)
 		if(flags & FALL_STOP_INTERCEPTING)
 			break
 	if(prev_turf && !(flags & FALL_NO_MESSAGE))
-		prev_turf.visible_message("<span class='danger'>[mov_name] falls through [prev_turf]!</span>")
-	if(flags & FALL_INTERCEPTED)
-		return
-	if(zFall(A, levels + 1))
+		for(var/mov_name in falling_mov_names)
+			prev_turf.visible_message("<span class='danger'>[mov_name] проваливается сквозь [prev_turf]!</span>")
+	if(!(flags & FALL_INTERCEPTED) && zFall(falling, levels + 1, falling_movables = falling_movables))
 		return FALSE
-	A.visible_message("<span class='danger'>[A] crashes into [src]!</span>")
-	A.onZImpact(src, levels)
+	for(var/atom/movable/falling_mov as anything in falling_movables)
+		//Стак сливается с нижним прямо в forceMove и удаляется: дальше его двигать нельзя.
+		if(QDELETED(falling_mov))
+			continue
+		if(!(flags & FALL_RETAIN_PULL) && falling_mov.pulling && !(falling_mov.pulling in falling_movables))
+			falling_mov.stop_pulling()
+		if(!(flags & FALL_INTERCEPTED))
+			falling_mov.onZImpact(src, levels)
+		if(!QDELETED(falling_mov) && falling_mov.pulledby && (falling_mov.z != falling_mov.pulledby.z || get_dist(falling_mov, falling_mov.pulledby) > 1))
+			falling_mov.pulledby.stop_pulling()
 	return TRUE
 
-/turf/proc/can_zFall(atom/movable/A, levels = 1, turf/target)
-	SHOULD_BE_PURE(TRUE)
-	return zPassOut(A, DOWN, target) && target.zPassIn(A, DOWN, src)
+/// Роняет движимое со всем, что на нём, на этаж ниже и зовёт zImpact(). При отрицательной гравитации низ находится сверху.
+/turf/proc/zFall(atom/movable/falling, levels = 1, force = FALSE, falling_from_move = FALSE, list/falling_movables)
+	if(QDELETED(falling))
+		return FALSE
+	var/direction = DOWN
+	if(falling.has_gravity(src) <= NEGATIVE_GRAVITY)
+		direction = UP
+	var/turf/target = get_step_multiz(src, direction)
+	//Флаг падения ставит вызывающий (Enter/Entered у openspace), поэтому любой ранний отказ обязан его снять.
+	if(!target)
+		falling.set_currently_z_moving(FALSE, TRUE)
+		return FALSE
+	var/is_living = isliving(falling)
+	if(!is_living && !isobj(falling))
+		falling.set_currently_z_moving(FALSE, TRUE)
+		return FALSE
+	if(is_living)
+		var/mob/living/falling_living = falling
+		if(falling_living.buckled)
+			falling = falling_living.buckled
+	if(!falling_from_move && falling.currently_z_moving)
+		return FALSE
+	if(!force && !falling.can_z_move(direction, src, target, ZMOVE_FALL_FLAGS))
+		falling.set_currently_z_moving(FALSE, TRUE)
+		return FALSE
 
-/turf/proc/zFall(atom/movable/A, levels = 1, force = FALSE)
-	var/turf/target = get_step_multiz(src, DOWN)
-	if(!target || (!isobj(A) && !ismob(A)))
-		return FALSE
-	if(!force && (!can_zFall(A, levels, target) || !A.can_zFall(src, levels, target, DOWN)))
-		return FALSE
-	if(isliving(A))
-		var/mob/living/falling_mob = A
-		var/atom/movable/pulling = falling_mob.pulling
-		falling_mob.zfalling = TRUE
-		falling_mob.forceMove(target)
-		falling_mob.zfalling = FALSE
-		target.zImpact(falling_mob, levels, src)
-		if(pulling)
-			pulling.zfalling = TRUE
-			pulling.forceMove(target)
-			pulling.zfalling = FALSE
-			target.zImpact(pulling, levels, src)
-			INVOKE_ASYNC(falling_mob, TYPE_PROC_REF(/atom/movable, start_pulling), pulling)
-	else
-		A.zfalling = TRUE
-		A.forceMove(target)
-		A.zfalling = FALSE
-		target.zImpact(A, levels, src)
+	// Чтобы Entered() на целевом турфе не запустил падение повторно. Снимается в zMove().
+	falling.set_currently_z_moving(CURRENTLY_Z_FALLING)
+	//Состав группы не меняется между этажами: forceMove под currently_z_moving захваты не рвёт.
+	if(!falling_movables)
+		falling_movables = falling.get_z_move_affected(ZMOVE_INCLUDE_PULLED)
+	falling.zMove(null, target, ZMOVE_CHECK_PULLEDBY|ZMOVE_INCLUDE_PULLED, falling_movables)
+	target.zImpact(falling, levels, src, falling_movables = falling_movables)
+
 	return TRUE
 
 /turf/proc/handleRCL(obj/item/rcl/C, mob/user)
@@ -390,7 +432,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	// During bulk operations (shuttle moves), skip — batch recalc handles it after.
 	if(!GLOB.lighting_defer_active)
 		if(AM.opacity)
-			has_opaque_atom = TRUE // Make sure to do this before reconsider_lights(), incase we're on instant updates. Guaranteed to be on in this case.
+			lighting_flags |= TURF_HAS_OPAQUE_ATOM // Make sure to do this before reconsider_lights(), incase we're on instant updates. Guaranteed to be on in this case.
 			reconsider_lights()
 		// Non-opaque atoms with shadow_weight still cast partial contact shadows (incremental — no contents scan)
 		else if(AM.shadow_weight > 0)
@@ -399,13 +441,17 @@ GLOBAL_LIST_EMPTY(station_turfs)
 
 /turf/open/Entered(atom/movable/AM)
 	..()
+	//Вошедший мог не пережить вход: /turf/Entered добивает его ex_act()`ом, пока турф
+	//держит explosion_level (взрыв ещё идёт). Ронять труп на этаж ниже нельзя - doMove
+	//отказывает qdel-нутому и пишет стектрейс (раунд 10137: тубы, прутья, кабель,
+	//листы металла и рамки камер, разлетевшиеся взрывом над опенспейсом)
+	if(QDELETED(AM))
+		return
 	//melting
 	if(isobj(AM) && air && air.return_temperature() > T0C)
 		var/obj/O = AM
 		if(O.obj_flags & FROZEN)
 			O.make_unfrozen()
-	if(!AM.zfalling)
-		zFall(AM)
 
 /turf/proc/is_plasteel_floor()
 	return FALSE
@@ -433,14 +479,17 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		var/list/premade_baseturfs = created_baseturf_lists[current_target]
 		if(length(premade_baseturfs))
 			baseturfs = premade_baseturfs.Copy()
-		else
+		else if(baseturfs != premade_baseturfs)
 			baseturfs = premade_baseturfs
 		return baseturfs
 
 	var/turf/next_target = initial(current_target.baseturfs)
 	//Most things only have 1 baseturf so this loop won't run in most cases
 	if(current_target == next_target)
-		baseturfs = current_target
+		// та же экономия слота, что и с temperature: обычно current_target уже равен
+		// типовому дефолту baseturfs, и запись покупала слот впустую
+		if(baseturfs != current_target)
+			baseturfs = current_target
 		created_baseturf_lists[current_target] = current_target
 		return current_target
 	var/list/new_baseturfs = list(current_target)
@@ -463,7 +512,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	for(var/obj/O in src)
 		if(O.flags_1 & INITIALIZED_1)
 			// SEND_SIGNAL(O, COMSIG_OBJ_HIDE, intact)
-			O.hide(intact)
+			O.hide(turf_flags & TURF_INTACT)
 
 // override for space turfs, since they should never hide anything
 /turf/open/space/levelupdate()
@@ -523,7 +572,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 ////////////////////////////////////////////////////
 
 /turf/singularity_act()
-	if(intact)
+	if(turf_flags & TURF_INTACT)
 		for(var/obj/O in contents) //this is for deleting things like wires contained in the turf
 			if(O.level != 1)
 				continue
@@ -536,7 +585,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	return TRUE
 
 /turf/proc/can_lay_cable()
-	return can_have_cabling() & !intact
+	return can_have_cabling() & !(turf_flags & TURF_INTACT)
 
 /turf/proc/visibilityChanged()
 	GLOB.cameranet.updateVisibility(src)
@@ -556,7 +605,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		affecting_level = 1
 	else if(is_shielded())
 		affecting_level = 3
-	else if(intact)
+	else if(turf_flags & TURF_INTACT)
 		affecting_level = 2
 	else
 		affecting_level = 1
@@ -576,7 +625,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	var/affecting_level
 	if(is_shielded())
 		affecting_level = 3
-	else if(intact)
+	else if(turf_flags & TURF_INTACT)
 		affecting_level = 2
 	else
 		affecting_level = 1
@@ -647,7 +696,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		acid_type = /obj/effect/acid/alien
 	var/has_acid_effect = FALSE
 	for(var/obj/O in src)
-		if(intact && O.level == 1) //hidden under the floor
+		if((turf_flags & TURF_INTACT) && O.level == 1) //hidden under the floor
 			continue
 		if(istype(O, acid_type))
 			var/obj/effect/acid/A = O
@@ -662,6 +711,7 @@ GLOBAL_LIST_EMPTY(station_turfs)
 	return
 
 /turf/handle_fall(mob/faller, forced)
+	SEND_SIGNAL(src, COMSIG_TURF_MOB_FALL, faller) //LIQUIDS ADD
 	faller.lying = pick(90, 270)
 	if(!forced)
 		return

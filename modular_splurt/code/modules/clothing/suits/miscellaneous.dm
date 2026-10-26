@@ -5,9 +5,6 @@
 /obj/item/clothing/suit/toggle/wbreakpoly
 	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
 
-/obj/item/clothing/suit/apron/overalls
-	mob_overlay_icon = 'modular_splurt/icons/mob/clothing/suit.dmi'
-
 //Own stuff
 
 /* Already exists
@@ -158,12 +155,26 @@
 	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT //"Hide shoes" but digi shoes don't get hidden, too bad!
 	min_cold_protection_temperature = FIRE_SUIT_MIN_TEMP_PROTECT
 	mutantrace_variation = NONE //There is no need for a digi variant, it's a costume
+	brc_mitigation_bonus = 0  // BLUEMOON ADD
+
+/obj/item/clothing/suit/hooded/corpus/equipped(mob/user, slot)  // BLUEMOON ADD
+	. = ..()
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation += brc_mitigation_bonus
+		brc_worn = TRUE
+
+/obj/item/clothing/suit/hooded/corpus/dropped(mob/user)  // BLUEMOON ADD
+	. = ..()
+	if(brc_worn && isliving(user))
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
+		brc_worn = FALSE
 
 /obj/item/clothing/suit/hooded/corpus/s //sec
 	name = "Enforcer Voidsuit"
 	desc = "Deluxe issue armored voidsuit. Let the middle class bask in your grofit!"
 	icon_state = "corpuss"
-	armor = list(MELEE = 30, BULLET = 30, LASER = 30, ENERGY = 20, BOMB = 20, BIO = 20, RAD = 0, FIRE = 50, ACID = 50, WOUND = 10)
+	armor_type = /datum/armor/s
+	brc_mitigation_bonus = BRC_MITIGATION_10  // BLUEMOON ADD
 	hoodtype = /obj/item/clothing/head/hooded/corpus/s //Enjoy this nice red outfit Nanotrasen! There is NO NEED for a pink one! xoxo -VivI Fanteriso
 
 /obj/item/clothing/suit/hooded/corpus/s/Initialize(mapload)
@@ -235,7 +246,7 @@
 	body_parts_covered = CHEST|GROIN|LEGS|ARMS
 	cold_protection = CHEST|GROIN|LEGS|ARMS
 	heat_protection = CHEST|GROIN|LEGS|ARMS
-	armor = list(MELEE = 25, BULLET = 10, LASER = 25, ENERGY = 10, BOMB = 5, BIO = 5, RAD = 5, FIRE = 5, ACID = 45) // Det's armor value + 5 BOMB&BIO&RAD&FIRE
+	armor_type = /datum/armor/suit_goner // Det's armor value + 5 BOMB&BIO&RAD&FIRE
 
 /obj/item/clothing/suit/goner/Initialize(mapload)
 	. = ..()
@@ -244,7 +255,7 @@
 /obj/item/clothing/suit/goner/fake
 	name = "trencher coat replica"
 	desc = "A 90% replica of No Man's Land-type coat."
-	armor = 0
+	armor_type = /datum/armor/none
 
 /obj/item/clothing/suit/goner/fake/poly
 	name = "polychromic trencher coat"
@@ -284,7 +295,8 @@
 	name = "Strange Voidsuit"
 	desc = "An odd Voidsuit that looks strangely familiar. Has the name 'John' stenciled on it. The shielding module is also intact!"
 	icon_state = "corpus_jp"
-	armor = list(MELEE = 50, BULLET = 50, LASER = 50, ENERGY = 50, BOMB = 50, BIO = 0, RAD = 50, FIRE = 50, ACID = 50, WOUND = 50)
+	armor_type = /datum/armor/jp
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	hoodtype = /obj/item/clothing/head/hooded/corpus/jp
 
 /obj/item/clothing/head/hooded/corpus/jp //sec

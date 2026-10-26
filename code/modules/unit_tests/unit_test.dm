@@ -20,6 +20,22 @@ GLOBAL_VAR(test_log)
 GLOBAL_LIST_EMPTY(unit_test_mapping_logs)
 // BLUEMOON EDIT END: Invalid Space Turfs
 
+/// Areas of map-loaded start landmarks by landmark type: roundstart deletes the landmarks before the tests run.
+GLOBAL_LIST_EMPTY(unit_test_start_landmark_areas)
+/// Turfs of the same landmarks, by landmark type.
+GLOBAL_LIST_EMPTY(unit_test_start_landmark_turfs)
+
+/// Parallel dm-test shards write their asset caches into separate directories.
+GLOBAL_VAR_INIT(unit_test_spritesheet_dir, "data/spritesheets_unit_tests/[unit_test_shard_subdir()]")
+GLOBAL_VAR_INIT(unit_test_asset_json_dir, "data/asset_cache/[unit_test_shard_subdir()]")
+
+/proc/unit_test_shard_subdir()
+	var/instance = world.params[UNIT_TEST_INSTANCE_PARAMETER]
+	if(instance)
+		return "[instance]/"
+	var/shard_param = world.params[UNIT_TEST_SHARD_PARAMETER]
+	return shard_param ? "shard[splittext(shard_param, "/")[1]]/" : ""
+
 /// A list of every test that is currently focused.
 /// Use the PERFORM_ALL_TESTS macro instead.
 GLOBAL_VAR_INIT(focused_tests, focused_tests())
@@ -107,6 +123,10 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 	TEST_ASSERT(isfloorturf(run_loc_floor_top_right), "run_loc_floor_top_right was not a floor ([run_loc_floor_top_right])")
 
 /datum/unit_test/Destroy()
+#ifdef REFERENCE_TRACKING_DEBUG
+	// The find_reference tests turn this on and skip turning it off when an assertion returns early.
+	SSgarbage.should_save_refs = FALSE
+#endif
 	QDEL_LIST(allocated)
 	for(var/thing in allocated_force_qdel)
 		qdel(thing, force = TRUE)
@@ -151,6 +171,13 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 		instance = new type(arglist(arguments))
 	else
 		instance = new type()
+	// Моб теста без клиента иначе SSD с начала мира: в долгом прогоне автокрио удаляет его посреди теста.
+	if(isliving(instance))
+		var/mob/living/allocated_living = instance
+		allocated_living.lastclienttime = world.time
+	else if(isobserver(instance))
+		var/mob/dead/observer/allocated_ghost = instance
+		allocated_ghost.lastclienttime = world.time
 	allocated += instance
 	return instance
 
@@ -172,6 +199,27 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 #define WAIT_BUDGET_REAL_DEADLINE 2
 #define WAIT_BUDGET_TIMER_FIRES 3
 #define WAIT_BUDGET_DESCRIPTION 4
+
+/// Забирает подсистему у МК на время теста и возвращает прежний can_fire для release_subsystem().
+/// Писать state поверх стоящей в очереди подсистемы нельзя: МК ставит её второй раз, и очередь замыкается в кольцо.
+/datum/unit_test/proc/detach_subsystem(datum/controller/subsystem/subsystem)
+	. = subsystem.can_fire
+	subsystem.can_fire = FALSE
+	if(subsystem.state == SS_QUEUED || subsystem.state == SS_PAUSED || subsystem.state == SS_PAUSING)
+		subsystem.dequeue()
+		subsystem.state = SS_IDLE
+
+/// Отдаёт подсистему МК: в очередь она встанет сама на ближайшем CheckQueue.
+/datum/unit_test/proc/release_subsystem(datum/controller/subsystem/subsystem, can_fire = TRUE)
+	subsystem.state = SS_IDLE
+	subsystem.can_fire = can_fire
+
+/// Один fire() подсистемы руками. Не ignite(): тот на паузе внутри fire() зовёт enqueue().
+/datum/unit_test/proc/fire_subsystem(datum/controller/subsystem/subsystem, resumed = FALSE)
+	var/saved_can_fire = detach_subsystem(subsystem)
+	subsystem.state = SS_RUNNING
+	subsystem.fire(resumed)
+	release_subsystem(subsystem, saved_can_fire)
 
 /// Бюджет одного ожидания отложенной работы, см. wait_budget_tick().
 /datum/unit_test/proc/new_wait_budget(max_wait, description)
@@ -257,20 +305,9 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 #undef WAIT_BUDGET_TIMER_FIRES
 #undef WAIT_BUDGET_DESCRIPTION
 
-/// Reads repository source files for structural audit tests.
-/// Integration CI runs DreamDaemon from `ci_test/`, while source stays in the parent checkout.
+/// Reads repository source files for structural audit tests. Test worlds run from the repository root.
 /datum/unit_test/proc/read_source_file(source_path)
-	var/source = file2text(source_path)
-	if(length(source))
-		return source
-
-#ifdef CIBUILDING
-	source = file2text("../[source_path]")
-	if(length(source))
-		return source
-#endif
-
-	return source
+	return file2text(source_path)
 
 /*
 /datum/unit_test/proc/test_screenshot(name, icon/icon)
@@ -307,6 +344,15 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 
 	return output
 */
+/// Реакция из SSair.gas_reactions по её id, или null. Атмос-тесты дёргают реакции
+/// напрямую (мимо индексатора кандидатов), и один и тот же поиск был скопирован по
+/// файлам пять раз.
+/proc/unit_test_find_gas_reaction(reaction_id)
+	for(var/datum/gas_reaction/candidate as anything in SSair?.gas_reactions)
+		if(candidate.id == reaction_id)
+			return candidate
+	return null
+
 /// Logs a test message. Will use GitHub action syntax found at https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions
 /datum/unit_test/proc/log_for_test(text, priority, file, line)
 	var/map_name = SSmapping.config.map_name
@@ -322,6 +368,11 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 	if (ispath(test_path, /datum/unit_test/focus_only))
 		return
 */
+	var/wall_start = REALTIMEOFDAY
+	var/obj/docking_port/mobile/emergency/emergency_shuttle = SSshuttle.emergency
+	var/emergency_mode = emergency_shuttle?.mode
+	var/emergency_timer = emergency_shuttle?.timer
+	var/emergency_timer_length = emergency_shuttle?.last_timer_length
 	var/datum/unit_test/test = new test_path
 
 	GLOB.current_test = test
@@ -363,6 +414,68 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 	test_results[test_path] = list("status" = test.succeeded ? UNIT_TEST_PASSED : UNIT_TEST_FAILED, "message" = message, "name" = test_path)
 
 	qdel(test)
+	// Удалённая в тесте консоль связи или ИИ зовёт autoEvac(): на карте без своих консолей это вызов эвакуации на все следующие тесты.
+	if(emergency_shuttle && emergency_shuttle == SSshuttle.emergency && emergency_shuttle.mode != emergency_mode)
+		log_test("NOTE: [test_path] left the emergency shuttle in mode [emergency_shuttle.mode], restored [emergency_mode]")
+		emergency_shuttle.mode = emergency_mode
+		emergency_shuttle.timer = emergency_timer
+		emergency_shuttle.last_timer_length = emergency_timer_length
+	test_results[test_path]["wall"] = (REALTIMEOFDAY - wall_start) / 10
+
+/// Tests named in a list file, one type path per line: shards and focused runs reuse one compiled dmb.
+/// Unknown names fail the run. Returns null when no file was given.
+/proc/unit_tests_from_list_file(list_path, list/test_results)
+	if(!list_path)
+		return null
+	var/list/listed_tests = list()
+	for(var/line in splittext(file2text(list_path), "\n"))
+		line = trim_reduced(line)
+		if(!length(line))
+			continue
+		var/test_path = text2path(line)
+		if(ispath(test_path, /datum/unit_test) && test_path != /datum/unit_test)
+			listed_tests |= test_path
+			continue
+		GLOB.failed_any_test = TRUE
+		log_test("FAIL: [line] 0s\n\tREASON #1: нет такого теста ([list_path])")
+		test_results[line] = list("status" = UNIT_TEST_FAILED, "message" = "Unknown test", "name" = line)
+	return listed_tests
+
+/// Part K of N ("K/N") of the run. Every shard computes the same greedy split by
+/// past wall time from the durations file, so the shards end at about the same time.
+/proc/unit_tests_for_shard(list/tests_to_run, shard_param, durations_path, list/test_results)
+	if(!shard_param)
+		return tests_to_run
+	var/list/shard_parts = splittext(shard_param, "/")
+	var/shard_index = text2num(shard_parts[1])
+	var/shard_count = length(shard_parts) == 2 ? text2num(shard_parts[2]) : null
+	if(!shard_count || shard_index < 1 || shard_index > shard_count)
+		CRASH("Bad [UNIT_TEST_SHARD_PARAMETER] value: [shard_param]")
+	var/list/durations = durations_path && fexists(durations_path) ? json_decode(file2text(durations_path)) : list()
+	var/list/weighted = list()
+	for(var/test_path in tests_to_run)
+		weighted["[test_path]"] = durations["[test_path]"] || UNIT_TEST_DEFAULT_WALL
+	sortTim(weighted, GLOBAL_PROC_REF(cmp_numeric_dsc), associative = TRUE)
+	var/list/loads = new /list(shard_count)
+	for(var/i in 1 to shard_count)
+		loads[i] = 0
+	var/list/mine = list()
+	for(var/test_name in weighted)
+		var/lightest = 1
+		for(var/i in 2 to shard_count)
+			if(loads[i] < loads[lightest])
+				lightest = i
+		loads[lightest] += weighted[test_name]
+		if(lightest == shard_index)
+			mine[test_name] = TRUE
+	var/list/shard_tests = list()
+	for(var/test_path in tests_to_run)
+		if(mine["[test_path]"])
+			shard_tests += test_path
+		else
+			test_results[test_path] = list("status" = UNIT_TEST_SKIPPED, "message" = "Runs in another shard", "name" = test_path)
+	log_test("Shard [shard_index]/[shard_count]: [length(shard_tests)] of [length(tests_to_run)] tests, ~[round(loads[shard_index])]s by past runs")
+	return shard_tests
 
 /proc/RunUnitTests()
 	CHECK_TICK
@@ -374,13 +487,15 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 	// теста; таймер потом отработает вхолостую по пустому списку лендмарков.
 	SSmapping.seedStation(TRUE)
 
-	var/list/tests_to_run = subtypesof(/datum/unit_test)
-	var/list/focused_tests = list()
 	var/list/test_results = list()
-	for (var/_test_to_run in tests_to_run)
-		var/datum/unit_test/test_to_run = _test_to_run
-		if (initial(test_to_run.focus))
-			focused_tests += test_to_run
+	var/list/tests_to_run = unit_tests_from_list_file(world.params[UNIT_TEST_LIST_PARAMETER], test_results)
+	var/list/focused_tests = list()
+	if(isnull(tests_to_run))
+		tests_to_run = subtypesof(/datum/unit_test)
+		for (var/_test_to_run in tests_to_run)
+			var/datum/unit_test/test_to_run = _test_to_run
+			if (initial(test_to_run.focus))
+				focused_tests += test_to_run
 	if(length(focused_tests))
 		tests_to_run = focused_tests
 	else
@@ -405,12 +520,13 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 		tests_to_run = profile_tests
 
 	tests_to_run = sortTim(tests_to_run, GLOBAL_PROC_REF(cmp_unit_test_priority))
+	tests_to_run = unit_tests_for_shard(tests_to_run, world.params[UNIT_TEST_SHARD_PARAMETER], world.params[UNIT_TEST_DURATIONS_PARAMETER], test_results)
 
 	for(var/unit_path in tests_to_run)
 		CHECK_TICK //We check tick first because the unit test we run last may be so expensive that checking tick will lock up this loop forever
 		RunUnitTest(unit_path, test_results)
 
-	var/file_name = "data/unit_tests.json"
+	var/file_name = "[GLOB.log_directory]/unit_tests.json"
 	fdel(file_name)
 	file(file_name) << json_encode(test_results)
 
@@ -429,12 +545,17 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 /// Roundstart callbacks run before ticker flips to PLAYING and PostSetup is
 /// asynchronous. Poll those explicit readiness conditions instead of sleeping
 /// an arbitrary ten seconds before every test run.
+/// Tests also wait for the background seeding of the free z-level pool, so they run on a settled world.
 /proc/RunUnitTestsWhenReady(deadline)
 	if(isnull(deadline))
-		deadline = world.time + 2 MINUTES
+		deadline = world.time + 10 MINUTES
 	if(world.time > deadline)
-		CRASH("Unit test round bootstrap did not finish ticker PostSetup within two minutes")
-	if(!SSticker.HasRoundStarted() || !SSticker.setup_done)
+		// Nothing else would end this round: fail the run and reboot instead of waiting forever.
+		GLOB.failed_any_test = TRUE
+		log_test("FAIL: unit test round bootstrap did not finish ticker PostSetup within ten minutes")
+		SSticker.Reboot("Unit test round bootstrap timed out", "unit test timeout", 1)
+		CRASH("Unit test round bootstrap did not finish ticker PostSetup within ten minutes")
+	if(!SSticker.HasRoundStarted() || !SSticker.setup_done || SSzclear.is_seeding_pool())
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(RunUnitTestsWhenReady), deadline), world.tick_lag)
 		return
 	RunUnitTests()

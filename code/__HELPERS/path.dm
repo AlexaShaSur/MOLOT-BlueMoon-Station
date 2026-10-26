@@ -25,6 +25,7 @@
  * * simulated_only: Whether we consider turfs without atmos simulation (AKA do we want to ignore space)
  * * exclude: If we want to avoid a specific turf, like if we're a mulebot who already got blocked by some turf
  * * skip_first: Whether or not to delete the first item in the path. This would be done because the first item is the starting tile, which can break movement for some creatures.
+ * * search_status: Optional list filled with the search outcome; see [JPS_SEARCH_EXHAUSTED].
  */
 /**
  * Bounds an AI pathfinding search radius to what a chase actually needs.
@@ -42,7 +43,7 @@
 		return 0
 	return min(max_path_length, get_dist(mover, target) + AI_JPS_DETOUR_SLACK)
 
-/proc/get_path_to(atom/movable/path_owner, end, max_distance = 30, mintargetdist, id=null, simulated_only = TRUE, turf/exclude, skip_first=TRUE, datum/cancel_source)
+/proc/get_path_to(atom/movable/path_owner, end, max_distance = 30, mintargetdist, id=null, simulated_only = TRUE, turf/exclude, skip_first=TRUE, datum/cancel_source, list/search_status)
 	var/turf/start_turf = get_turf(path_owner)
 	var/turf/end_turf = get_turf(end)
 	if(!path_owner || !start_turf || !end_turf || (cancel_source && QDELETED(cancel_source)))
@@ -65,6 +66,8 @@
 	var/list/path
 	var/datum/pathfind/pathfind_datum = new(path_owner, start_turf, end_turf, id, max_distance, mintargetdist, simulated_only, exclude, cancel_source)
 	path = pathfind_datum.search()
+	if(search_status)
+		search_status[JPS_SEARCH_EXHAUSTED] = pathfind_datum.exhausted_search
 	qdel(pathfind_datum)
 
 	SSpathfinder.mobs.found(l)
@@ -74,13 +77,10 @@
 		path.Cut(1,2)
 	return path
 
-/**
- * A helper macro to see if it's possible to step from the first turf into the second one, minding things like door access and directional windows.
- * Note that this can only be used inside the [datum/pathfind][pathfind datum] since it uses variables from said datum.
- * If you really want to optimize things, optimize this, cuz this gets called a lot.
- */
-/// Another helper macro for JPS, for telling when a node has forced neighbors that need expanding
-#define STEP_NOT_HERE_BUT_THERE(cur_turf, dirA, dirB) ((!can_step(cur_turf, get_step(cur_turf, dirA), dirA) && can_step(cur_turf, get_step(cur_turf, dirB), dirB)))
+/// JPS forced neighbour of a lateral step: the diagonal ahead is reachable here but not from the side tile, which a wall or a railing can stop.
+#define LATERAL_FORCED(cur_turf, side, forward_diagonal, heading) (!(can_step(cur_turf, get_step(cur_turf, side), side) && can_step(get_step(cur_turf, side), get_step(cur_turf, forward_diagonal), heading)) && can_step(cur_turf, get_step(cur_turf, forward_diagonal), forward_diagonal))
+/// JPS forced neighbour of a diagonal step: the back tile and the diagonal past it are covered only if the subscan from lag_turf along parent_heading reaches them.
+#define DIAGONAL_FORCED(lag_turf, cur_turf, back_side, forward_diagonal, parent_heading) (can_step(lag_turf, get_step(cur_turf, back_side), parent_heading) ? (!can_step(get_step(cur_turf, back_side), get_step(cur_turf, forward_diagonal), parent_heading) && can_step(cur_turf, get_step(cur_turf, forward_diagonal), forward_diagonal)) : (can_step(cur_turf, get_step(cur_turf, back_side), back_side) || can_step(cur_turf, get_step(cur_turf, forward_diagonal), forward_diagonal)))
 
 // Direction values top out at SOUTHWEST (10), so the second eleven bits can
 // hold the pass result alongside the first eleven checked bits.
@@ -153,6 +153,9 @@
 	var/check_environment = FALSE
 	/// Optional owner whose deletion cancels this otherwise synchronous search.
 	var/datum/cancel_source
+	/// TRUE only when the open list ran dry without a path: proof that no clean route
+	/// exists inside max_distance. Early bail-outs and cancellations leave it FALSE.
+	var/exhausted_search = FALSE
 
 	// general pathfinding vars/args
 	/// An ID card representing what access we have and what doors we can open. Its location relative to the pathing atom is irrelevant
@@ -252,6 +255,9 @@
 	var/datum/jps_node/current_processed_node = new (start, -1, 0, end)
 	open.insert(current_processed_node)
 	sources[start] = start // i'm sure this is fine
+	#ifdef UNIT_TESTS
+	var/test_checkpoint_sent = FALSE
+	#endif
 
 	//then run the main loop
 	while(!open.is_empty() && !path)
@@ -273,11 +279,18 @@
 		diag_scan_spec(current_turf, SOUTHWEST, current_processed_node)
 
 		CHECK_TICK
+		#ifdef UNIT_TESTS
+		if(!test_checkpoint_sent)
+			test_checkpoint_sent = TRUE
+			SEND_SIGNAL(pathing_movable, COMSIG_TEST_PATHFIND_AFTER_FIRST_TICK, src)
+		#endif
 
 	//we're done! reverse the path to get it from start to finish
 	if(path)
 		for(var/i = 1 to round(0.5 * length(path)))
 			path.Swap(i, length(path) - i + 1)
+	else
+		exhausted_search = TRUE
 
 	sources = null
 	if(open)
@@ -365,7 +378,7 @@
 		if(parent_node && max_distance && parent_node.number_tiles + steps_taken > max_distance)
 			return
 
-		if(STEP_NOT_HERE_BUT_THERE(current_turf, blocked_side_a, forced_diagonal_a) || STEP_NOT_HERE_BUT_THERE(current_turf, blocked_side_b, forced_diagonal_b))
+		if(LATERAL_FORCED(current_turf, blocked_side_a, forced_diagonal_a, heading) || LATERAL_FORCED(current_turf, blocked_side_b, forced_diagonal_b, heading))
 			var/datum/jps_node/newnode = new(current_turf, parent_node, steps_taken)
 			if(parent_node) // if we're a diagonal subscan, we'll handle adding ourselves to the heap in the diag
 				open.insert(newnode)
@@ -421,6 +434,8 @@
 			forced_diagonal_b = NORTHEAST
 			lateral_heading_a = SOUTH
 			lateral_heading_b = EAST
+	var/vertical_heading = heading & (NORTH|SOUTH)
+	var/horizontal_heading = heading & (EAST|WEST)
 
 	if(path)
 		return
@@ -444,7 +459,7 @@
 		if(max_distance && parent_node.number_tiles + steps_taken > max_distance)
 			return
 
-		var/interesting = STEP_NOT_HERE_BUT_THERE(current_turf, blocked_side_a, forced_diagonal_a) || STEP_NOT_HERE_BUT_THERE(current_turf, blocked_side_b, forced_diagonal_b)
+		var/interesting = DIAGONAL_FORCED(lag_turf, current_turf, blocked_side_a, forced_diagonal_a, vertical_heading) || DIAGONAL_FORCED(lag_turf, current_turf, blocked_side_b, forced_diagonal_b, horizontal_heading)
 		var/datum/jps_node/possible_child_node // otherwise, did one of our lateral subscans turn up something?
 		if(!interesting)
 			possible_child_node = lateral_scan_spec(current_turf, lateral_heading_a) || lateral_scan_spec(current_turf, lateral_heading_b)
@@ -526,5 +541,6 @@
 
 	return FALSE
 
-#undef STEP_NOT_HERE_BUT_THERE
+#undef LATERAL_FORCED
+#undef DIAGONAL_FORCED
 #undef JPS_EDGE_PASS_SHIFT

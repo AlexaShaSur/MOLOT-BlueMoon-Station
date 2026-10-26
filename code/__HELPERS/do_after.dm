@@ -13,6 +13,15 @@
 	LAZYADD(target.targeted_by, user)
 
 	var/holding = user.get_active_held_item()
+
+	var/datum/cogbar/cog
+	if (progress && time >= 1 SECONDS)
+		cog = new(user)
+
+	var/datum/actionspeed_modifier/drought = user.has_actionspeed_modifier(/datum/actionspeed_modifier/heretic_sand_drought)
+	if(drought)
+		time *= 1 + drought.multiplicative_slowdown
+
 	var/datum/progressbar/progbar
 	if (progress)
 		progbar = new(user, time, target)
@@ -25,6 +34,8 @@
 		if (progress)
 			if(!QDELETED(progbar))
 				progbar.update(world.time - starttime + resume_time)
+		if(!QDELETED(cog))
+			cog.update()
 
 		if(drifting && !user.inertia_dir)
 			drifting = FALSE
@@ -45,6 +56,9 @@
 	if(!QDELETED(progbar))
 		progbar.end_progress()
 
+	if(!QDELETED(cog))
+		cog.remove()
+
 	if(!QDELETED(target))
 		LAZYREMOVE(user.do_afters, target)
 		LAZYREMOVE(target.targeted_by, user)
@@ -63,8 +77,11 @@
 		checked_health["health"] = health
 	return ..()
 
-/proc/do_after(mob/user, delay, atom/target, timed_action_flags = NONE, progress = TRUE, datum/callback/extra_checks, resume_time = 0 SECONDS, progress_loc)
+/proc/do_after(mob/user, delay, atom/target, timed_action_flags = NONE, progress = TRUE, datum/callback/extra_checks, resume_time = 0 SECONDS, progress_loc, cog_icon = 'icons/effects/progressbar.dmi', cog_iconstate = "cog", show_cog = TRUE)
 	if(!user)
+		return FALSE
+	// Destroy() цели уже прошёл и не вынет её из do_afters пользователя.
+	if(target && QDELETED(target))
 		return FALSE
 	var/atom/target_loc = null
 	if(target && !isturf(target))
@@ -82,6 +99,10 @@
 
 	var/holding = user.get_active_held_item()
 
+	var/datum/cogbar/cog
+	if (progress && show_cog && delay >= 1 SECONDS)
+		cog = new(user, cog_icon, cog_iconstate)
+
 	delay *= user.cached_multiplicative_actions_slowdown
 
 	var/datum/progressbar/progbar
@@ -96,6 +117,8 @@
 		if (progress)
 			if(!QDELETED(progbar))
 				progbar.update(world.time - starttime + resume_time)
+		if(!QDELETED(cog))
+			cog.update()
 
 		if(drifting && !user.inertia_dir)
 			drifting = FALSE
@@ -128,6 +151,9 @@
 	if(!QDELETED(progbar))
 		progbar.end_progress()
 
+	if(!QDELETED(cog))
+		cog.remove()
+
 	if(!QDELETED(target))
 		LAZYREMOVE(user.do_afters, target)
 
@@ -140,6 +166,9 @@
 		return FALSE
 	if(!islist(targets))
 		targets = list(targets)
+	for(var/atom/target as anything in targets)
+		if(QDELETED(target))
+			return FALSE
 	var/user_loc = user.loc
 
 	var/drifting = FALSE
@@ -157,6 +186,10 @@
 	if(progress)
 		progbar = new(user, time, targets[1])
 
+	var/datum/cogbar/cog
+	if (progress && time >= 1 SECONDS)
+		cog = new(user)
+
 	time *= user.cached_multiplicative_actions_slowdown
 
 	var/endtime = world.time + time
@@ -167,6 +200,8 @@
 
 		if(!QDELETED(progbar))
 			progbar.update(world.time - starttime)
+		if(!QDELETED(cog))
+			cog.update()
 		if(QDELETED(user) || !length(targets))
 			. = FALSE
 			break
@@ -176,7 +211,7 @@
 			user_loc = user.loc
 
 		if(
-			!((timed_action_flags & IGNORE_USER_LOC_CHANGE) && !drifting && user_loc != user.loc) \
+			(!(timed_action_flags & IGNORE_USER_LOC_CHANGE) && !drifting && user_loc != user.loc) \
 			|| (!(timed_action_flags & IGNORE_HELD_ITEM) && user.get_active_held_item() != holding) \
 			|| (!(timed_action_flags & IGNORE_INCAPACITATED) && user.incapacitated()) \
 			|| (extra_checks && !extra_checks.Invoke()) \
@@ -198,6 +233,9 @@
 
 	if(!QDELETED(progbar))
 		progbar.end_progress()
+
+	if(!QDELETED(cog))
+		cog.remove()
 
 	for(var/thing in targets)
 		var/atom/target = thing

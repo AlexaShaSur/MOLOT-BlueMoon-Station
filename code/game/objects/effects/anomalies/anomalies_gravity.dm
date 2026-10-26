@@ -13,6 +13,7 @@
 	icon_state = "shield2"
 	density = FALSE
 	aSignal = /obj/item/assembly/signaler/anomaly/grav
+	raw_core = /obj/item/raw_anomaly_core/grav
 	var/boing = 0
 	///Warp effect holder for displacement filter to "pulse" the anomaly
 	var/atom/movable/warp_effect/warp
@@ -32,12 +33,10 @@
 	QDEL_NULL(warp)
 	return ..()
 
-/obj/effect/anomaly/grav/on_changed_z_level(turf/old_turf, turf/new_turf, same_z_layer, notify_contents)
+/obj/effect/anomaly/grav/update_plane_offset(old_z, new_z)
 	. = ..()
-	if(same_z_layer)
-		return
 	if(warp)
-		SET_PLANE(warp, PLANE_TO_TRUE(warp.plane), new_turf)
+		SET_PLANE_W_SCALAR(warp, PLANE_TO_TRUE(warp.plane), new_z ? GET_Z_PLANE_OFFSET(new_z) : 0)
 
 /obj/effect/anomaly/grav/anomalyEffect(seconds_per_tick)
 	..()
@@ -54,7 +53,7 @@
 		if(!O.anchored)
 			if(isturf(O.loc))
 				var/turf/T = O.loc
-				if(T.intact && level == 1)
+				if((T.turf_flags & TURF_INTACT) && level == 1)
 					continue
 			var/mob/living/target = locate() in view(4,src)
 			if(target && !target.stat)
@@ -108,6 +107,7 @@
 ///Bigger, meaner, immortal gravity anomaly. although this is just the super grav anomaly but bigger and shattering move force
 /obj/effect/anomaly/grav/high/big
 	immortal = TRUE
+	drops_core = FALSE
 	aSignal = null
 	move_force = MOVE_FORCE_OVERPOWERING
 

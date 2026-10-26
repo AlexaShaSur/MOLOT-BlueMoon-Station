@@ -57,8 +57,8 @@
 //Rights:2, 4, 6, 8...
 /mob/proc/get_empty_held_index_for_side(side = "left", all = FALSE)
 	var/start = 0
-	var/static/list/lefts = list("l" = TRUE,"L" = TRUE,"LEFT" = TRUE,"left" = TRUE)
-	var/static/list/rights = list("r" = TRUE,"R" = TRUE,"RIGHT" = TRUE,"right" = TRUE) //"to remain silent"
+	var/static/list/lefts = list("l" = TRUE,"L" = TRUE,"LEFT" = TRUE,"left" = TRUE, BODY_ZONE_L_ARM = TRUE)
+	var/static/list/rights = list("r" = TRUE,"R" = TRUE,"RIGHT" = TRUE,"right" = TRUE, BODY_ZONE_R_ARM = TRUE) //"to remain silent"
 	if(lefts[side])
 		start = 1
 	else if(rights[side])
@@ -218,6 +218,12 @@
 /mob/proc/put_in_r_hand(obj/item/I)
 	return put_in_hand(I, get_empty_held_index_for_side("r"))
 
+/mob/proc/calculate_emply_hand_slots()
+	var/empty_hand_count
+	for(var/item in held_items)
+		if(!item)
+			empty_hand_count++
+	return empty_hand_count
 
 /mob/proc/put_in_hand_check(obj/item/I)
 	if(incapacitated() && !(I.item_flags&ABSTRACT)) //Cit change - Changes lying to incapacitated so that it's plausible to pick things up while on the ground
@@ -225,7 +231,6 @@
 	if(!istype(I))
 		return FALSE
 	return TRUE
-
 
 //Puts the item into our active hand if possible. returns TRUE on success.
 /mob/proc/put_in_active_hand(obj/item/I, forced = FALSE, ignore_animation = TRUE)
@@ -283,7 +288,7 @@
 		return FALSE
 	I.forceMove(drop_location())
 	I.layer = initial(I.layer)
-	I.plane = initial(I.plane)
+	RESET_PLANE_EXPLICIT(I, I)
 	I.dropped(src)
 	return FALSE
 
@@ -352,32 +357,35 @@
 	if(HAS_TRAIT(I, TRAIT_NODROP) && !force)
 		return FALSE
 
-	I.randomize_pixel_position(dropped_by = src)
-
 	var/hand_index = get_held_index_of_item(I)
 	if(hand_index)
 		held_items[hand_index] = null
 		update_inv_hands()
-	if(I)
-		remove_from_hud_screens(I)
-		//QDELETED сюда доезжает через оффхенд двуручника: /obj/item/Destroy снимает
-		//DROPDEL "чтобы не было реqdel'ов", и следующий сброс из рук честно тащит
-		//труп на пол - "doMove qdel-нутого /obj/item/offhand". У такого предмета
-		//Destroy уже отработал: править ему внешность, двигать его и звать dropped()
-		//значит работать с трупом. Снять с экрана всё равно надо - ссылка переживает qdel
-		if(!QDELETED(I))
-			I.screen_loc = null
-			I.layer = initial(I.layer)
-			I.plane = initial(I.plane)
-			I.appearance_flags &= ~NO_CLIENT_COLOR
-			if(!no_move && !(I.item_flags & DROPDEL))	//item may be moved/qdel'd immedietely, don't bother moving it
-				if (isnull(newloc))
-					I.moveToNullspace()
-				else
-					I.forceMove(newloc)
-			on_item_dropped(I)
-			if(I.dropped(src) == ITEM_RELOCATED_BY_DROPPED)
-				return FALSE
+
+	remove_from_hud_screens(I)
+	//QDELETED сюда доезжает через оффхенд двуручника: /obj/item/Destroy снимает
+	//DROPDEL "чтобы не было реqdel'ов", и следующий сброс из рук честно тащит
+	//труп на пол - "doMove qdel-нутого /obj/item/offhand". У такого предмета
+	//Destroy уже отработал: править ему внешность, двигать его и звать dropped()
+	//значит работать с трупом. Снять с экрана всё равно надо - ссылка переживает qdel
+	if(!QDELETED(I))
+		I.screen_loc = null
+		I.layer = initial(I.layer)
+		RESET_PLANE_EXPLICIT(I, newloc)
+		I.appearance_flags &= ~NO_CLIENT_COLOR
+		if(!no_move && !(I.item_flags & DROPDEL))	//item may be moved/qdel'd immedietely, don't bother moving it
+			if (isnull(newloc))
+				I.moveToNullspace()
+			else
+				I.forceMove(newloc)
+				if(isturf(newloc))
+					I.randomize_pixel_position(dropped_by = src)
+		on_item_dropped(I)
+		if(I.dropped(src) == ITEM_RELOCATED_BY_DROPPED)
+			return FALSE
+	else
+		// блок и парирование держат ссылку на предмет, а разбитый щит удаляется прямо из рук
+		on_item_dropped(I)
 	SEND_SIGNAL(src, COMSIG_MOB_UNEQUIPPED_ITEM, I, force, newloc, no_move, invdrop, silent)
 	return TRUE
 
@@ -386,7 +394,8 @@
 //set disable_warning to disable the 'you are unable to equip that' warning.
 //unset redraw_mob to prevent the mob from being redrawn at the end.
 /mob/proc/equip_to_slot_if_possible(obj/item/W, slot, qdel_on_fail = FALSE, disable_warning = FALSE, redraw_mob = TRUE, bypass_equip_delay_self = FALSE, clothing_check = FALSE)
-	if(!istype(W))
+	// Новая пачка, слитая при создании с такой же у моба, приходит сюда уже удалённой.
+	if(!istype(W) || QDELETED(W))
 		return FALSE
 	var/list/warning = list("<span class='warning'>Вы не можете это экипировать!</span>")
 	if(!W.mob_can_equip(src, null, slot, disable_warning, bypass_equip_delay_self, clothing_check, warning))

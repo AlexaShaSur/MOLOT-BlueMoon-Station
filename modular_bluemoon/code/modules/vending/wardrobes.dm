@@ -278,6 +278,7 @@
 		/obj/item/clothing/mask/balaclava/breath/redscarf/yellowscarf = 4,
 		/obj/item/radio/headset/headset_cargo = 3,
 		/obj/item/mailmat_deployer = 3,
+		/obj/item/mod/construction/armor/cargo_worker = 3,
 	)
 	premium = list(
 		/obj/item/clothing/head/mailman = 1,
@@ -582,7 +583,6 @@
 	vend_reply = "Спасибо за использование DeusVend!"
 	products = list(
 		/obj/item/choice_beacon/holy = 1,
-		/obj/item/staff/bostaff/chaplain = 1,
 		/obj/item/storage/backpack/cultpack = 2,
 		/obj/item/clothing/accessory/pocketprotector/cosmetology = 2,
 		/obj/item/clothing/under/rank/civilian/chaplain = 2,
@@ -605,8 +605,8 @@
 		/obj/item/clothing/suit/hooded/chaplain_hoodie/monk_robe = 2, //BlueMoon changes,
 		/obj/item/clothing/suit/hooded/genetor = 2, //BlueMoon changes,
 		/obj/item/clothing/suit/hooded/genetor_follower = 4, //BlueMoon changes,
-		/obj/item/clothing/neck/oldcross = 6,  //BlueMoon changes,
-		/obj/item/clothing/neck/epitrachelion = 1, //BlueMoon changes,
+		/obj/item/clothing/neck/bm/oldcross = 6,  //BlueMoon changes,
+		/obj/item/clothing/neck/bm/epitrachelion = 1, //BlueMoon changes,
 		/obj/item/clothing/neck/cloak/bishop = 1, //BlueMoon changes,
 		/obj/item/clothing/neck/cloak/bishopblack= 1, //BlueMoon changes,
 		/obj/item/reagent_containers/glass/mortar/urn = 10,
@@ -775,6 +775,8 @@
 					/obj/item/clothing/under/bm/caprevskirt = 2, // BlueMoon Add
 					/obj/item/clothing/under/bm/regaloutfit = 2, // BlueMoon Add
 					/obj/item/clothing/suit/captunic = 1,
+					/obj/item/clothing/suit/toggle/captains_parade/syndicate/winter = 1, // BlueMoon Add
+					/obj/item/clothing/suit/toggle/captains_parade/syndicate = 1, // BlueMoon Add
 					/obj/item/clothing/under/rank/captain/femformal = 2,
 					/obj/item/clothing/glasses/sunglasses/gar/supergar = 1,
 					/obj/item/clothing/gloves/color/captain = 1,

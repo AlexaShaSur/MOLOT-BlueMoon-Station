@@ -12,9 +12,9 @@
 #define TRAIT_BLUEMOON_POWERSHARING			"robotic_powersharing"
 #define TRAIT_BLUEMOON_COOLANT_GENERATOR	"coolant_generator"
 #define TRAIT_BLUEMOON_WATER_VULNERABILITY	"robotic_water_vulnerability"
+#define TRAIT_BLUEMOON_WATER_EXPOSED		"robotic_water_exposed"
 #define TRAIT_BLUEMOON_EMP_VULNERABILITY	"robotic_emp_vulnerability"
 #define TRAIT_BLUEMOON_CROCIN_POISONOUS		"crocin_poisonous"
-#define TRAIT_LEWD_JOB						"lewd_job"
 #define TRAIT_LEWD_SUMMON					"Призываемый"
 #define TRAIT_LEWD_SUMMONED					"lewd_summoned"
 #define TRAIT_SPIKY							"spiky"
@@ -26,6 +26,8 @@
 #define TRAIT_RETRACTABLE_CLAWS				"claws"
 #define TRAIT_CHAMELEON_QUIRK				"chameleon_quirk"
 #define TRAIT_KNOWS_RESEARCH 				"parchment_knowledge"
+/// Тело ждёт игрока в капсуле полигона: dusts_on_catatonia его не трогает.
+#define TRAIT_TRAINING_DREAMER				"training_dreamer"
 #define BLUEMOON_TRAIT_NAME_PHOBIA			"Фобия"
 
 // Трейты для рас
@@ -64,3 +66,5 @@
 #define TRAIT_WEAK_INVISIBILITY "internal_invisibility"
 /// Запрет попиксельного смещения
 #define TRAIT_NO_PIXEL_SHIFT "no_pixel_shift"
+/// Дыра в полу: сквозь неё падают и по ней не ходят. Лежит здесь, потому что is_helpers.dm подключается раньше __DEFINES/traits.dm.
+#define TURF_Z_OPENSPACE_TRAIT "turf_z_openspace"

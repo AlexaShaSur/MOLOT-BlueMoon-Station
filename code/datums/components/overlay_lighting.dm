@@ -11,9 +11,9 @@
  * Movable atom overlay-based lighting component.
  * Порт из tgstation (версия после rework #89868) на сигнальную обвязку BlueMoon.
  * Отличия от tg: COMSIG_PARENT_QDELETING вместо COMSIG_QDELETING; без light_render_source,
- * light eater, крафта и мультиз-оффсетов плоскостей (сигналы APPLIED/REMOVED и клоны
- * appearance не портированы - потребителей нет); сторадж определяется компонентом
- * /datum/component/storage, а не типом.
+ * light eater и крафта (сигналы APPLIED/REMOVED и клоны appearance не портированы -
+ * потребителей нет); сторадж определяется компонентом /datum/component/storage, а не типом.
+ * Маски лежат на плоскости оверлейного света этажа держателя.
  *
  * * Component works by applying a visual object to the parent target.
  *
@@ -92,19 +92,18 @@
 	. = ..()
 
 	visible_mask = image('icons/effects/light_overlays/light_32.dmi', icon_state = "light")
-	visible_mask.plane = O_LIGHTING_VISUAL_PLANE
 	visible_mask.appearance_flags = RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM
 	visible_mask.alpha = 0
 	visible_mask.blend_mode = BLEND_ADD
 	if(is_directional)
 		directional = TRUE
 		cone = image('icons/effects/light_overlays/light_cone.dmi', icon_state = "light")
-		cone.plane = O_LIGHTING_VISUAL_PLANE
 		cone.appearance_flags = RESET_COLOR | RESET_ALPHA | RESET_TRANSFORM
 		cone.alpha = 110
 		cone.blend_mode = BLEND_ADD
 		cone.transform = cone.transform.Translate(-32, -32)
 		set_direction(movable_parent.dir)
+	place_masks_on_floor(movable_parent)
 	if(is_beam)
 		beam = TRUE
 	if(!isnull(_range))
@@ -129,6 +128,7 @@
 	RegisterSignal(parent, COMSIG_ATOM_UPDATE_LIGHT_ON, PROC_REF(on_toggle))
 	RegisterSignal(parent, COMSIG_ATOM_UPDATE_LIGHT_FLAGS, PROC_REF(on_light_flags_change))
 	RegisterSignal(parent, COMSIG_MOVABLE_MOVED, PROC_REF(on_parent_moved))
+	RegisterSignal(parent, COMSIG_MOVABLE_Z_CHANGED, PROC_REF(on_z_move))
 	if(isitem(parent))
 		RegisterSignal(parent, COMSIG_ITEM_BEFORE_PICKUP_ANIMATION, PROC_REF(on_pickup_anim))
 	var/atom/movable/movable_parent = parent
@@ -147,6 +147,7 @@
 	clean_old_turfs()
 	UnregisterSignal(parent, list(
 		COMSIG_MOVABLE_MOVED,
+		COMSIG_MOVABLE_Z_CHANGED,
 		COMSIG_ATOM_UPDATE_LIGHT_RANGE,
 		COMSIG_ATOM_UPDATE_LIGHT_POWER,
 		COMSIG_ATOM_UPDATE_LIGHT_COLOR,
@@ -346,6 +347,19 @@
 		return
 	make_luminosity_update()
 
+/datum/component/overlay_lighting/proc/on_z_move(atom/source, old_z, new_z)
+	SIGNAL_HANDLER
+	hide_from_holder()
+	place_masks_on_floor(source)
+	show_to_holder()
+
+/// Маска светит только темноте своего этажа.
+/datum/component/overlay_lighting/proc/place_masks_on_floor(atom/source)
+	visible_mask.plane = O_LIGHTING_VISUAL_PLANE
+	SET_PLANE_EXPLICIT(visible_mask, O_LIGHTING_VISUAL_PLANE, source)
+	if(cone)
+		cone.plane = visible_mask.plane
+
 
 ///Called when the parent_attached_to is qdeleted, to remove the light effect.
 /datum/component/overlay_lighting/proc/on_parent_attached_to_qdel(atom/movable/source, force)
@@ -504,7 +518,7 @@
 	var/turf/scanning = get_turf(current_holder)
 	for(var/i in 1 to final_distance)
 		var/turf/next_turf = get_step(scanning, current_direction)
-		if(isnull(next_turf) || next_turf.opacity || next_turf.has_opaque_atom)
+		if(isnull(next_turf) || next_turf.opacity || (next_turf.lighting_flags & TURF_HAS_OPAQUE_ATOM))
 			final_distance = i
 			break
 		scanning = next_turf

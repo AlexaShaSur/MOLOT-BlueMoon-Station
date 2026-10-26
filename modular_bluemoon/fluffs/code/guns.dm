@@ -1,12 +1,12 @@
 /*
 /////////////////////////	ИНФОРМАЦИЯ: /////////////////////////
 
-При добавлении рескина на оружие (или любого предмета, что влияет на геймплей) впишите DONATE_ITEM_TOOLTIP_PARENT сразу после пути
+При добавлении рескина на оружие (или любого предмета, что влияет на геймплей) впишите DONATE_ITEM_TOOLTIP_PARENT(путь) сразу после определения предмета
 Пример:
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/my_reskin
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "My personal enforcer"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/my_reskin)
 
 Если предмет из категории HIGHRISK, например мультифазка или антикварка,
 	вместо DONATE_ITEM_TOOLTIP_PARENT используйте DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK
@@ -97,7 +97,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/steyr
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Steyr MWS"
 	desc = "An antique semi-automatic pistol, heavily modified by the MWS defence manufacturing company. Provided with a better ammo cartridge and reinforced parts, it fits perfectly for resolving various security tasks. You can also notice Kovac's family sign drawn on it's handgrip."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -105,6 +104,7 @@
 	can_suppress = TRUE
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/steyr_shoot.ogg'
 	pin = /obj/item/firing_pin/alert_level/blue
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/steyr)
 
 /obj/item/modkit/auto9_kit
 	name = "Auto 9 Kit"
@@ -113,7 +113,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/wt550)
 
 /obj/item/gun/ballistic/automatic/wt550/auto9
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Auto 9"
 	desc = "Come quitely or there will be troubles."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -124,6 +123,7 @@
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/auto9_shoot.ogg'
 	can_suppress = FALSE
 	can_bayonet = FALSE
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/auto9)
 
 /obj/item/gun/ballistic/automatic/wt550/auto9/update_icon_state()
 	if(magazine)
@@ -138,7 +138,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/wt550)
 
 /obj/item/gun/ballistic/automatic/wt550/at41
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper AT-41"
 	desc = "Старый кусок металла, который работает по принципу - и палка стреляет раз в год"
 	icon = 'modular_bluemoon/fluffs/icons/obj/at41.dmi'
@@ -149,6 +148,7 @@
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/at41_fire.ogg'
 	can_suppress = FALSE
 	can_bayonet = TRUE
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/at41)
 
 /obj/item/gun/ballistic/automatic/wt550/at41/update_icon_state()
 	icon_state = "at41[magazine ? "-[CEILING(get_ammo(0)/7, 1)*4]" : ""][chambered ? "" : "-e"]"
@@ -160,7 +160,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/wt550)
 
 /obj/item/gun/ballistic/automatic/wt550/wtadler
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Adler assault rifle"
 	desc = "A assault rifle manufactured by the military industrial complex Adler. Manufactured for use by militarized law enforcement security services."
 	icon = 'modular_bluemoon/fluffs/icons/obj/wtadler.dmi'
@@ -173,6 +172,7 @@
 	can_bayonet = TRUE
 	knife_x_offset = 25
 	knife_y_offset = 7
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/wtadler)
 
 /obj/item/gun/ballistic/automatic/wt550/wtadler/update_icon_state()
 	icon_state = "wtadler[magazine ? "-[CEILING(get_ammo(0)/7, 1)*4]" : ""][chambered ? "" : "-e"]"
@@ -184,7 +184,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/wt550)
 
 /obj/item/gun/ballistic/automatic/wt550/a46
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper A46-Cord"
 	desc = "Сбалансированная и простая в использовании автоматическая винтовка, сделанная на базе АЕК-971 и хоть придумана она была давно, но не получила такую популярность как её аналог AK-12."
 	icon = 'modular_bluemoon/fluffs/icons/obj/a46.dmi'
@@ -198,6 +197,7 @@
 	can_bayonet = TRUE
 	knife_x_offset = 42
 	knife_y_offset = 12
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/a46)
 
 /obj/item/gun/ballistic/automatic/wt550/a46/update_icon_state()
 	icon_state = "a46[magazine ? "-[CEILING(get_ammo(0)/7, 1)*4]" : ""][chambered ? "" : "-e"]"
@@ -209,7 +209,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/wt550)
 
 /obj/item/gun/ballistic/automatic/wt550/ots18
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper OTs-18 Groza"
 	desc = "Компактный штурмовой стрелково-гранатометный комплекс, сделанный на базе калашникова и переделанный под калибр 4.6x30."
 	icon = 'modular_bluemoon/fluffs/icons/obj/groza.dmi'
@@ -223,6 +222,7 @@
 	can_bayonet = TRUE
 	knife_x_offset = 40
 	knife_y_offset = 17
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/ots18)
 
 /obj/item/gun/ballistic/automatic/wt550/ots18/update_icon_state()
 	icon_state = "groza[magazine ? "-[CEILING(get_ammo(0)/7, 1)*4]" : ""][chambered ? "" : "-e"]"
@@ -234,7 +234,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/wt550)
 
 /obj/item/gun/ballistic/automatic/wt550/rs9
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper RS9"
 	desc = "The RS9 is an assault rifle designed for combat in narrow street areas. It has bayonet mount and is relatively lightweight. This model uses 4.6x30mm caliber."
 	icon = 'modular_bluemoon/fluffs/icons/obj/acrador_guns.dmi'
@@ -247,6 +246,7 @@
 	can_bayonet = TRUE
 	knife_x_offset = 40
 	knife_y_offset = 10
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/rs9)
 
 /obj/item/gun/ballistic/automatic/wt550/rs9/update_icon_state()
 	icon_state = "rs9[magazine ? "-[CEILING(get_ammo(0)/7, 1)*4]" : ""][chambered ? "" : "-e"]"
@@ -258,7 +258,6 @@
 	fromitem = list(/obj/item/flamethrower, /obj/item/flamethrower/full, /obj/item/flamethrower/full/tank)
 
 /obj/item/flamethrower/full/tank/m240
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "M240 Flamethrower"
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
 	icon_state = "m240"
@@ -267,6 +266,7 @@
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	create_with_tank = TRUE
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/flamethrower.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/flamethrower/full/tank/m240)
 
 /obj/item/modkit/old_kit
 	name = "H&K Luftkuss Kit"
@@ -275,7 +275,6 @@
 	fromitem = list(/obj/item/gun/energy/e_gun/advtaser)
 
 /obj/item/gun/energy/e_gun/advtaser/luftkuss
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "H&K Luftkuss"
 	desc = "An upgraded hybrid taser gun with several stripes, manufactured by the SolFed H&K arms company."
 	icon_state = "old"
@@ -285,6 +284,7 @@
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	ammo_type = list(/obj/item/ammo_casing/energy/disabler/luftkuss, /obj/item/ammo_casing/energy/electrode/security/luftkuss = FALSE)
 	ammo_x_offset = 0
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/e_gun/advtaser/luftkuss)
 
 /obj/item/ammo_casing/energy/disabler/luftkuss
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/luftkuss_disabler.ogg'
@@ -301,7 +301,6 @@
 	fromitem = list(/obj/item/gun/energy/e_gun/advtaser)
 
 /obj/item/gun/energy/e_gun/advtaser/dominator
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Dominator"
 	icon_state = "dominator"
 	item_state = "taser"
@@ -309,6 +308,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	ammo_x_offset = 0
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/e_gun/advtaser/dominator)
 
 /////////////////
 
@@ -319,13 +319,13 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/nue
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Araki Arms Nue"
 	desc = "Elegant, reliable and deadly, the semi-automatic, double-action pistol that fires .45 caliber ammunition and engineered to fit any hand. The handle is decorated with orange-colored ergonomic rubber with a Vulpkanin muzzle on it. It's looks familiar."
 	icon = 'modular_bluemoon/fluffs/icons/obj/32x36.dmi'
 	icon_state = "nue"
 	can_suppress = FALSE
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/nue_shoot.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/nue)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -342,7 +342,6 @@
 	fromitem = list(/obj/item/ammo_box/magazine/e45, /obj/item/ammo_box/magazine/e45/taser, /obj/item/ammo_box/magazine/e45/lethal, /obj/item/ammo_box/magazine/e45/stun, /obj/item/ammo_box/magazine/e45/hydra)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/malorian
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Araki Arms 2563"
 	desc = "The only one of it's kind, unique heavy pistol made specially for Vulpboy Shiro Araki. Sleek, sexy, rebellious. Equipped with a smart link, compatible with various ammunition types, highest quality and the collector's value is through the roof. "
 	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
@@ -350,6 +349,7 @@
 	can_suppress = FALSE
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/nue_shoot.ogg'
 	mag_type = /obj/item/ammo_box/magazine/e45/malorian
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/malorian)
 
 /obj/item/ammo_box/magazine/e45/malorian
 	name = "Araki Arms magazine"
@@ -372,7 +372,6 @@
 /////////////////////////////////////////////////////////////////////////////////////
 
 /obj/item/gun/ballistic/revolver/r45l/rt46
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper RT-46 The Tempest"
 	desc = "The Tempest belongs to the museum as a benchmark of Soviet design. Is it beautiful to look at? No. Comfortable to use? No. Safe? No. But effective? Damn effective."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -380,6 +379,7 @@
 	item_state = "rt46"
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/revolver/r45l/rt46)
 
 /obj/item/modkit/rt46
 	name = "RT-46 The Tempest Kit"
@@ -390,13 +390,13 @@
 //////////////////// AM4 уже есть в лодауте донатеров. Это лишь его рескин.
 
 /obj/item/gun/ballistic/automatic/AM4B/pchelik
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "GFYS"
 	desc = "На донк-софт оружии видна гравировка: 'Coopie'. Предназначено для нетравмирующего выкидывания существ из бара и самозащиты от приставал."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
 	icon_state = "coopie"
 	item_state = "arifle-wielded"
 	body_state = ""
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/AM4B/pchelik)
 
 /////////////////////////////////////////////////////////////////////////////////////
 
@@ -407,7 +407,6 @@
 	fromitem = list(/obj/item/melee/baton, /obj/item/melee/baton/loaded)
 
 /obj/item/melee/baton/stunblade
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "folding stunblade"
 	desc = "A stunblade made of several segments collapse into each other much like a spyglass, thus it can fit inside of the handle entirely. This utility combined with its dense metal makes it perfect for defensive maneuvers."
 	item_state = "stunblade"
@@ -416,6 +415,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	turn_on_sound = 'modular_bluemoon/fluffs/sound/weapon/stunblade.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/melee/baton/stunblade)
 
 /obj/item/melee/baton/stunblade/update_icon_state()
 	. = ..()
@@ -433,7 +433,6 @@
 	fromitem = list(/obj/item/melee/baton, /obj/item/melee/baton/loaded)
 
 /obj/item/melee/baton/razorsong
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "Razorsong MK-III"
 	desc = "A telescopic katana made of vibrating steel. The mechanism is very simple, but quite very sturdy. About 100 copies were made in production, because the limited material would not allow making many of these melee weapons. But this instance is the Razorsong MK-III, a more homemade modified version designed to work in the Security Service for non-lethal close-range combat."
 	item_state = "razorsong"
@@ -442,6 +441,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	turn_on_sound = 'modular_bluemoon/fluffs/sound/weapon/razorsong.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/melee/baton/razorsong)
 
 /obj/item/melee/baton/razorsong/update_icon_state()
 	. = ..()
@@ -456,7 +456,6 @@
 	fromitem = list(/obj/item/melee/baton, /obj/item/melee/baton/loaded)
 
 /obj/item/melee/baton/stunadler
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "Adler Stunsword"
 	desc = "A combat stun sword manufactured by the military industrial Complex Adler. It was created for the rapid neutralization of civilians and the use of peacekeepers by troops for destructive purposes."
 	item_state = "stunadler"
@@ -465,6 +464,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	turn_on_sound = "sparks"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/melee/baton/stunadler)
 
 /obj/item/melee/baton/stunadler/update_icon_state()
 	. = ..()
@@ -479,7 +479,6 @@
 	fromitem = list(/obj/item/melee/baton, /obj/item/melee/baton/loaded)
 
 /obj/item/melee/baton/tonfa
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "Stun Ton-Fa"
 	desc = "A non-lethal baton for suppressing manpower. Developed during the riots when the existence of the rifters was confirmed."
 	item_state = "tonfa"
@@ -488,6 +487,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	turn_on_sound = 'modular_bluemoon/fluffs/sound/weapon/tonfa.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/melee/baton/tonfa)
 
 /obj/item/melee/baton/tonfa/update_icon_state()
 	. = ..()
@@ -505,7 +505,6 @@
 	fromitem = list(/obj/item/melee/classic_baton/ntcane)
 
 /obj/item/melee/baton/stunntcane
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "Old Luxury Cane"
 	desc = "На вид потрепанная временем трость которая украшена золотом с не раз отреставрированным деревом и на ручке еле поблескивал алмаз. Такие имеют на некоторых станция Представители НТ как показатель статуса, этот же видимо скорее как память раз уж не заменялся владельцем видимо годами."
 	item_state = "cane_nt"
@@ -514,6 +513,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	turn_on_sound = 'modular_bluemoon/fluffs/sound/weapon/stunblade.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/melee/baton/stunntcane)
 
 /obj/item/melee/baton/stunntcane/update_icon_state()
 	. = ..()
@@ -537,22 +537,22 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/pf940
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper PF940"
 	desc = "A heavily modified Glock 21 pistol with some ergonomic parts and a caliber converted to .45, making it easy to find ammo at Edem stations. Your team is down, you're the only fella left. You- You'll just have to figure it out."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
 	icon_state = "pf940"
 	can_suppress = FALSE
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/pf940_shoot.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/pf940)
 
 /obj/item/gun/ballistic/automatic/pistol/g22/pf940
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper PF940"
 	desc = "A heavily modified Glock 21 pistol with some ergonomic parts and a caliber converted to .45, making it easy to find ammo at Edem stations. Your team is down, you're the only fella left. You- You'll just have to figure it out."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
 	icon_state = "pf940"
 	can_suppress = FALSE
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/pf940_shoot.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/g22/pf940)
 
 /obj/item/modkit/ks22_kit
 	name = "KS-22 Shotgun Kit"
@@ -561,7 +561,6 @@
 	fromitem = list(/obj/item/gun/ballistic/shotgun, /obj/item/gun/ballistic/shotgun/riot, /obj/item/gun/ballistic/shotgun/riot/syndicate)
 
 /obj/item/gun/ballistic/shotgun/riot/ks_22
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper KS-22"
 	desc = "Карабин Специальный-22М - ружьё с нарезным стволом. Многофункциональное полицейское оружие, предназначенное для пресечения массовых беспорядков, избирательного силового, психического и химического воздействия на правонарушителей."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -570,6 +569,7 @@
 	//chosen_icon = 'icons/mob/clothing/back.dmi'
 	icon_state = "KS-23M"
 	fire_sound = 'modular_bluemoon/fluffs/sound/shoot.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/riot/ks_22)
 
 /obj/item/gun/ballistic/shotgun/riot/ks_22/update_icon_state()
 	. = ..()
@@ -582,7 +582,6 @@
 	fromitem = list(/obj/item/gun/ballistic/shotgun, /obj/item/gun/ballistic/shotgun/riot, /obj/item/gun/ballistic/shotgun/riot/syndicate)
 
 /obj/item/gun/ballistic/shotgun/riot/mossberg
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Mossberg-590A"
 	desc = "Карабин Моссберг-590А - ружьё с нарезным стволом. Имеет умную РГБ подсветку, дабы каждый враг понимал, какая участь его сейчас настигнет."
 	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
@@ -591,6 +590,7 @@
 	icon_state = "mossberg_n"
 	item_state = "mossberg_n"
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/pf940_shoot.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/riot/mossberg)
 
 /obj/item/gun/ballistic/shotgun/riot/mossberg/update_icon_state()
 	var/state = "mossberg_l"
@@ -609,7 +609,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/ak12, /obj/item/gun/ballistic/automatic/ak12/r)
 
 /obj/item/gun/ballistic/automatic/ak12/g36
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper G-36"
 	desc = "Heckler & Koch Gewehr 36, G36 - семейство стрелкового оружия, разработанное в начале 1990-х немецкой компанией Heckler & Koch, под внутрифирменным обозначением HK 50, для замены хорошо известной автоматической винтовки HK G3."
 	icon_state = "G36"
@@ -619,6 +618,7 @@
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	mag_type = /obj/item/ammo_box/magazine/ak12/r
 	//chosen_icon = 'icons/mob/clothing/back.dmi'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/ak12/g36)
 
 /obj/item/modkit/legax
 	name = "Legax Gravpulser Kit"
@@ -651,7 +651,6 @@
 	fromitem = list(/obj/item/gun/ballistic/shotgun/automatic/rsh12)
 
 /obj/item/gun/ballistic/shotgun/automatic/rsh12/rs14
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "RS14"
 	desc = "Shotgun revolver. It was formerly a hunting weapon, but has since been adopted by the Rohai armies because of its ease of use, effectiveness and cheapness. This model uses 12 gauge."
 	item_state = "rs14"
@@ -660,6 +659,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/rs14shot.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/automatic/rsh12/rs14)
 
 /obj/item/modkit/rshield_kit
 	name = "Telescopic riot shield Kit"
@@ -683,18 +683,17 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/anstrum
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper SP 488 Anstrum"
 	desc = "A series of semi-automatic pistols designed and manufactured specifically for the Rohai Law Enforcement Units and as personal weapons for the senior army officers. The design is old but reliable, combining compactness with sufficient combat power for everyday tasks."
 	icon = 'modular_bluemoon/fluffs/icons/obj/acrador_guns.dmi'
 	icon_state = "anstrum"
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/anstrumshot.ogg'
 	pin = /obj/item/firing_pin/alert_level/blue
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/anstrum)
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
 /obj/item/gun/energy/e_gun/hos/dreadmk3
-	DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK
 	name = "\improper Законодатель MK3"
 	desc = "Стандартное оружие судей из Мега-Города Солнечной Федерации. Пистолет комплектуется несколькими типами боеприпасов, иногда набор снарядов отличается от стандартного в зависимости от миссии судьи. Оснащён биометрическим датчиком ладони — оружие может применять только судья, а при несанкционированном использовании в рукояти срабатывает взрывное устройство. Этот же пистолет на радость недругов что преступают Закон, со сломанной биометрией ради стандартизации электронных бойков."
 	icon = 'modular_bluemoon/fluffs/icons/obj/dreadmk3.dmi'
@@ -705,6 +704,7 @@
 	charge_sections = 3
 	flight_x_offset = 21
 	flight_y_offset = 14
+DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK(/obj/item/gun/energy/e_gun/hos/dreadmk3)
 
 /obj/item/ammo_casing/energy/disabler/dreadmk3
 
@@ -716,22 +716,22 @@
 /obj/item/ammo_casing/energy/electrode/hos/dreadmk3
 
 /obj/item/modkit/dreadmk3_kit
-	DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK
 	name = "Законодатель MK3 Kit"
 	desc = "A modkit for making a MultiPhase Energy Gun into Законодатель MK3."
 	icon = 'icons/obj/device.dmi'
 	icon_state = "modkit"
 	product = /obj/item/gun/energy/e_gun/hos/dreadmk3/talking
 	fromitem = list(/obj/item/gun/energy/e_gun/hos)
+DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK(/obj/item/modkit/dreadmk3_kit)
 
 ////////////////////////////////////////////////////////////////////////////////////////
 /obj/item/gun/energy/e_gun/institute
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Карабин Института"
 	desc = "Институтский лазер — это оружейная система, разработанная Институтом после его изоляции с началом Великой войны. Все синты служащие в качестве солдат, рабочих или охотников, а также человеческие учёные организации, получают пистолет или винтовку собственного дизайна организации, сконструированные Высшими системами и массово производимые на заводе, расположенном в их штаб-квартире. На данный момент такая модель считается устаревшей, Механизмы батареи на ядерной энергии заменены на внутренние, однако она всё еще достойно работает и по сей день."
 	icon_state = "institute"
 	ammo_type = list(/obj/item/ammo_casing/energy/disabler/institute, /obj/item/ammo_casing/energy/laser/institute)
 	ammo_x_offset = 1
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/e_gun/institute)
 
 /obj/item/ammo_casing/energy/disabler/institute
 	fire_sound = 'sound/weapons/laserinstitute.ogg'
@@ -750,12 +750,12 @@
 ////////////////////////////////////////////////////////////////////////////////////////
 
 /obj/item/gun/energy/laser/carbine/aer9
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Лазер AER9"
 	desc = "В AER9 не использовались передовые довоенные технологии, что значительно повысило её надежность. Эта модель представляет собой обычный твердотельный импульсный лазер, активная среда которого (кристалл), заключена в титановый корпус, что позволяет выдерживать годы воздействия окружающей среды без потери технических характеристик. На данный момент такая модель считается устаревшей, Механизмы батареи на ядерной энергии заменены на внутренние, однако она всё еще достойно работает и по сей день."
 	ammo_type = list(/obj/item/ammo_casing/energy/laser/aer9)
 	icon_state = "lasernew_alt"
 	item_state = "laser_old-wielded"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/laser/carbine/aer9)
 
 /obj/item/ammo_casing/energy/laser/aer9
 	fire_sound = 'sound/weapons/aer9_riflelaser.ogg'
@@ -804,7 +804,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/p320
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper P320"
 	desc = "P320 — модульный полуавтоматический пистолет. Данная версия пистолета была собрана под .45 калибр."
 	icon = 'modular_bluemoon/fluffs/icons/obj/P320.dmi'
@@ -825,6 +824,7 @@
 			"name" = "Millie P320"
 		)
 	)
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/p320)
 
 /obj/item/modkit/M9tempest_kit
 	name = "M-9 Tempest Kit"
@@ -833,7 +833,6 @@
 	fromitem = list(/obj/item/gun/energy/e_gun/advtaser)
 
 /obj/item/gun/energy/e_gun/advtaser/M9tempest
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper M-9 Tempest"
 	icon_state = "M9tempest"
 	item_state = "M9tempest"
@@ -841,6 +840,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	ammo_x_offset = 0
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/e_gun/advtaser/M9tempest)
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -851,7 +851,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/dedication
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Magnetic Pistol Dedication"
 	desc = "A magnetic pistol used in all units of Adler's armed peacekeepers. It is mass-produced by the Adler military-industrial complex and has already entered the space trade market. It includes several advantages, for example, an identifier built into the handle, which transmits the remaining ammunition to the interface of the helmet or glasses, which allows better control of the weapon, as well as an integrated sight, which, however, is effective only at close ranges. He usually has a badge corresponding to his military rank, but this one doesn't seem to have any identification marks on it. Most often, because the owner belongs to Adler's foreign armed formations, which are not controlled by the general directorate of corporate officials. For example, he is assigned to a high-ranking officer."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -860,6 +859,7 @@
 	icon_state = "dedication"
 	item_state = "dedication"
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/adlershot.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/dedication)
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -886,12 +886,12 @@
 ////////////////////////////////////////////////////////////////////////////////////////
 
 /obj/item/gun/energy/e_gun/hos/Anabel
-	DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK
 	name = "\improper Anabel"
 	desc = "This is an expensive, modern recreation of an antique laser gun. This gun has several unique firemodes, but lacks the ability to recharge over time in exchange for inbuilt advanced firearm EMP shielding. <span class='boldnotice'>Right click in combat mode to fire a taser shot with a cooldown.</span>"
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
 	icon_state = "Anabel"
 	ammo_x_offset = 0
+DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK(/obj/item/gun/energy/e_gun/hos/Anabel)
 
 /obj/item/ammo_casing/energy/laser/lightliz
 	projectile_type = /obj/item/projectile/beam/laser/heavylaser
@@ -903,12 +903,11 @@
 	name = "Anabel Kit"
 	desc = "A modkit for making a Miniature Energy Gun into Anabel."
 	product = /obj/item/gun/energy/e_gun/hos/Anabel
-	fromitem = list(/obj/item/gun/energy/e_gun/mini, /obj/item/gun/energy/e_gun/mini/expeditor)
+	fromitem = list(/obj/item/gun/energy/e_gun/mini)
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
 /obj/item/gun/ballistic/revolver/detective/rsh_future
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "RSH-Future"
 	desc = "An unusual revolver, clearly custom-made, the RuSH to the Future! Lightweight body is made of materials that not only make it easier to handle, but also absorb the sound of the shot, ensuring the further use of 38 caliber"
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -917,6 +916,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/rshfuture_shot.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/revolver/detective/rsh_future)
 
 /obj/item/modkit/rsh_future
 	name = "Special .38 Mars Kit"
@@ -929,7 +929,6 @@
 ///////////////////////////////////////////////
 
 /obj/item/gun/ballistic/automatic/wt550/stg56
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper StG-56"
 	desc = "Recreated from old blueprints using the latest materials and a pinch of technology. This rifle will still serve well in its lifetime."
 	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
@@ -939,6 +938,7 @@
 	item_state = "stg56"
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/stg56_shoot.ogg'
 	can_bayonet = FALSE
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/stg56)
 
 /obj/item/gun/ballistic/automatic/wt550/stg56/update_icon_state()
 	icon_state = "stg56[magazine ? "" : "-e"]"
@@ -953,22 +953,28 @@
 
 /obj/item/modkit/nebular_kit
 	name = "Nebular Gun Kit"
-	desc = "A modkit for making a Enforcer Gun into a Nebular-9."
+	desc = "A modkit for making a Enforcer Gun into a Nebular .75 (M. P-45)."
+	icon_state = "enforcer_kit"
 	product = /obj/item/gun/ballistic/automatic/pistol/enforcer/nebular
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/nebular
-	DONATE_ITEM_TOOLTIP_PARENT
-	name = "\improper Nebular-9"
-	desc = "Трофей. 45 калибр. Унифицированное оружие самозащиты, выдаваемое каждому без исключения жителю-Касари флота-государства Небулы по окончании ими первой стадии жизни. Крайне редок, в сравнении с иным огнестрельным оружием галактики - штучный товар, использующий замысловатую систему заряжания и некоторые технически трудно реализуемые решения, крайне мешающие реверс-инженерингу и стороннему производству. Благодаря нему каждый житель Небулы может дать отпор неприятелю извне, коих у них полно. Не только эффективно, но и со стилем."
+	name = "\improper Nebular .75 (M. P-45)"
+	desc = "Оригинальный пистолет - это главный символ флота-государства \"Небулы\" - настоящая ручная ракетная установка под управляемые реактивные снаряды в скромном корпусе пистолета. Штатно, оснащается отличными мозгами - системой связи с оператором, корректировщиком огня, системой автонаведения, системой управления снарядами и шедевральной системой защиты от неавторизованого использования.\nЭтот же вариант - не только электронный кастрат не имеющий обязательных модулей, но ещё и конструктивно ближе к бревну, чем к оригиналу. Он - хоть и качественно, но все же сильно переделанный образец оружия, в обычный пистолет .45 калибра. На месте стандартно устанавливающейся электроники зияет дыра, а сбоку на стволе красуется унижительная надпись \"в ПАКТ\"."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
 	icon_state = "nebular-9"
 	unique_reskin = null
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
-	item_state = "Nebular-9"
-	can_flashlight = TRUE
-	gunlight_state = "nebular-light"
+	item_state = "nebular-9"
+	can_flashlight = FALSE
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/Nebular-shot.ogg'
+	load_sound = 'modular_bluemoon/fluffs/sound/weapon/Nebular-magazine-in.ogg'
+	load_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/Nebular-magazine-in.ogg'
+	eject_sound = 'modular_bluemoon/fluffs/sound/weapon/Nebular-magazine-out.ogg'
+	eject_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/Nebular-magazine-out.ogg'
+	lock_back_sound = 'modular_bluemoon/fluffs/sound/weapon/Nebular-rack.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/nebular)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/nebular/get_worn_belt_overlay(icon_file)
 	return null
@@ -991,7 +997,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/p226_syndicate
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper P226 'Syndicate'"
 	desc = "Наградной пистолет модели P226 красного цвета. На верхней части рукоятки присутствует выбитый символ Триглава Синдиката с черной 'S' на кроваво-красном фоне. Кожух ствола переливается кроваво-медным отблеском на свете. Бок рукоятки украшен золотистыми буквами 'ЗА ОТЛИЧНУЮ СЛУЖБУ'."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -1000,91 +1005,19 @@
 	unique_reskin = null
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/p226_syndicate)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/p226_syndicate/get_worn_belt_overlay(icon_file)
 	return null
 
-/obj/item/modkit/katana_kit
-	name = "Stun-Katana Kit"
-	desc = "A modkit for making a stunsword into a Stun-Katana."
-	product = /obj/item/melee/baton/stunsword/stunkatana
-	fromitem = list(/obj/item/melee/baton/stunsword)
-
-#define STUNKATANA_BASE_STATE "stunkatana"
-
-/obj/item/melee/baton/stunsword/stunkatana
-	DONATE_ITEM_TOOLTIP_PARENT
-	name = "\improper Stun-Katana"
-	desc = "Оружие специальных подразделений ЧВК \"Конкорд\", способное одним только ударом разрезать мехов словно раскалённый нож масло... Ах, было бы славно, если бы он и оставался таким. К сожалению, из-за политики ПАКТа, максимальная сила режущей энерго-кромки выставлена на 1-2 процента, а предоставляемые энергоячейки едва ли могут сравниться с боевыми образцами, что делает этот поистинне мощный клинок лишь средством нелетального задержания с ноткой хайтека и напыщенности."
-	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
-	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
-	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
-	icon_state = STUNKATANA_BASE_STATE
-	item_state = STUNKATANA_BASE_STATE
-	turn_on_sound = 'modular_bluemoon/fluffs/sound/weapon/stunblade.ogg'
-
-/obj/item/melee/baton/stunsword/stunkatana/switch_status(new_status, silent)
-	var/old_status = turned_on
-	. = ..()
-	if(turned_on != old_status)
-		switch_light()
-
-/obj/item/melee/baton/stunsword/stunkatana/common_baton_melee(mob/M, mob/living/user, shoving = FALSE)
-	. = ..()
-	// После удара — обновляем иконку и свет по текущему заряду.
-	update_icon_state()
-	switch_light()
-
-/obj/item/melee/baton/stunsword/stunkatana/update_icon_state()
-	if(!cell)
-		icon_state = "[STUNKATANA_BASE_STATE]-nocell"
-		item_state = STUNKATANA_BASE_STATE
-		return
-
-	if(cell.charge <= 0)
-		icon_state = "[STUNKATANA_BASE_STATE]-nocharge"
-		item_state = STUNKATANA_BASE_STATE
-		return
-
-	var/charge_percent = cell.charge / cell.maxcharge
-	if(turned_on)
-		if(charge_percent > 0.5)
-			icon_state = "[STUNKATANA_BASE_STATE]-on"
-			item_state = "[STUNKATANA_BASE_STATE]_active"
-		else
-			icon_state = "[STUNKATANA_BASE_STATE]-on-half"
-			item_state = "[STUNKATANA_BASE_STATE]_half"
-	else
-		icon_state = "[STUNKATANA_BASE_STATE]-off[charge_percent <= 0.5 ? "-half" : ""]"
-		item_state = STUNKATANA_BASE_STATE
-
-/obj/item/melee/baton/stunsword/stunkatana/proc/switch_light()
-	if(!cell)
-		set_light(0)
-		return
-
-	if(turned_on)
-		if(cell.charge <= 0)
-			set_light(3, 0.9, "#ff0000")
-		else
-			var/charge_percent = cell.charge / cell.maxcharge
-			if(charge_percent > 0.5)
-				set_light(3, 0.9, "#B6EEE9")
-			else
-				set_light(3, 0.9, "#D9CD8E")
-	else
-		set_light(0)
-
-#undef STUNKATANA_BASE_STATE
-
 /obj/item/modkit/nebular_t_kit
 	name = "Nebular-T Kit"
 	desc = "A modkit for making a hybrid taser into a Nebular-T."
+	icon_state = "taser_kit"
 	product = /obj/item/gun/energy/e_gun/advtaser/nebular_t
 	fromitem = list(/obj/item/gun/energy/e_gun/advtaser)
 
 /obj/item/gun/energy/e_gun/advtaser/nebular_t
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Nebular-T"
 	desc = "Нелетальная версия и далёкий сородич обычного Небулара-9, использующийся в специальных и диверсионных операциях, благодаря своей исключительной мощности способен повалить человека на пол за одно попадание даже через толстую броню с расстояния до ста метров, все из за использования заряженных пучков энергии. В случае поставляемого на ПАКТ варианта - он значительно ослаблен, взамен имеет куда больше зарядов, что позволяет его относительно эффективно использовать в СБ, полностью исключая травмы от применения, что выгодно отличает его от штатной модели."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -1092,8 +1025,8 @@
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	icon_state = "nebular-t"
 	item_state = "Nebular-9"
-	can_flashlight = TRUE
-	gunlight_state = "nebular-light"
+	can_flashlight = FALSE
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/e_gun/advtaser/nebular_t)
 
 /obj/item/gun/energy/e_gun/advtaser/nebular_t/get_worn_belt_overlay(icon_file)
 	return null
@@ -1125,34 +1058,14 @@
 	else if(charge_percent<=0.1)
 		. += "nebular-t-0"
 
-
-/obj/item/modkit/nul_kit
-	name = "Nul Kit"
-	desc = "A modkit for making an combat knife into a Sword of Nul."
-	product = /obj/item/kitchen/knife/combat/nul
-	fromitem = list(/obj/item/kitchen/knife/combat)
-
-/obj/item/kitchen/knife/combat/nul
-	name = "\improper Sword of Nul"
-	desc = "Короткое прямое бронзовое лезвие, однако оружие слегка позеленело от времени. Он по прежнему острый, очень острый, острее даже тончайшей стали. Фактически, меч острее, чем теоретически возможно для бронзового оружия. На нем отсутствуют какие-либо украшения, за исключение грубо выполненного черепа, вырезанного посередине рукояти. Когда-то рукоять была обернута кожей или тканью, которая со временем сгнила, оставив только голый металл. Поговаривают, его выковал сам Драконскир, могущественный демон, где-то в третьем тысячелетии до нашей эры для защиты города Ур от вторгшихся сил военачальника Урлона из Урука."
-	item_state = "sword-nul"
-	icon_state = "sword-nul"
-	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
-	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
-	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
-
-/obj/item/kitchen/knife/combat/nul/Initialize(mapload)
-	.=..()
-	set_light(3, 0.9, "#1D6416")
-
 /obj/item/modkit/supernova_kit
 	name = "Supernova Kit"
 	desc = "A modkit for making a combat shotgun into a Supernova."
+	icon_state = "combat-shotgun_kit"
 	product = /obj/item/gun/ballistic/shotgun/automatic/combat/supernova
 	fromitem = list(/obj/item/gun/ballistic/shotgun/automatic/combat)
 
 /obj/item/gun/ballistic/shotgun/automatic/combat/supernova
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Supernova"
 	desc = "Помповый дробовик специального назначения, используемый на общих основаниях силами правопорядка некоторых технически-развитых миров и самими обитателями Небулы. Благодаря номенклатуре боеприпасов, способен исполнять почти любую задачу - от подавления беспорядков до использования в некоторых около-военных операциях и охранения объектов. Распространён слабо, ввиду того что его исполнение не выдерживает никакой критики в плане сохранения боевых характеристик вне близких к стерильным условий, так как используется в основном в космическом пространстве. Данная версия - ещё и кастрат, с уменьшенным магазином и урезанной скорострельностью, для предотвращения \"перегибов\" на местах"
 	unique_reskin = list()
@@ -1162,6 +1075,7 @@
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/back.dmi'
 	item_state = "supernova"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/automatic/combat/supernova)
 
 /obj/item/gun/ballistic/shotgun/automatic/combat/supernova/update_icon_state()
 	var/ammo = magazine ? magazine.ammo_count() : 0
@@ -1187,6 +1101,7 @@
 /obj/item/modkit/pulsar_knife_kit
 	name = "Kasari ritual knife Kit"
 	desc = "A modkit for making a combat knife into a kasari ritual knife."
+	icon_state = "kasari-knife_kit"
 	product = /obj/item/kitchen/knife/combat/pulsar
 	fromitem = list(/obj/item/kitchen/knife/combat)
 
@@ -1206,7 +1121,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/casull
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Casull"
 	desc = "Касулл - полуавтоматический пистолет из серебра с деревянной рукоятью, затвор сделан из золота, также на нём выгравирована надпись \"454 Casull\". С противоположной стороны выгравирована надпись \"Hellsing ARMS .454 Casull Auto\". Длина - 39 см, масса незаряженного пистолета - 6кг, заряжается пулями .454 Casull, давших пистолету его имя."
 	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
@@ -1215,6 +1129,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	item_state = "casul"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/casull)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/casull/update_icon_state()
 	icon_state = "[initial(icon_state)][chambered ? "" : "-e"][suppressed ? "-suppressed" : ""][magazine && istype(magazine, /obj/item/ammo_box/magazine/e45/e45_extended) ? "-expended" : ""]"
@@ -1228,14 +1143,14 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold, /obj/item/gun/ballistic/automatic/pistol/enforcer/bwal2572)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/bwal_special
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper B-Wal-Special"
-	desc = "A unique example of an improved pistol used by the regular Catcrin Army. The personal number AV-000492 is engraved in gold on the barrel. Judging by its appearance, it belongs to someone of high rank."
+	desc = "A unique example of an improved pistol used by the regular Catcrin Army. Judging by its appearance, it belongs to someone of high rank."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
 	icon_state = "bwal_spec"
 	fire_sound = 'modular_bluemoon/fluffs/code/modules/catcrin/sounds/weapons/bwalshot.ogg'
 	unique_reskin = null
 	obj_flags = NONE
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/bwal_special)
 
 /obj/item/modkit/captain_rifle_kit
 	name = "Antique Laser Rifle kit"
@@ -1244,9 +1159,8 @@
 	fromitem = list(/obj/item/gun/energy/laser/captain)
 
 /obj/item/gun/energy/laser/captain/rifle
-	DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK
 	name = "Antique Laser Rifle"
-	desc = "A unique, custom-made Captain's Laser. It's made of titanium and gold alloy with a nickel finish. The rifle is engraved with the serial number AV-000492 in gold. The grip is made of hard carbon fiber, treated with a layer of Kevlar. The top layer of the grip is covered in Trixan ebony, which makes it feel even more premium. It feels incredibly expensive."
+	desc = "A unique, custom-made Captain's Laser. It's made of titanium and gold alloy with a nickel finish. The grip is made of hard carbon fiber, treated with a layer of Kevlar. The top layer of the grip is covered in Trixan ebony, which makes it feel even more premium. It feels incredibly expensive."
 	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
 	icon_state = "captain_rifle"
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
@@ -1256,6 +1170,7 @@
 	unique_reskin = null
 	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/back.dmi'
 	alternate_worn_layer = SUIT_STORE_LAYER
+DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK(/obj/item/gun/energy/laser/captain/rifle)
 
 /obj/item/gun/energy/laser/captain/rifle/amogus
 	name = "Fancy Laser Rifle"
@@ -1298,7 +1213,6 @@
 		modified_item.update_icon()
 
 /obj/item/gun/ballistic/automatic/laser/lasgun/mpl_21
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "MPL-21"
 	desc = "Modural Personal Laser its a ergonomic direct heating system that uses flat box magazines with pre-charged energy cartridges."
 	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
@@ -1309,6 +1223,7 @@
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/mpl21_shot.ogg'
 	base_pixel_x = -8
 	var/const/custom_mag_type = /obj/item/ammo_box/magazine/recharge/lasgun/mpl_21
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/laser/lasgun/mpl_21)
 
 /obj/item/gun/ballistic/automatic/laser/lasgun/mpl_21/Initialize(mapload)
 	. = ..()
@@ -1367,7 +1282,6 @@
 	fromitem = list(/obj/item/gun/energy/laser)
 
 /obj/item/gun/energy/laser/lcr_29
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "LCR-29"
 	desc = "Laser Combat Rifle with a non-removable battery and a single lethal mode, which can only be charged from an external source through the charging port."
 	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
@@ -1380,6 +1294,7 @@
 	charge_sections = 2
 	shaded_charge = TRUE
 	modifystate = FALSE
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/laser/lcr_29)
 
 /obj/item/ammo_casing/energy/lasergun/lcr_29
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/lcr29_shot.ogg'
@@ -1395,7 +1310,6 @@
 	fromitem = list(/obj/item/gun/energy/e_gun/advtaser)
 
 /obj/item/gun/energy/e_gun/advtaser/m3_predator
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "M-3 Predator"
 	desc = "Reliable, accurate, and easy to handle. The \"Predator\" is marketed by Elanus Risk Control Services as an effective and relatively inexpensive weapon from another galaxy. Although it is rarely purchased by the military due to its limited effectiveness against kinetic barriers."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -1407,6 +1321,7 @@
 	shaded_charge = TRUE
 	modifystate = FALSE
 	ammo_type = list(/obj/item/ammo_casing/energy/disabler/m3_predator, /obj/item/ammo_casing/energy/electrode/security/m3_predator = FALSE)
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/e_gun/advtaser/m3_predator)
 
 /obj/item/ammo_casing/energy/disabler/m3_predator
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/m3_predator_disabler.ogg'
@@ -1417,7 +1332,6 @@
 ///////////////////////////////////////////////
 
 /obj/item/gun/ballistic/automatic/pistol/g22/anomalist
-	DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK
 	name = "\improper Gelriter-22 M-1"
 	desc = "Prototype submachine gun of the Catcrin army. Looks like it just came from the factory, not a single scratch. Despite its dimensions, it is lightweight due to the epoxy body combined with metal elements. Equipped with additional grips and holographic sights. On the right side, the image: a hand reaches from the darkness toward the light."
 	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
@@ -1437,6 +1351,7 @@
 	unlock_sound = 'modular_bluemoon/fluffs/sound/weapon/SAR_Bolt_unlock.ogg'
 	flight_x_offset = 32
 	flight_y_offset = 14
+DONATE_ITEM_TOOLTIP_PARENT_HIGHRISK(/obj/item/gun/ballistic/automatic/pistol/g22/anomalist)
 
 /obj/item/gun/ballistic/automatic/pistol/g22/anomalist/update_icon_state()
 	icon_state = "[initial(icon_state)][chambered ? "" : "-a"]"
@@ -1460,9 +1375,10 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'; \
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'; \
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/cz_75_shoot.ogg'; \
-	base_pixel_y = -4; \
-\
-	get_gunlight_overlay() { \
+	base_pixel_y = -4
+
+#define CZ75_PROCS(path) \
+	##path/get_gunlight_overlay() { \
 		if(!gun_light) \
 			return; \
 		var/mutable_appearance/flashlight_overlay = mutable_appearance(icon, "[initial(icon_state)]-flashlight[gun_light.on ? "-on" : ""]"); \
@@ -1471,9 +1387,9 @@
 		return flashlight_overlay; \
 	} \
 \
-	update_icon_state() { \
+	##path/update_icon_state() { \
 		icon_state = "[current_skin ? unique_reskin[current_skin]["icon_state"] : initial(icon_state)][chambered ? "" : "-e"][suppressed ? "-suppressed" : ""][magazine && istype(magazine, /obj/item/ammo_box/magazine/e45/e45_drum) ? "-drum" : ""]"; \
-	} ;
+	}
 
 /obj/item/modkit/cz_75
 	name = "CZ-75 kit"
@@ -1492,25 +1408,28 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcerred)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcer/cz_75
-	DONATE_ITEM_TOOLTIP_PARENT
 	CZ75_COMMON
 	name = "\improper CZ-75"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/cz_75)
+CZ75_PROCS(/obj/item/gun/ballistic/automatic/pistol/enforcer/cz_75)
 
 /obj/item/gun/ballistic/automatic/pistol/enforcerred/cz_75_auto
-	DONATE_ITEM_TOOLTIP_PARENT
 	CZ75_COMMON
 	name = "\improper CZ-75 Auto"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcerred/cz_75_auto)
+CZ75_PROCS(/obj/item/gun/ballistic/automatic/pistol/enforcerred/cz_75_auto)
 
 #undef CZ75_COMMON
+#undef CZ75_PROCS
 
 /obj/item/modkit/quasar_kit
 	name = "Quasar Kit"
 	desc = "A modkit for making a advanced energy gun into a Quasar."
 	product = /obj/item/gun/energy/e_gun/nuclear/quasar
+	icon_state = "advanced-energy-gun_kit"
 	fromitem = list(/obj/item/gun/energy/e_gun/nuclear)
 
 /obj/item/gun/energy/e_gun/nuclear/quasar
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Quasar"
 	desc = "Продвинутая лазерная установка с микрореакторной батареей внутри. Удивительно надёжна в роли лазерной указки, и куда менее применима в бою из за низкого урона. Тем не менее, пользуется спросом ввиду простоты применения и буквально бесплатной эксплуатации, не требующей каких либо вложений."
 	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
@@ -1519,6 +1438,7 @@
 	icon_state = "quasar"
 	item_state = "quasar"
 	can_flashlight = FALSE
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/e_gun/nuclear/quasar)
 
 /obj/item/gun/energy/e_gun/nuclear/quasar/update_overlays()
 	..()
@@ -1537,11 +1457,11 @@
 /obj/item/modkit/comet_kit
 	name = "Comet Kit"
 	desc = "A modkit for making a WT-550 PDW into a Comet."
+	icon_state = "sec-pdw_kit"
 	product = /obj/item/gun/ballistic/automatic/wt550/comet
 	fromitem = list(/obj/item/gun/ballistic/automatic/wt550)
 
 /obj/item/gun/ballistic/automatic/wt550/comet
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Comet"
 	desc = "Следствие желания поиграть в тактикульность во всей своей красе - один из тех образцов оружия, что способны одним своим видом внушить веру в собственную исключительность. Данный образец очевидно же, заметно изменён - на фоне превосходного исполнения невооружённым взглядом видна работа гаражного мастера, что сменил боеприпас, которым питается оружие - все ради совместимости с патронами ПАКТа."
 	unique_reskin = list()
@@ -1551,6 +1471,7 @@
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/back.dmi'
 	item_state = "comet"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/comet)
 
 /obj/item/gun/ballistic/automatic/wt550/comet/update_icon_state()
 	if(!magazine || magazine.ammo_count() <= 0)
@@ -1572,11 +1493,11 @@
 /obj/item/modkit/neutron_kit
 	name = "Neutron Kit"
 	desc = "A modkit for making a X-ray laser gun into a Neutron."
+	icon_state = "xray-gun_kit"
 	product = /obj/item/gun/energy/xray/neutron
 	fromitem = list(/obj/item/gun/energy/xray)
 
 /obj/item/gun/energy/xray/neutron
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Neutron"
 	desc = "Ученый внутри вас не может нарадоваться, это оружие - настоящее изнасилование идеи о мирном применении рентгеновского излучения. Концентрированные пучки испускаемые этой бандурой способны выжигать даже металл, единственное что омрачает - ограничение конструкции, не дающее возможности использовать этого кастрата что бы аннигилировать надоедливого клоуна за один выстрел до состояния бесформенной массы."
 	unique_reskin = list()
@@ -1586,6 +1507,7 @@
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/back.dmi'
 	item_state = "neutron"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/xray/neutron)
 
 /obj/item/gun/energy/xray/neutron/update_icon_state()
 	if(!cell || cell.charge <= 0)
@@ -1606,14 +1528,15 @@
 		. += "neutron-1"
 	else if(charge_percent<0.1)
 		. += "neutron-0"
+
 /obj/item/modkit/spectral_kit
 	name = "Spectral Kit"
 	desc = "A modkit for making a temperature gun into a Spectral."
+	icon_state = "thermal-gun_kit"
 	product = /obj/item/gun/energy/temperature/spectral
 	fromitem = list(/obj/item/gun/energy/temperature,/obj/item/gun/energy/temperature/security) // на всякий и второй тип добавлю
 
 /obj/item/gun/energy/temperature/spectral
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Spectral"
 	desc = "Незаурядный образец касарийского военпрома, предназначенный же правда по большей части на экспорт в силы правопорядка. Сам по себе почти безвреден, что бы им убить надо постараться."
 	unique_reskin = list()
@@ -1622,6 +1545,7 @@
 	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	item_state = "spectral"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/energy/temperature/spectral)
 
 /obj/item/gun/energy/temperature/spectral/update_overlays()
 	. = ..()                         // обязательно — must_call_parent
@@ -1644,11 +1568,11 @@
 /obj/item/modkit/pulsar_kit
 	name = "Pulsar Kit"
 	desc = "A modkit for making a Riot Shotgun into a Pulsar."
+	icon_state = "riot-shotgun_kit"
 	product = /obj/item/gun/ballistic/shotgun/riot/pulsar
 	fromitem = list(/obj/item/gun/ballistic/shotgun/riot)
 
 /obj/item/gun/ballistic/shotgun/riot/pulsar
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper Pulsar"
 	desc = "Разработка сумрачного касарийского гения, тактический дробовик общего пользования, предназначенный для более опытных стрелков не только из-за специфического хвата, но и из-за тяжести в перезарядке, и из-за большого требования к физической силе."
 	unique_reskin = list()
@@ -1658,6 +1582,7 @@
 	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
 	mob_overlay_icon = 'modular_bluemoon/fluffs/icons/mob/back.dmi'
 	item_state = "pulsar-shot"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/riot/pulsar)
 
 /obj/item/gun/ballistic/shotgun/riot/pulsar/update_icon_state()
 	if(sawn_off)
@@ -1689,7 +1614,6 @@
 	fromitem = list(/obj/item/gun/ballistic/automatic/wt550, /obj/item/gun/ballistic/automatic/wt550/standart)
 
 /obj/item/gun/ballistic/automatic/wt550/warder_9r
-	DONATE_ITEM_TOOLTIP_PARENT
 	name = "\improper 9R Warder"
 	desc = "The 9R Warder pistol was developed as an improved version of the civilian HK MP5K submachine gun. It fires 4.6x30mm bullets and features attachments for a bayonet and a silencer. It boasts good accuracy at medium and close ranges. It is often used by mercenaries in certain sectors of the frontier. The model has been repainted to match the owner's style."
 	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
@@ -1700,11 +1624,12 @@
 	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/warder_r9_shoot.ogg'
 	base_pixel_x = -10
 	unique_reskin = list(
-		"Default" = list(),
+		RESKIN_EMPTY,
 		"Alt" = list(
 			RESKIN_ICON_STATE = "warder_9r-alt"
 		)
 	)
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/warder_9r)
 
 /obj/item/gun/ballistic/automatic/wt550/warder_9r/update_icon_state()
 	icon_state = current_skin ? unique_reskin[current_skin]["icon_state"] : initial(icon_state)
@@ -1721,3 +1646,388 @@
 		. += "[base_state]-mag"
 	if(suppressed)
 		. += mutable_appearance(icon, "[base_state]-suppressor", pixel_x = 11)
+
+/obj/item/modkit/vp78tactic
+	name = "VP78 Tactic ModKit"
+	desc = "A modkit for making an tactic version of Enforcer pistol."
+	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcerred)
+
+/obj/item/modkit/vp78tactic/afterattack(atom/target, mob/user, proximity_flag, click_parameters)
+	if(istype(target, /obj/item/gun/ballistic/automatic/pistol/enforcerred))
+		product = /obj/item/gun/ballistic/automatic/pistol/enforcerred/vp78tactic
+	else
+		product = /obj/item/gun/ballistic/automatic/pistol/enforcer/vp78tactic
+	. = ..()
+
+/obj/item/gun/ballistic/automatic/pistol/enforcer/vp78tactic
+	name = "VP78 Tactic (.45)"
+	desc = "A massive, modifide, formidable semi-automatic handgun chambered in .45 inch squash-head rounds. Typicly used by PMC forces. This weapon is also undergoing limited field testing as part of the SolFed next generation pistol program. The slide is engraved with some logo reminding you who's really in charge."
+	icon = 'modular_bluemoon/fluffs/icons/obj/vptactic.dmi'
+	icon_state = "vptactic"
+	flight_x_offset = 19
+	unique_reskin = null
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_shot.ogg'
+	load_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_reload.ogg'
+	load_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_reload.ogg'
+	eject_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_unload.ogg'
+	eject_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_unload.ogg'
+	hole = null
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/vp78tactic)
+
+/obj/item/gun/ballistic/automatic/pistol/enforcer/vp78tactic/CtrlShiftClick(mob/living/carbon/human/user as mob)
+	return
+
+/obj/item/gun/ballistic/automatic/pistol/enforcerred/vp78tactic
+	name = "VP78 Tactic (.45)"
+	desc = "A massive, modifide, formidable fully automatic handgun chambered in .45 inch squash-head rounds. Typicly used by PMC forces. This weapon is also undergoing limited field testing as part of the SolFed next generation pistol program. The slide is engraved with some logo reminding you who's really in charge."
+	icon = 'modular_bluemoon/fluffs/icons/obj/vptactic.dmi'
+	icon_state = "vptactic"
+	flight_x_offset = 19
+	unique_reskin = null
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_shot.ogg'
+	load_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_reload.ogg'
+	load_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_reload.ogg'
+	eject_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_unload.ogg'
+	eject_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/vptactic_unload.ogg'
+	hole = null
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcerred/vp78tactic)
+
+// No sex allowed
+/obj/item/gun/ballistic/automatic/pistol/enforcerred/vp78tactic/CtrlShiftClick(mob/living/carbon/human/user as mob)
+	return
+
+/obj/item/modkit/largrizzly_kit
+	name = "Lar Grizzly Kit"
+	desc = "A modkit for making an Enforcer into a Lar Grizzly Mark V."
+	product = /obj/item/gun/ballistic/automatic/pistol/enforcer/largrizzly
+	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcer/nomag)
+
+/obj/item/gun/ballistic/automatic/pistol/enforcer/largrizzly
+	name = "Lar Grizzly Mark V"
+	desc = "Этот коллекционный тяжелый самозарядный пистолет восхищает безупречным контрастом глубокого чернения титанового затвора и благородных латунных вставок на рамке и рукояти. Латунь здесь служит идеальным противовесом, смещающим баланс оружия вниз для эффективного гашения отдачи. Родной патронник под дефицитные магнум-калибры профессионально пересобран ювелирно подогнанным конверсионным китом (кастомный вкладной ствол и усиленная возвратная пружина) под классический патрон .45 ACP, что обеспечивает идеальную контролируемость темповой стрельбы при сохранении огромного останавливающего действия пули."
+	icon = 'modular_bluemoon/fluffs/icons/obj/gun.dmi'
+	icon_state = "largrizzly"
+	flight_x_offset = 19
+	unique_reskin = null
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/largrizzly_shot.ogg'
+	load_sound = 'modular_bluemoon/fluffs/sound/weapon/largrizzly_reload.ogg'
+	load_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/largrizzly_empty_reload.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/largrizzly)
+
+/obj/item/gun/ballistic/automatic/pistol/enforcer/largrizzly/update_icon_state()
+	var/suffix = ""
+	var/is_empty = FALSE
+	if(magazine)
+		if(istype(magazine, /obj/item/ammo_box/magazine/e45/e45_drum))
+			suffix = " drum"
+		else if(istype(magazine, /obj/item/ammo_box/magazine/e45/e45_extended))
+			suffix = " extended"
+		if(magazine.ammo_count() <= 0 && !chambered)
+			is_empty = TRUE
+	else
+		is_empty = TRUE
+	icon_state = "largrizzly[suffix][is_empty ? (suffix ? " empty" : "e") : ""]"
+
+/obj/item/modkit/winchester1887_kit
+	name = "Winchester 1887 Kit"
+	desc = "A modkit for making a Riot Shotgun into a Winchester Model 1887."
+	product = /obj/item/gun/ballistic/shotgun/riot/winchester1887
+	fromitem = list(/obj/item/gun/ballistic/shotgun/riot)
+
+/obj/item/gun/ballistic/shotgun/riot/winchester1887
+	name = "Winchester Model 1887"
+	desc = "Этот исторический предшественник помповых дробовиков демонстрирует поразительный симбиоз эпох. Старинный механизм со скобой Генри усилен скрытыми стальными вставками в узлах запирания, что позволяет механике безболезненно выдерживать колоссальное давление современных порохов."
+	icon = 'modular_bluemoon/fluffs/icons/obj/big_guns.dmi'
+	icon_state = "riotshotgun"
+	item_state = "1887"
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/big_guns_lefthand.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/64x64_guns_righthand.dmi'
+	inhand_x_dimension = 64
+	inhand_y_dimension = 64
+	unique_reskin = null
+	sawn_item_state = "1887 short"
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/winchester1887_shot.ogg'
+	load_sound = 'modular_bluemoon/fluffs/sound/weapon/winchester1887_load.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/riot/winchester1887)
+
+/obj/item/gun/ballistic/shotgun/riot/winchester1887/update_icon_state()
+	icon_state = "[initial(icon_state)][sawn_off ? " short" : ""]"
+
+/obj/item/modkit/winchester1897_kit
+	name = "Winchester 1897 Kit"
+	desc = "A modkit for making a Combat Shotgun into a Winchester Model 1897."
+	product = /obj/item/gun/ballistic/shotgun/automatic/combat/winchester1897
+	fromitem = list(/obj/item/gun/ballistic/shotgun/automatic/combat)
+
+/obj/item/gun/ballistic/shotgun/automatic/combat/winchester1897
+	name = "Winchester Model 1897"
+	desc = "Легендарный помповый дробовик 12-го калибра, чей аутентичный ореховый приклад и перфорированный стальной кожух термоизоляции дошли до нас без единого изъяна. Настоящий восторг вызывает его ударно-спусковой механизм с функцией «Slam Fire»: из-за конструктивного отсутствия разобщителя стрелку достаточно просто зажать спусковой крючок и непрерывно работать цевьем - выстрел происходит автоматически в момент запирания затвора. Это превращает ружье в сокрушительное штурмовое оружие, выдающее плотный шквал картечи со скоростью автомата."
+	icon = 'modular_bluemoon/fluffs/icons/obj/big_guns.dmi'
+	icon_state = "cshotgun"
+	item_state = "1897"
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/big_guns_lefthand.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/64x64_guns_righthand.dmi'
+	inhand_x_dimension = 64
+	inhand_y_dimension = 64
+	unique_reskin = null
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/winchester1897_shot.ogg'
+	load_sound = 'modular_bluemoon/fluffs/sound/weapon/winchester1897_load.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/automatic/combat/winchester1897)
+
+/obj/item/modkit/m1903_kit
+	name = "M1903 Kit"
+	desc = "A modkit for making a hunting rifle into an M1903."
+	product = /obj/item/gun/ballistic/shotgun/huntingrifle/m1903
+	fromitem = list(/obj/item/gun/ballistic/shotgun/boltaction, /obj/item/gun/ballistic/shotgun/huntingrifle)
+
+/obj/item/modkit/m1903_kit/on_item_replace(obj/item/gun/ballistic/old_item, obj/item/gun/ballistic/modified_item)
+	if(!istype(old_item) || !istype(modified_item))
+		return
+	if(!istype(modified_item.magazine, initial(modified_item.mag_type)))
+		qdel(modified_item.magazine)
+		modified_item.magazine = new modified_item.mag_type(modified_item)
+	if(modified_item.chambered && !istype(modified_item.chambered, modified_item.magazine.ammo_type))
+		qdel(modified_item.chambered)
+		modified_item.chambered = null
+	modified_item.update_appearance()
+
+/obj/item/gun/ballistic/shotgun/huntingrifle/m1903
+	name = "PGM Hécate II"
+	desc = "A battered, heavily modified anti-materiel rifle that tells a grim story of wasteland survival. Originally designed as a high-caliber beast, this weapon has been radically altered to keep it firing: its chamber has been converted to accept common .308 rounds, and the magazine is permanently welded directly to the receiver, forcing you to painstakingly reload it one round at a time. To make matters worse, the long-range optic is completely shattered, turning this once-precise sniper rifle into a heavy, brutal tool for mid-range engagements."
+	icon = 'modular_bluemoon/fluffs/icons/obj/big_guns.dmi'
+	icon_state = "308"
+	item_state = "1903"
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/guns_lefthand.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/guns_righthand.dmi'
+	can_bayonet = FALSE
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/m1903_shot.ogg'
+	pumpsound = 'modular_bluemoon/fluffs/sound/weapon/m1903_load.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/huntingrifle/m1903)
+
+/obj/item/modkit/scorpion_evo_kit
+	name = "Scorpion EVO Kit"
+	desc = "A modkit for making a WT-550 into a CZ Scorpion EVO."
+	product = /obj/item/gun/ballistic/automatic/wt550/scorpion_evo
+	fromitem = list(/obj/item/gun/ballistic/automatic/wt550, /obj/item/gun/ballistic/automatic/wt550/standart)
+
+/obj/item/gun/ballistic/automatic/wt550/scorpion_evo
+	name = "CZ Scorpion EVO"
+	desc = "Компактный пистолет-пулемет, выполненный из архаичного конструкционного стеклопластика начала XXI века. Минимальное содержание металлов в конструкции, что делает систему практически невидимой для современных магнитных и частотных сканеров безопасности. Имеет серьезный дефект автоматики, из-за которого темп стрельбы критически упал."
+	icon = 'modular_bluemoon/fluffs/icons/obj/big_guns.dmi'
+	icon_state = "scorpionevo"
+	item_state = "scorpion evo"
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/guns_lefthand.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/guns_righthand.dmi'
+	can_bayonet = FALSE
+	burst_size = 1
+	fire_delay = 5
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/scorpion_evo_shot.ogg'
+	load_sound = 'modular_bluemoon/fluffs/sound/weapon/scorpion_evo_load.ogg'
+	load_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/scorpion_evo_empty.ogg'
+	eject_sound = 'modular_bluemoon/fluffs/sound/weapon/scorpion_evo_mag_remove.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/wt550/scorpion_evo)
+
+/obj/item/gun/ballistic/automatic/wt550/scorpion_evo/update_icon_state()
+	icon_state = "[initial(icon_state)][magazine ? "" : " empty"]"
+
+/obj/item/modkit/stuncutlass_kit
+	name = "Stun Cutlass Kit"
+	desc = "A modkit for making a stunbaton into a Stun Cutlass."
+	product = /obj/item/melee/baton/stuncutlass
+	fromitem = list(/obj/item/melee/baton, /obj/item/melee/baton/loaded)
+
+/obj/item/melee/baton/stuncutlass
+	name = "Stun Cutlass"
+	desc = "Старая абордажная сабля с сильно затупленным клинком, полностью утратившим режущие свойства и способный наносить лишь дробящие удары за счет своей массы. Имеет грубую модификацию в электрошоковую дубинку. Вдоль обуха и плоскости лезвия кустарно проложены токопроводящие шины, а в массивную чашку гарды врезан высоковольтный преобразователь с компактным слотом для батарейки."
+	icon = 'modular_bluemoon/fluffs/icons/obj/swords.dmi'
+	icon_state = "comsword"
+	item_state = "baton"
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/security_lefthand.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/inhands/security_righthand.dmi'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/melee/baton/stuncutlass)
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+/obj/item/storage/box/kumikoshouko_case
+	name = "Kumiko weapon case"
+	desc = "A military-grade weapon case issued to a single collector. The engraving on the lid reads: 'One box to rule them all'. Contains a complete set of personal weapon modification kits."
+	icon_state = "ammobox"
+
+/obj/item/storage/box/kumikoshouko_case/ComponentInitialize()
+	. = ..()
+	var/datum/component/storage/STR = GetComponent(/datum/component/storage)
+	STR.max_combined_w_class = 21
+
+/obj/item/storage/box/kumikoshouko_case/PopulateContents()
+	new /obj/item/modkit/largrizzly_kit(src)
+	new /obj/item/modkit/winchester1887_kit(src)
+	new /obj/item/modkit/winchester1897_kit(src)
+	new /obj/item/modkit/m1903_kit(src)
+	new /obj/item/modkit/scorpion_evo_kit(src)
+	new /obj/item/modkit/stuncutlass_kit(src)
+	new /obj/item/modkit/trenchknife_kit(src)
+	new /obj/item/modkit/bowie_kit(src)
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+
+/obj/item/modkit/ice_axe_kit
+	name = "Ice Axe Kit"
+	desc = "A modkit for making an stunbaton into a Ice Axe."
+	product = /obj/item/melee/baton/ice_axe
+	fromitem = list(/obj/item/melee/baton, /obj/item/melee/baton/loaded)
+
+/obj/item/modkit/ice_axe_kit/on_item_replace(obj/item/melee/baton/old_item, obj/item/melee/baton/ice_axe/modified_item)
+	if(!istype(old_item) || !istype(modified_item))
+		return
+	if(old_item.cell)
+		modified_item.cell = old_item.cell
+		old_item.cell = null
+		modified_item.cell.forceMove(modified_item)
+	modified_item.update_appearance()
+
+/obj/item/melee/baton/ice_axe
+	name = "Stun Ice Axe"
+	desc = "An antique ice axe with a massive blade that has completely lost its cutting properties and can only inflict crushing blows due to its weight. It has been crudely modified into a stun baton. Conductive busbars are haphazardly routed along the spine and the flat of the blade, while a high-voltage converter with a compact battery slot is embedded into the massive guard cup. An engraving reading 'Harr' is faint but visible on the handle."
+	item_state = "ice_axe"
+	icon_state = "ice_axe"
+	icon = 'modular_bluemoon/fluffs/icons/obj/melee.dmi'
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/melee/baton/ice_axe)
+
+/obj/item/melee/baton/ice_axe/update_icon_state()
+	. = ..()
+	item_state = "[initial(item_state)][turned_on ? "_active" : ""]"
+
+/obj/item/melee/baton/ice_axe/get_worn_belt_overlay(icon_file)
+	return mutable_appearance(icon_file, "-[initial(icon_state)]")
+
+/obj/item/melee/baton/ice_axe/get_belt_overlay()
+	if(istype(loc, /obj/item/storage/belt/sabre))
+		return mutable_appearance('icons/obj/clothing/belt_overlays.dmi', "ice_axe")
+	return ..()
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+/obj/item/gun/ballistic/revolver/doublebarrel/melatonin
+	name = "Nebula Workshop's 'Original Guilt'"
+	desc = "Модернизированное двуствольное ружье, собранное на заказ из прочных полимеров. Оружие оснащено компактным тактическим прицелом-точкой, облегченным спусковым механизмом, системой автоматического взведения курков и умным электронным предохранителем. Несмотря на кастомную сборку, по строгим технологическим меркам Небульского Конкорда эта модель считается сильно устаревшей. Под блоком стволов красуется аккуратная каллиграфическая гравировка: «Nobody's evil»."
+	unique_reskin = list()
+	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
+	icon_state = "DB"
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
+	sawn_desc = "Модернизированное двуствольное ружье, собранное на заказ из прочных полимеров. Оружие оснащено компактным тактическим прицелом-точкой, облегченным спусковым механизмом, системой автоматического взведения курков и умным электронным предохранителем. Несмотря на кастомную сборку, по строгим технологическим меркам Небульского Конкорда эта модель считается сильно устаревшей. Под блоком стволов красуется аккуратная каллиграфическая гравировка: «Nobody's evil»."
+	item_state = "DB"
+	obj_flags = NONE
+	sawn_item_state = "DB-SO"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/revolver/doublebarrel/melatonin)
+
+/obj/item/gun/ballistic/revolver/doublebarrel/melatonin/sawoff(mob/user)
+	. = ..()
+	if(.)
+		name = "Sawn-Off Nebula Workshop's 'Original Guilt'"
+
+/obj/item/gun/ballistic/revolver/doublebarrel/melatonin/update_icon_state()
+	if(sawn_off)
+		icon_state = "DB-SO"
+	else
+		icon_state = "DB"
+
+/obj/item/modkit/melatonin_shotgun_kit
+	name = "Nebula Workshop's 'Original Guilt' Kit"
+	desc = "A modkit for making a double-barreled shotgun into a Nebula Workshop's 'Original Guilt'."
+	icon = 'modular_bluemoon/fluffs/icons/obj/storage.dmi'
+	icon_state = "melatonin_modkit"
+	product = /obj/item/gun/ballistic/revolver/doublebarrel/melatonin
+	fromitem = list(/obj/item/gun/ballistic/revolver/doublebarrel)
+
+/obj/item/gun/ballistic/automatic/pistol/enforcer/melatonin
+	name = "Malorian Arms 'The Parade'"
+	desc = "Эксклюзивный пистолет, выпущенный компанией Malorian Arms на базе единичной модели 3516 крайне ограниченным тиражом в Великобритании. Оружие переделано под облегченный калибр .45 ACP и штатно оснащено массивным утяжеленным и удлиненным стволом, а также подствольным отсеком под тактический фонарь или лазерный целеуказатель. Сложная автоматика делает его далеко не самым надежным пистолетом в галактике, но его хищный силуэт определенно заслуживает внимания. На замененной кастомной рукоятке отчетливо видны глубокие потертости и царапины, напоминающие следы от волчьих когтей."
+	unique_reskin = list()
+	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
+	icon_state = "melatonin_werewolf"
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
+	item_state = "melatonin_werewolf"
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/parade/the_parade_firing_sound.ogg'
+	load_sound = 'modular_bluemoon/fluffs/sound/weapon/parade/the_parade_mag_in.ogg'
+	load_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/parade/the_parade_mag_in.ogg'
+	eject_sound = 'modular_bluemoon/fluffs/sound/weapon/parade/the_parade_mag_out.ogg'
+	eject_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/parade/the_parade_mag_out.ogg'
+	lock_back_sound = 'modular_bluemoon/fluffs/sound/weapon/parade/the_parade_rack.ogg'
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/automatic/pistol/enforcer/melatonin)
+
+/obj/item/gun/ballistic/automatic/pistol/enforcer/melatonin/update_icon_state()
+	. = ..()
+	icon_state = "[initial(icon_state)][chambered ? "" : "-e"][suppressed ? "-suppressed" : "" ][magazine && istype(magazine, /obj/item/ammo_box/magazine/e45/e45_extended) ? "-expended" : ""][magazine && istype(magazine, /obj/item/ammo_box/magazine/e45/e45_drum) ? "-drum" : ""]"
+
+/obj/item/modkit/melatonin_enforcer_kit
+	name = "Malorian Arms 'The Parade' Kit"
+	desc = "A modkit for making an Enforcer into a Malorian Arms 'The Parade'."
+	icon = 'modular_bluemoon/fluffs/icons/obj/storage.dmi'
+	icon_state = "melatonin_modkit"
+	product = /obj/item/gun/ballistic/automatic/pistol/enforcer/melatonin
+	fromitem = list(/obj/item/gun/ballistic/automatic/pistol/enforcer/nomag, /obj/item/gun/ballistic/automatic/pistol/enforcer, /obj/item/gun/ballistic/automatic/pistol/enforcerred, /obj/item/gun/ballistic/automatic/pistol/enforcergold)
+
+/obj/item/gun/ballistic/shotgun/shorty/melatonin
+	name = "'Hair of the Dog' Lever-Action Shotgun"
+	desc = "Классическое, но модифицированное ружье на базе Winchester Model 1894. Его рычажный механизм был полностью переработан под калибр 12 Gauge. Из-за кастомного патронника трубчатый магазин сильно потерял в емкости, а отдача стала настолько сильной, что лишь Сильвер знает как с ним обращаться. Ствол увенчан тяжелым перфорированным дульным тормозом, а поверх матового ресивера установлена современная тактическая планка для прицелов. Деревянное цевье и приклад покрыты рваными царапинами от когтей ее владелицы."
+	icon = 'modular_bluemoon/fluffs/icons/obj/48x32.dmi'
+	icon_state = "hair_of_the_dog_loaded"
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
+	item_state = "hair_of_the_dog_loaded"
+	fire_sound = 'modular_bluemoon/fluffs/sound/weapon/Hair-of-the-dog-firing.ogg'
+	load_sound = 'modular_bluemoon/fluffs/sound/weapon/Hair-of-the-dog-loading.ogg'
+	load_empty_sound = 'modular_bluemoon/fluffs/sound/weapon/Hair-of-the-dog-loading.ogg'
+	pumpsound = "modular_bluemoon/fluffs/sound/weapon/Hair-of-the-dog-lever-action.ogg"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/shorty/melatonin)
+
+/obj/item/gun/ballistic/shotgun/shorty/melatonin/update_icon_state()
+	if(chambered && chambered.BB)
+		icon_state = "hair_of_the_dog_loaded"
+	else
+		icon_state = "hair_of_the_dog_not_loaded"
+
+/obj/item/modkit/melatonin_shotgun_hair_of_dog_kit
+	name = "'Hair of the Dog' Lever-Action Shotgun Kit"
+	desc = "A modkit for making an super shorty shotgun into a 'Hair of the Dog' Lever-Action Shotgun'."
+	icon = 'modular_bluemoon/fluffs/icons/obj/storage.dmi'
+	icon_state = "melatonin_modkit"
+	product = /obj/item/gun/ballistic/shotgun/shorty/melatonin
+	fromitem = list(/obj/item/gun/ballistic/shotgun/shorty)
+
+/obj/item/gun/ballistic/shotgun/shorty/black_hole
+	name = "\"Black hole\" type one-hand short platform, modification \"P\""
+	desc = "Один из немногих коммерчески распространяемых оружий за авторством малоизвестной компании \"Nebula Workshop\". Чёрная дыра - жемчужина среди малогабаритных оружий, отличающаяся от одноклассников лёгкой кастомизацией - не только внутренностей, таких как встроенный баллистический калькулятор и подстраивающийся под него голоприцел с автопоправками на окружение, но и из за запатентованной технологии изменяемого ствола, что в зависимости от условий может работать с почти всеми распространёнными в галактике калибрами, и даже исполнять роль ручного однозарядного гранатомёта. Смена происходит на боковой панели через интерфейс, который у конкретно этого блэкхола намертво закрыт металлической пломбой с выдавленной буквой \"P\""
+	icon = 'modular_bluemoon/fluffs/icons/obj/guns.dmi'
+	icon_state = "blackhole-loaded"
+	lefthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_left.dmi'
+	righthand_file = 'modular_bluemoon/fluffs/icons/mob/guns_right.dmi'
+	item_state = "blackhole-loaded"
+DONATE_ITEM_TOOLTIP_PARENT(/obj/item/gun/ballistic/shotgun/shorty/black_hole)
+
+/obj/item/gun/ballistic/shotgun/shorty/black_hole/update_icon_state()
+	if(chambered && chambered.BB)
+		icon_state = "blackhole-loaded"
+	else
+		icon_state = "blackhole-not-loaded"
+
+/obj/item/gun/ballistic/shotgun/shorty/black_hole/update_overlays()
+	. = ..()
+	. += "blackhole-0"
+	if(!magazine || !magazine.max_ammo)
+		return
+	var/total = magazine.stored_ammo.len
+	var/fill_level = clamp(round(total / magazine.max_ammo * 2), 0, 2)
+	. += "blackhole-[fill_level]"
+
+/obj/item/modkit/black_hole_kit
+	name = "\"Black hole\" type one-hand short platform, modification \"P\" Kit"
+	desc = "A modkit for making an super shorty shotgun into a \"Black hole\" type one-hand short platform, modification \"P\"."
+	icon_state = "supershort-shotgun_kit"
+	product = /obj/item/gun/ballistic/shotgun/shorty/black_hole
+	fromitem = list(/obj/item/gun/ballistic/shotgun/shorty)

@@ -124,6 +124,8 @@
 	data["supplies"] = list()
 	for(var/pack in SSshuttle.supply_packs)
 		var/datum/supply_pack/P = SSshuttle.supply_packs[pack]
+		if(P.exclusive_consoles)
+			continue
 		if(!data["supplies"][P.group])
 			data["supplies"][P.group] = list(
 				"name" = P.group,
@@ -190,6 +192,8 @@
 				return
 			if((pack.hidden && !(obj_flags & EMAGGED)) || (pack.contraband && !contraband) || pack.DropPodOnly)
 				return
+			if(pack.exclusive_consoles && !is_type_in_list(src, pack.exclusive_consoles))
+				return
 
 			if(self_paid && !pack.can_private_buy)
 				say("This cannot be bought privately.")
@@ -223,7 +227,7 @@
 
 			var/reason = ""
 			if(requestonly && !self_paid)
-				reason = stripped_input("Reason:", name, "")
+				reason = tgui_input_text(usr, "Причина:", name, "", MAX_MESSAGE_LEN, FALSE, TRUE)
 				if(isnull(reason) || ..())
 					return
 

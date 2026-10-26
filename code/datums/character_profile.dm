@@ -25,6 +25,7 @@ GLOBAL_LIST_EMPTY(cached_previews)
 /datum/description_profile
 	var/datum/weakref/host
 	var/list/viewer_screens
+	var/list/formatted_text_cache
 	var/current_bg_state = "plating"
 	var/static/list/preview_backgrounds = list("plating", "engine", "showroomfloor", "freezerfloor", "floor_padded", "grimy")
 
@@ -45,6 +46,7 @@ GLOBAL_LIST_EMPTY(cached_previews)
 			viewer_screen.hide_from(viewer)
 			qdel(viewer_screen)
 	viewer_screens = null
+	formatted_text_cache = null
 	return ..()
 
 /datum/description_profile/proc/on_host_icon_updated(datum/source, updates, result)
@@ -56,12 +58,9 @@ GLOBAL_LIST_EMPTY(cached_previews)
 	if(. <= UI_DISABLED)
 		return .
 	var/mob/M = host.resolve()
-	if(M in view(10, user))
+	if(get_turf(M) == get_turf(user) || (M in view(10, user)))
 		return .
-	else if(get_turf(M) == get_turf(user))
-		return .
-	else
-		return UI_UPDATE
+	return UI_UPDATE
 
 /datum/description_profile/ui_state()
 	return GLOB.always_state
@@ -77,8 +76,24 @@ GLOBAL_LIST_EMPTY(cached_previews)
 	name = "description profile screen"
 	icon = 'icons/turf/floors.dmi'
 	icon_state = "plating"
+	var/cached_target_appearance
+	/// Этаж, на плоскостях которого нарисована показанная внешность.
+	var/shown_offset = 0
+
+/atom/movable/screen/map_view/examine_panel_screen/ensure_plane_group()
+	if(!popup_plane_group)
+		popup_plane_group = new /datum/plane_master_group/popup/on_demand(PLANE_GROUP_POPUP_WINDOW(src), assigned_map)
+	popup_plane_group.ensure_popup_depth(shown_offset)
+	return popup_plane_group
+
+/atom/movable/screen/map_view/examine_panel_screen/Destroy()
+	cached_target_appearance = null
+	return ..()
 
 /atom/movable/screen/map_view/examine_panel_screen/proc/update_character(mob/target)
+	var/target_appearance = target.appearance
+	if(cached_target_appearance == target_appearance)
+		return
 	var/mutable_appearance/current_mob_appearance = new(target)
 	current_mob_appearance.setDir(SOUTH)
 	current_mob_appearance.transform = matrix()
@@ -86,6 +101,9 @@ GLOBAL_LIST_EMPTY(cached_previews)
 	current_mob_appearance.pixel_y = 0
 	cut_overlays()
 	add_overlay(current_mob_appearance)
+	cached_target_appearance = target_appearance
+	shown_offset = PLANE_TO_OFFSET(target.plane)
+	popup_plane_group?.ensure_popup_depth(shown_offset)
 
 /datum/description_profile/ui_static_data(mob/user, datum/tgui/ui, datum/ui_state/state)
 	. = ..()
@@ -98,7 +116,7 @@ GLOBAL_LIST_EMPTY(cached_previews)
 
 	if(iscarbon(M))
 		var/mob/living/carbon/H = M
-		data["oocnotes"] = H.dna?.ooc_notes || ""
+		data["oocnotes"] = format_text("oocnotes", H.dna?.ooc_notes)
 		// mechanical_erp_verbs_examine AHEAD
 		if(H.client?.prefs.toggles & VERB_CONSENT)
 			data["erp_verbs"] = "Allowed"
@@ -106,8 +124,8 @@ GLOBAL_LIST_EMPTY(cached_previews)
 			data["erp_verbs"] = "Text Only"
 		// mechanical_erp_verbs_examine END
 	if (isobserver(user))
-		data["security_records"] = M?.client?.prefs.security_records || "" //BLUEMOON ADD - призраки видят базы данных в описании персонажей
-		data["medical_records"] = M?.client?.prefs.medical_records || "" //BLUEMOON ADD - призраки видят базы данных в описании персонажей
+		data["security_records"] = format_text("security_records", M?.client?.prefs.security_records) //BLUEMOON ADD - призраки видят базы данных в описании персонажей
+		data["medical_records"] = format_text("medical_records", M?.client?.prefs.medical_records) //BLUEMOON ADD - призраки видят базы данных в описании персонажей
 	// BLUEMOON EDIT END
 	data["vore_tag"] = M?.client?.prefs?.vorepref || "No"
 	data["erp_tag"] = M?.client?.prefs?.erppref || "No"
@@ -118,8 +136,35 @@ GLOBAL_LIST_EMPTY(cached_previews)
 	data["extreme_tag"] = M?.client?.prefs?.extremepref || "No"
 	data["very_extreme_tag"] = M?.client?.prefs?.extremeharm || "No"
 	data["tattoo_tag"] = M?.client?.prefs?.tattoopref || "No"
+	add_antag_opt_in_data(data, M)
 
 	return data
+
+/datum/description_profile/proc/add_antag_opt_in_data(list/data, mob/living/target)
+	var/level = target?.mind ? target.mind.get_effective_antag_opt_in_level() : antag_opt_in_default_level()
+	data["antag_opt_in"] = antag_opt_in_level_name(level)
+	data["antag_opt_in_color"] = antag_opt_in_level_color(level)
+	data["antag_opt_in_desc"] = GLOB.antag_opt_in_descriptions["[level]"]
+
+/proc/format_flavor_for_tgui(text)
+	if(!text)
+		return ""
+	// html_encode + markdown + цвет -=RRGGBB=- + \n -> <br> (ссылки отключены)
+	var/encoded = html_encode(text)
+	var/parsed = parsemarkdown_basic(encoded, hyperlink = FALSE)
+	parsed = replacetext(parsed, "\n", "<br>")
+	return parsed
+
+/datum/description_profile/proc/format_text(field, text)
+	if(!text)
+		LAZYREMOVE(formatted_text_cache, field)
+		return ""
+	var/list/cached = LAZYACCESS(formatted_text_cache, field)
+	if(cached && cached[1] == text)
+		return cached[2]
+	var/formatted = format_flavor_for_tgui(text)
+	LAZYSET(formatted_text_cache, field, list(text, formatted))
+	return formatted
 
 /datum/description_profile/ui_data(mob/user)
 	. = ..()
@@ -132,11 +177,16 @@ GLOBAL_LIST_EMPTY(cached_previews)
 	// BLUEMOON EDIT START - правка видимости текстов персонажа и привязка их к ДНК
 	if (iscarbon(M))
 		var/mob/living/carbon/C = M
-		unknown = (C.wear_mask && (C.wear_mask.flags_inv & HIDEEYES) && !isobserver(user)) || (C.head && (C.head.flags_inv & HIDEEYES) && !isobserver(user))
-		data["flavortext"] = (!unknown) ? (C.dna?.flavor_text || "") : "Скрыто"
+		unknown = (C.wear_mask && (C.wear_mask.flags_inv & HIDEFACE) && !isobserver(user)) || (C.head && (C.head.flags_inv & HIDEFACE) && !isobserver(user))
+		data["flavortext"] = (!unknown) ? format_text("flavortext", C.dna?.flavor_text) : "Скрыто"
 		data["headshot_links"] = (!unknown) ? (C.dna.headshot_links.Copy() || "") : list()
 		data["species_name"] = (!unknown) ? (C.dna?.custom_species || C.dna?.species) : "????"
-		data["custom_species_lore"] = (!unknown) ? (C.dna?.custom_species_lore || "")  : ""
+		var/race_lore = C.dna?.custom_species_lore
+		if(!length(race_lore) && !length(C.dna?.custom_species)) // BLUEMOON ADD - лор вида подставляем только без своего названия вида, иначе профиль описывал бы другой вид
+			var/datum/species/species_datum = C.dna?.species
+			if(species_datum)
+				race_lore = species_datum.get_species_lore_text() // BLUEMOON ADD - лор вида, если игрок не задал свой
+		data["custom_species_lore"] = (!unknown) ? format_text("custom_species_lore", race_lore) : ""
 		if (istype(M, /mob/living/carbon/human))
 			var/mob/living/carbon/human/H = C
 			var/can_see_naked = TRUE
@@ -156,7 +206,7 @@ GLOBAL_LIST_EMPTY(cached_previews)
 					if(clothpiece.body_parts_covered & GROIN || clothpiece.body_parts_covered & CHEST)
 						can_see_naked = FALSE
 						break
-			data["flavortext_naked"] = can_see_naked ? (C.dna?.naked_flavor_text || "") : ""
+			data["flavortext_naked"] = can_see_naked ? format_text("flavortext_naked", C.dna?.naked_flavor_text) : ""
 			data["headshot_naked_links"] =  (check_rights_for(user.client, R_ADMIN) && isobserver(user)) || ((!unknown) && can_see_naked) ? (C.dna.headshot_naked_links.Copy() || "") : list()
 	// BLUEMOON EDIT END
 
@@ -236,8 +286,8 @@ GLOBAL_LIST_EMPTY(cached_previews)
 	if(!M || !istype(M))
 		return
 	if(M.mind)
-		data["silicon_flavor_text"] = M.mind.silicon_flavor_text || ""
-		data["oocnotes"] = M.mind.ooc_notes || ""
+		data["silicon_flavor_text"] = format_text("silicon_flavor_text", M.mind.silicon_flavor_text)
+		data["oocnotes"] = format_text("oocnotes", M.mind.ooc_notes)
 		data["headshot_links"] = M.mind.headshot_links.Copy() || list()
 	if(M.client?.prefs)
 		var/datum/preferences/prefs = M.client.prefs
@@ -252,5 +302,6 @@ GLOBAL_LIST_EMPTY(cached_previews)
 		data["tattoo_tag"] = prefs.tattoopref
 	else for(var/i in list("vore_tag", "erp_tag", "mob_tag", "nc_tag", "unholy_tag", "unholy_hard_tag", "extreme_tag", "very_extreme_tag", "tattoo_tag"))
 		data[i] = "No"
+	add_antag_opt_in_data(data, M)
 
 	return data

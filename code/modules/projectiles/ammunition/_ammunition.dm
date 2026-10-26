@@ -20,8 +20,6 @@
 	var/firing_effect_type = /obj/effect/temp_visual/dir_setting/firing_effect	//the visual effect appearing when the ammo is fired.
 	var/heavy_metal = TRUE
 	var/harmful = TRUE //pacifism check for boolet, set to FALSE if bullet is non-lethal
-	/// Zero-G recoil strength (added to existing drift via newtonian_impulse)
-	var/newtonian_force = 1
 	var/can_be_printed = TRUE
 	/// If it can be printed, does this casing require an advanced ammunition datadisk? Mainly for specialized ammo.
 	/// Rubbers aren't advanced. Standard ammo (or FMJ if you're particularly pedantic) isn't advanced.
@@ -36,15 +34,8 @@
 	if(!P)
 		return -1
 
-	var/ap = P.armour_penetration
-
-	if(ap >= BULLET_BR6) return 6
-	if(ap >= BULLET_BR5) return 5
-	if(ap >= BULLET_BR4) return 4
-	if(ap >= BULLET_BR3) return 3
-	if(ap >= BULLET_BR2) return 2
-	if(ap >= BULLET_BR1) return 1
-	return 0
+	var/ap = round(P.armour_penetration / 5) * 5
+	return clamp(ap / 5, 0, 20)
 
 /obj/item/ammo_casing/examine(mob/user)
 	. = ..()
@@ -119,7 +110,7 @@
 	pixel_x = rand(-12, 12)
 	pixel_y = rand(-12, 12)
 	var/turf/T = get_turf(src)
-	if(still_warm && T && T.bullet_sizzle)
+	if(still_warm && T && (T.turf_flags & TURF_BULLET_SIZZLE))
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(playsound), src, 'sound/items/welder.ogg', 20, 1), bounce_delay) //If the turf is made of water and the shell casing is still hot, make a sizzling sound when it's ejected.
 	else if(T && T.bullet_bounce_sound)
 		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(playsound), src, T.bullet_bounce_sound, 60, 1), bounce_delay) //Soft / non-solid turfs that shouldn't make a sound when a shell casing is ejected over them.

@@ -60,7 +60,7 @@ export const getDmPath = async () => {
 
 /**
  * @param {string} dmeFile
- * @param {{ defines?: string[] }} options
+ * @param {{ defines?: string[], warningsAsErrors?: boolean }} options
  */
 export const DreamMaker = async (dmeFile, options = {}) => {
   const dmPath = await getDmPath();
@@ -86,7 +86,8 @@ export const DreamMaker = async (dmeFile, options = {}) => {
   testOutputFile(`${dmeBaseName}.dmb`);
   testOutputFile(`${dmeBaseName}.rsc`);
   // Compile
-  const { defines } = options;
+  const { defines, warningsAsErrors } = options;
+  let output;
   if (defines && defines.length > 0) {
     const injectedContent = defines
       .map(x => `#define ${x}\n`)
@@ -94,22 +95,27 @@ export const DreamMaker = async (dmeFile, options = {}) => {
     fs.writeFileSync(`${dmeBaseName}.m.dme`, injectedContent);
     const dmeContent = fs.readFileSync(`${dmeBaseName}.dme`);
     fs.appendFileSync(`${dmeBaseName}.m.dme`, dmeContent);
-    await Juke.exec(dmPath, [`${dmeBaseName}.m.dme`]);
-    fs.writeFileSync(`${dmeBaseName}.dmb`, fs.readFileSync(`${dmeBaseName}.m.dmb`));
-    fs.writeFileSync(`${dmeBaseName}.rsc`, fs.readFileSync(`${dmeBaseName}.m.rsc`));
-    fs.unlinkSync(`${dmeBaseName}.m.dmb`);
-    fs.unlinkSync(`${dmeBaseName}.m.rsc`);
+    ({ combined: output } = await Juke.exec(dmPath, [`${dmeBaseName}.m.dme`]));
+    fs.renameSync(`${dmeBaseName}.m.dmb`, `${dmeBaseName}.dmb`);
+    fs.renameSync(`${dmeBaseName}.m.rsc`, `${dmeBaseName}.rsc`);
     fs.unlinkSync(`${dmeBaseName}.m.dme`);
   }
   else {
-    await Juke.exec(dmPath, [dmeFile]);
+    ({ combined: output } = await Juke.exec(dmPath, [dmeFile]));
+  }
+  if (warningsAsErrors && / - \d+ errors?, [1-9]\d* warnings?/.test(output)) {
+    Juke.logger.error('Compile warnings are treated as errors.');
+    throw new Juke.ExitCode(1);
   }
 };
 
-export const DreamDaemon = async (dmbFile, ...args) => {
+export const getDreamDaemonPath = async () => {
   const dmPath = await getDmPath();
   const baseDir = path.dirname(dmPath);
   const ddExeName = process.platform === 'win32' ? 'dd.exe' : 'DreamDaemon';
-  const ddExePath = baseDir === '.' ? ddExeName : path.join(baseDir, ddExeName);
-  return Juke.exec(ddExePath, [dmbFile, ...args]);
+  return baseDir === '.' ? ddExeName : path.join(baseDir, ddExeName);
+};
+
+export const DreamDaemon = async (dmbFile, ...args) => {
+  return Juke.exec(await getDreamDaemonPath(), [dmbFile, ...args]);
 };

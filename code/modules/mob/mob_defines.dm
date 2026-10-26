@@ -11,7 +11,7 @@
 	throwforce = 10
 	blocks_emissive = EMISSIVE_BLOCK_GENERIC
 	pass_flags_self = PASSMOB
-	vis_flags = VIS_INHERIT_PLANE //when this be added to vis_contents of something it inherit something.plane, important for visualisation of mob in openspace.
+	vis_flags = NONE
 
 	attack_hand_is_action = TRUE
 	attack_hand_unwieldlyness = CLICK_CD_MELEE
@@ -113,8 +113,6 @@
 
 	var/datum/hud/hud_used = null
 
-	var/research_scanner = 0 //For research scanner equipped mobs. Enable to show research data when examining.
-
 	var/throw_mode = 0
 
 	var/job = null//Living
@@ -149,6 +147,8 @@
 	var/turf/listed_turf = null	//the current turf being examined in the stat panel
 
 	var/list/observers = null	//The list of people observing this mob.
+	/// Группа z, значки которой лежат в client.images (get_hud_z_group). null - ещё не считали
+	var/hud_view_group
 
 	var/list/progressbars = null	//for stacking do_after bars
 
@@ -158,6 +158,8 @@
 	var/list/mousemove_intercept_objects
 
 	var/datum/click_intercept
+	// Постоянные обработчики колеса: колбек -> приоритет, по убыванию приоритета.
+	var/list/mousewheel_handlers
 
 	var/registered_z
 

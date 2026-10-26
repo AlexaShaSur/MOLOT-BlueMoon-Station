@@ -52,7 +52,7 @@
 ///datum/config_entry/number несёт default = 0, а ValidateAndSet без строки в
 //конфиге не зовётся вовсе.
 /datum/config_entry/number/movedelay/run_delay
-	default = 1.5
+	default = 1.75
 
 /datum/config_entry/number/movedelay/run_delay/ValidateAndSet()
 	. = ..()
@@ -141,3 +141,12 @@
 /datum/config_entry/number/outdated_movedelay/animal_delay
 	movedelay_type = /mob/living/simple_animal
 /////////////////////////////////////////////////
+
+/// Задержка движения киборга
+/datum/config_entry/number/movedelay/robot_slowdown_modifier
+    default = 0.5
+
+/// Ускорение движения киборга от VTEC
+/datum/config_entry/number/movedelay/robot_vtec_boost
+	default = 1
+	min_val = 0.5

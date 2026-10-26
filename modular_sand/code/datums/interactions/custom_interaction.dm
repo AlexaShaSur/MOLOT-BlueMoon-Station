@@ -2,6 +2,13 @@
 	var/list/custom_interactions
 	var/custom_verb_consent = TRUE
 
+	var/show_heart_over_self = TRUE
+	var/interaction_effect = INTERACTION_EFFECT_HEART
+	var/block_partner_pixel_shift = FALSE
+	var/panel_tab_toggles = ALL_INTERACTION_MENU_TABS
+	var/dynamic_window_size = FALSE
+	var/compact_custom_tab = FALSE
+
 /datum/preferences/proc/get_custom_interaction_limit()
 	var/user_ckey = parent?.ckey
 	if(user_ckey && is_donator_group(user_ckey, DONATOR_GROUP_TIER_2))
@@ -9,6 +16,106 @@
 	if(user_ckey && is_donator_group(user_ckey, DONATOR_GROUP_TIER_1))
 		return MAX_CUSTOM_INTERACTIONS_SUBSCRIBER
 	return MAX_CUSTOM_INTERACTIONS
+
+#define CUSTOM_SOUND_GROUP_NONE "Без звука"
+#define CUSTOM_SOUND_GROUP_SPECIAL "Unholy"
+#define CUSTOM_SOUND_GROUP_THRUSTS "Толчки"
+#define CUSTOM_SOUND_GROUP_BLOWJOB "Минет"
+#define CUSTOM_SOUND_GROUP_SMACKING "Чавканье"
+#define CUSTOM_SOUND_GROUP_WET "Влажные звуки"
+#define CUSTOM_SOUND_GROUP_FEET "Ноги"
+#define CUSTOM_SOUND_GROUP_AFFECTION "Объятия и поцелуи"
+#define CUSTOM_SOUND_GROUP_MOANS "Стоны"
+#define CUSTOM_SOUND_GROUP_PURRS "Мурлыканье"
+#define CUSTOM_SOUND_GROUP_MISC "Прочее"
+
+#define CUSTOM_SOUND_GROUPS_NORMAL list(CUSTOM_SOUND_GROUP_MISC, CUSTOM_SOUND_GROUP_AFFECTION, CUSTOM_SOUND_GROUP_PURRS)
+
+GLOBAL_LIST_INIT(custom_interaction_sounds, list(
+	CUSTOM_INTERACTION_SOUND_NONE = list("label" = "Без звука", "group" = CUSTOM_SOUND_GROUP_NONE, "file" = null),
+
+	"asscrap1" = list("label" = "Хлопок 1", "group" = CUSTOM_SOUND_GROUP_SPECIAL, "file" = 'modular_bluemoon/sound/interactions/asscrap1.ogg'),
+	"asscrap2" = list("label" = "Хлопок 2", "group" = CUSTOM_SOUND_GROUP_SPECIAL, "file" = 'modular_bluemoon/sound/interactions/asscrap2.ogg'),
+	"asscrap3" = list("label" = "Хлопок 3", "group" = CUSTOM_SOUND_GROUP_SPECIAL, "file" = 'modular_bluemoon/sound/interactions/asscrap3.ogg'),
+	"squelch3" = list("label" = "Хлюп 3", "group" = CUSTOM_SOUND_GROUP_SPECIAL, "file" = 'modular_sand/sound/interactions/squelch3.ogg'),
+
+	"bang1" = list("label" = "Толчок 1", "group" = CUSTOM_SOUND_GROUP_THRUSTS, "file" = 'modular_sand/sound/interactions/bang1.ogg'),
+	"bang2" = list("label" = "Толчок 2", "group" = CUSTOM_SOUND_GROUP_THRUSTS, "file" = 'modular_sand/sound/interactions/bang2.ogg'),
+	"bang3" = list("label" = "Толчок 3", "group" = CUSTOM_SOUND_GROUP_THRUSTS, "file" = 'modular_sand/sound/interactions/bang3.ogg'),
+	"bang4" = list("label" = "Толчок 4", "group" = CUSTOM_SOUND_GROUP_THRUSTS, "file" = 'modular_sand/sound/interactions/bang4.ogg'),
+	"bang5" = list("label" = "Толчок 5", "group" = CUSTOM_SOUND_GROUP_THRUSTS, "file" = 'modular_sand/sound/interactions/bang5.ogg'),
+	"bang6" = list("label" = "Толчок 6", "group" = CUSTOM_SOUND_GROUP_THRUSTS, "file" = 'modular_sand/sound/interactions/bang6.ogg'),
+
+	"bj1" = list("label" = "Минет 1", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj1.ogg'),
+	"bj2" = list("label" = "Минет 2", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj2.ogg'),
+	"bj3" = list("label" = "Минет 3", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj3.ogg'),
+	"bj4" = list("label" = "Минет 4", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj4.ogg'),
+	"bj5" = list("label" = "Минет 5", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj5.ogg'),
+	"bj6" = list("label" = "Минет 6", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj6.ogg'),
+	"bj7" = list("label" = "Минет 7", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj7.ogg'),
+	"bj8" = list("label" = "Минет 8", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj8.ogg'),
+	"bj9" = list("label" = "Минет 9", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj9.ogg'),
+	"bj10" = list("label" = "Минет 10", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj10.ogg'),
+	"bj11" = list("label" = "Минет 11", "group" = CUSTOM_SOUND_GROUP_BLOWJOB, "file" = 'modular_sand/sound/interactions/bj11.ogg'),
+
+	"champ1" = list("label" = "Чавканье 1", "group" = CUSTOM_SOUND_GROUP_SMACKING, "file" = 'modular_sand/sound/interactions/champ1.ogg'),
+	"champ2" = list("label" = "Чавканье 2", "group" = CUSTOM_SOUND_GROUP_SMACKING, "file" = 'modular_sand/sound/interactions/champ2.ogg'),
+	"champ_fingering" = list("label" = "Чавканье (пальцы)", "group" = CUSTOM_SOUND_GROUP_SMACKING, "file" = 'modular_sand/sound/lewd/champ_fingering.ogg'),
+
+	"squelch1" = list("label" = "Хлюп 1", "group" = CUSTOM_SOUND_GROUP_WET, "file" = 'modular_sand/sound/interactions/squelch1.ogg'),
+	"squelch2" = list("label" = "Хлюп 2", "group" = CUSTOM_SOUND_GROUP_WET, "file" = 'modular_sand/sound/interactions/squelch2.ogg'),
+	"oral1" = list("label" = "Влажный 1", "group" = CUSTOM_SOUND_GROUP_WET, "file" = 'modular_sand/sound/interactions/oral1.ogg'),
+	"oral2" = list("label" = "Влажный 2", "group" = CUSTOM_SOUND_GROUP_WET, "file" = 'modular_sand/sound/interactions/oral2.ogg'),
+	"swallow" = list("label" = "Глотание", "group" = CUSTOM_SOUND_GROUP_WET, "file" = 'modular_sand/sound/interactions/swallow.ogg'),
+
+	"foot_dry1" = list("label" = "Сухие ноги 1", "group" = CUSTOM_SOUND_GROUP_FEET, "file" = 'modular_sand/sound/interactions/foot_dry1.ogg'),
+	"foot_dry2" = list("label" = "Сухие ноги 2", "group" = CUSTOM_SOUND_GROUP_FEET, "file" = 'modular_sand/sound/interactions/foot_dry2.ogg'),
+	"foot_dry3" = list("label" = "Сухие ноги 3", "group" = CUSTOM_SOUND_GROUP_FEET, "file" = 'modular_sand/sound/interactions/foot_dry3.ogg'),
+	"foot_dry4" = list("label" = "Сухие ноги 4", "group" = CUSTOM_SOUND_GROUP_FEET, "file" = 'modular_sand/sound/interactions/foot_dry4.ogg'),
+	"foot_wet1" = list("label" = "Мокрые ноги 1", "group" = CUSTOM_SOUND_GROUP_FEET, "file" = 'modular_sand/sound/interactions/foot_wet1.ogg'),
+	"foot_wet2" = list("label" = "Мокрые ноги 2", "group" = CUSTOM_SOUND_GROUP_FEET, "file" = 'modular_sand/sound/interactions/foot_wet2.ogg'),
+	"foot_wet3" = list("label" = "Мокрые ноги 3", "group" = CUSTOM_SOUND_GROUP_FEET, "file" = 'modular_sand/sound/interactions/foot_wet3.ogg'),
+
+	"hug" = list("label" = "Объятия", "group" = CUSTOM_SOUND_GROUP_AFFECTION, "file" = 'modular_sand/sound/interactions/hug.ogg'),
+	"kiss1" = list("label" = "Поцелуй 1", "group" = CUSTOM_SOUND_GROUP_AFFECTION, "file" = 'modular_splurt/sound/interactions/kiss/kiss1.ogg'),
+	"kiss2" = list("label" = "Поцелуй 2", "group" = CUSTOM_SOUND_GROUP_AFFECTION, "file" = 'modular_splurt/sound/interactions/kiss/kiss2.ogg'),
+	"kiss3" = list("label" = "Поцелуй 3", "group" = CUSTOM_SOUND_GROUP_AFFECTION, "file" = 'modular_splurt/sound/interactions/kiss/kiss3.ogg'),
+	"kiss4" = list("label" = "Поцелуй 4", "group" = CUSTOM_SOUND_GROUP_AFFECTION, "file" = 'modular_splurt/sound/interactions/kiss/kiss4.ogg'),
+	"kiss5" = list("label" = "Поцелуй 5", "group" = CUSTOM_SOUND_GROUP_AFFECTION, "file" = 'modular_sand/sound/interactions/kiss5.ogg'),
+
+	"moan_f1" = list("label" = "Стон (ж) 1", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/moan_f1.ogg'),
+	"moan_f2" = list("label" = "Стон (ж) 2", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/moan_f2.ogg'),
+	"moan_f3" = list("label" = "Стон (ж) 3", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/moan_f3.ogg'),
+	"moan_f4" = list("label" = "Стон (ж) 4", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/moan_f4.ogg'),
+	"moan_f5" = list("label" = "Стон (ж) 5", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/moan_f5.ogg'),
+	"moan_f6" = list("label" = "Стон (ж) 6", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/moan_f6.ogg'),
+	"moan_f7" = list("label" = "Стон (ж) 7", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/moan_f7.ogg'),
+	"moan_m1" = list("label" = "Стон (м) 1", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_m1.ogg'),
+	"moan_m2" = list("label" = "Стон (м) 2", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_m2.ogg'),
+	"moan_m3" = list("label" = "Стон (м) 3", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_m3.ogg'),
+	"under_moan_f1" = list("label" = "Приглушённый стон (ж) 1", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/under_moan_f1.ogg'),
+	"under_moan_f2" = list("label" = "Приглушённый стон (ж) 2", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/under_moan_f2.ogg'),
+	"under_moan_f3" = list("label" = "Приглушённый стон (ж) 3", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/under_moan_f3.ogg'),
+	"under_moan_f4" = list("label" = "Приглушённый стон (ж) 4", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/under_moan_f4.ogg'),
+	"final_f1" = list("label" = "Финал (ж) 1", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_f1.ogg'),
+	"final_f2" = list("label" = "Финал (ж) 2", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_f2.ogg'),
+	"final_f3" = list("label" = "Финал (ж) 3", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_f3.ogg'),
+	"final_m1" = list("label" = "Финал (м) 1", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_m1.ogg'),
+	"final_m2" = list("label" = "Финал (м) 2", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_m2.ogg'),
+	"final_m3" = list("label" = "Финал (м) 3", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_m3.ogg'),
+	"final_m4" = list("label" = "Финал (м) 4", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_m2.ogg'),
+	"final_m5" = list("label" = "Финал (м) 5", "group" = CUSTOM_SOUND_GROUP_MOANS, "file" = 'modular_sand/sound/interactions/final_m3.ogg'),
+
+	"purr1" = list("label" = "Мурлыканье 1", "group" = CUSTOM_SOUND_GROUP_PURRS, "file" = 'modular_sand/sound/interactions/purr1.ogg'),
+	"purr2" = list("label" = "Мурлыканье 2", "group" = CUSTOM_SOUND_GROUP_PURRS, "file" = 'modular_sand/sound/interactions/purr2.ogg'),
+	"purr3" = list("label" = "Мурлыканье 3", "group" = CUSTOM_SOUND_GROUP_PURRS, "file" = 'modular_sand/sound/interactions/purr3.ogg'),
+
+	"slap" = list("label" = "Шлепок", "group" = CUSTOM_SOUND_GROUP_MISC, "file" = 'sound/effects/snap.ogg'),
+	"whistle" = list("label" = "Свист", "group" = CUSTOM_SOUND_GROUP_MISC, "file" = 'modular_bluemoon/sound/emotes/svist.ogg'),
+	"applause" = list("label" = "Салютование", "group" = CUSTOM_SOUND_GROUP_MISC, "file" = 'sound/voice/salute.ogg'),
+	"clawcum1" = list("label" = "Коготь 1", "group" = CUSTOM_SOUND_GROUP_MISC, "file" = 'modular_splurt/sound/lewd/deathclaw1.ogg'),
+	"clawcum2" = list("label" = "Коготь 2", "group" = CUSTOM_SOUND_GROUP_MISC, "file" = 'modular_splurt/sound/lewd/deathclaw2.ogg'),
+))
 
 /datum/interaction/custom
 	max_distance = 1
@@ -23,6 +130,7 @@
 	var/required_body_parts = NONE
 	var/requires_tail = FALSE
 	var/requires_telekinesis = FALSE
+	var/list/sound_keys = list()
 
 /datum/interaction/custom/proc/get_lust_amount(level = arousal_level)
 	switch(level)
@@ -59,6 +167,14 @@
 		if(CUSTOM_AROUSAL_STRONG)
 			return "Сильное"
 	return "Нет"
+
+/datum/interaction/custom/proc/get_sound_labels()
+	var/list/labels = list()
+	for(var/key in sound_keys)
+		var/list/sound_data = GLOB.custom_interaction_sounds[key]
+		if(sound_data)
+			labels += sound_data["label"]
+	return labels
 
 /datum/interaction/custom/proc/get_scope_label()
 	switch(scope)
@@ -137,6 +253,22 @@
 	requires_tail = !!requires_tail
 	requires_telekinesis = !!requires_telekinesis
 	max_distance = sanitize_integer(max_distance, 1, 3, 1)
+	sanitize_sound_keys()
+
+/datum/interaction/custom/proc/sanitize_sound_keys()
+	sound_keys = SANITIZE_LIST(sound_keys)
+	for(var/i in length(sound_keys) to 1 step -1)
+		var/key = sound_keys[i]
+		var/list/sound_data = GLOB.custom_interaction_sounds[key]
+		if(!sound_data || key == CUSTOM_INTERACTION_SOUND_NONE)
+			sound_keys.Cut(i, i + 1)
+			continue
+		var/sound_group = sound_data["group"]
+		if(sound_group == CUSTOM_SOUND_GROUP_SPECIAL && interaction_type != CUSTOM_INTERACTION_TYPE_UNHOLY)
+			sound_keys.Cut(i, i + 1)
+			continue
+		if(interaction_type == CUSTOM_INTERACTION_TYPE_NORMAL && !(sound_group in CUSTOM_SOUND_GROUPS_NORMAL))
+			sound_keys.Cut(i, i + 1)
 
 /datum/interaction/custom/proc/get_interaction_type_num()
 	switch(interaction_type)
@@ -161,21 +293,23 @@
 /datum/interaction/custom/proc/has_telekinesis(mob/living/M)
 	return M.check_mutation(TK) || HAS_TRAIT(M, TRAIT_TK_POTENTIAL)
 
-/datum/interaction/custom/proc/pass_requirement_gate(mob/living/user, mob/living/target)
-	if(requires_tail && !(user.has_tail() || (target && target.has_tail())))
+/datum/interaction/custom/proc/pass_requirement_gate(mob/living/custom_owner, mob/living/target)
+	if(requires_tail && !(custom_owner.has_tail() || (target && target.has_tail())))
 		return FALSE
-	if(requires_telekinesis && !(has_telekinesis(user) || (target && has_telekinesis(target))))
+	if(requires_telekinesis && !(has_telekinesis(custom_owner) || (target && has_telekinesis(target))))
 		return FALSE
 	for(var/requirement in CUSTOM_INTERACTION_BODY_PART_REQUIREMENTS)
 		if(!(required_body_parts & requirement))
 			continue
-		if(!is_body_part_exposed(user, requirement) && !(target && is_body_part_exposed(target, requirement)))
+		if(!is_body_part_exposed(custom_owner, requirement) && !(target && is_body_part_exposed(target, requirement)))
 			return FALSE
-	if(scope == CUSTOM_INTERACTION_SCOPE_SELF && user != target)
-		return FALSE
-	if(scope == CUSTOM_INTERACTION_SCOPE_OTHERS && user == target)
-		return FALSE
-	return TRUE
+	switch(scope)
+		if(CUSTOM_INTERACTION_SCOPE_SELF)
+			return custom_owner == target
+		if(CUSTOM_INTERACTION_SCOPE_OTHERS)
+			return custom_owner != target
+		else
+			return TRUE
 
 /datum/interaction/custom/proc/check_requirements(mob/living/user, mob/living/target, silent = TRUE)
 	if(requires_tail && !(user.has_tail() || (target && target.has_tail())))
@@ -198,11 +332,19 @@
 			if(!silent)
 				to_chat(user, span_warning("Требования для этого действия не выполнены: [get_body_parts_label()] у кого-то из вас."))
 			return FALSE
-	if(scope == CUSTOM_INTERACTION_SCOPE_SELF && user != target)
+	var/mob/living/custom_owner
+	if(findtext(custom_interaction_key, user?.ckey))
+		custom_owner = user
+	else if(findtext(custom_interaction_key, target?.ckey))
+		custom_owner = target
+
+	if(!custom_owner)
+		return FALSE
+	if(scope == CUSTOM_INTERACTION_SCOPE_SELF && custom_owner != target)
 		if(!silent)
 			to_chat(user, span_warning("Это действие доступно только на себе."))
 		return FALSE
-	if(scope == CUSTOM_INTERACTION_SCOPE_OTHERS && user == target)
+	if(scope == CUSTOM_INTERACTION_SCOPE_OTHERS && custom_owner == target)
 		if(!silent)
 			to_chat(user, span_warning("Это действие доступно только на других."))
 		return FALSE
@@ -232,11 +374,11 @@
 		if(CUSTOM_INTERACTION_TYPE_UNHOLY)
 			if(user.client && user.client.prefs.unholypref == "No")
 				if(!silent)
-					to_chat(user, span_warning("Ты не даёшь согласие на такое."))
+					to_chat(user, span_warning("Ты не даёшь согласие на сексуальное насилие."))
 				return FALSE
 			if(target.client && target.client.prefs.unholypref == "No")
 				if(!silent)
-					to_chat(user, span_warning("[target] не даёт согласие на такое."))
+					to_chat(user, span_warning("[target] не даёт согласие на сексуальное насилие."))
 				return FALSE
 	return TRUE
 
@@ -280,10 +422,21 @@
 		ignored_mobs = is_lewd ? user.get_unconsenting(get_interaction_flags()) : null
 	)
 	if(is_lewd)
-		if(!HAS_TRAIT(user, TRAIT_LEWD_JOB) && !is_hidden)
-			new /obj/effect/temp_visual/heart(user.loc)
-		if(user != target && !HAS_TRAIT(target, TRAIT_LEWD_JOB) && !is_hidden)
-			new /obj/effect/temp_visual/heart(target.loc)
+		user.try_play_interaction_effect(is_hidden)
+		if(user != target)
+			target.try_play_interaction_effect(is_hidden)
+	if(length(sound_keys))
+		var/chosen_sound_key = pick(sound_keys)
+		var/list/sound_data = GLOB.custom_interaction_sounds[chosen_sound_key]
+		var/soundfile = sound_data?["file"]
+		if(soundfile)
+			var/turf/sound_turf = get_turf(user)
+			if(sound_turf)
+				var/extrarange = DEFAULT_INTERACTION_SOUND_EXTRARANGE(is_hidden)
+				if(is_lewd)
+					playlewdinteractionsound(sound_turf, soundfile, interaction_sound_volume, 1, extrarange, ignored_mobs = user.get_unconsenting(get_interaction_flags()))
+				else
+					playsound(sound_turf, soundfile, interaction_sound_volume, 1, extrarange)
 	var/lust_amount = get_lust_amount()
 	if(!QDELETED(user))
 		if(self_orgasm)
@@ -303,17 +456,31 @@
 	if(user != target)
 		SEND_SIGNAL(user, COMSIG_INTERACTION_ADJACENT, target)
 		SEND_SIGNAL(target, COMSIG_INTERACTION_ADJACENT, user)
+
+	// logs
+	user.log_message("Применяет[is_hidden ? " (скрытно)" : null] Custom интеракцию к [user == target ? "себе" : target]: «[use_message]»", LOG_ATTACK)
+	if(user != target)
+		target.log_message("Подвергся[is_hidden ? " (скрытно)" : null] Custom интеракции от [user]: «[use_message]»", LOG_VICTIM, log_globally = FALSE)
 	return TRUE
 
-/datum/controller/subsystem/processing/interactions/proc/get_custom_interaction(mob/living/owner_mob, key)
-	if(!owner_mob?.client?.prefs || findtext(key, CUSTOM_INTERACTION_PREFIX) != 1)
-		return null
+/datum/controller/subsystem/processing/interactions/proc/get_custom_interaction(mob/living/user, mob/living/target, key)
+	if(!findtext(key, CUSTOM_INTERACTION_PREFIX))
+		return
+
+	var/mob/living/custom_owner
+	if(findtext(key, user?.ckey))
+		custom_owner = user
+	else if(findtext(key, target?.ckey))
+		custom_owner = target
+
+	if(!custom_owner?.client?.prefs)
+		return
 	var/index = text2num(copytext(key, findlasttext(key, ":") + 1))
-	var/list/customs = owner_mob.client.prefs.custom_interactions
+	var/list/customs = custom_owner.client.prefs.custom_interactions
 	if(!length(customs) || !index || index > length(customs))
-		return null
+		return
 	var/datum/interaction/custom/custom = customs[index]
 	if(!custom?.name || !custom.message)
-		return null
+		return
 	custom.custom_interaction_key = key
 	return custom

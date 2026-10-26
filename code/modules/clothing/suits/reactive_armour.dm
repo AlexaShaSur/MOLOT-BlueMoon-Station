@@ -13,6 +13,7 @@
 		/obj/effect/anomaly/bluespace 	            = /obj/item/clothing/suit/armor/reactive/teleport,
 		/obj/effect/anomaly/dimensional 			= /obj/item/clothing/suit/armor/reactive/barricade,
 		/obj/effect/anomaly/ectoplasm 				= /obj/item/clothing/suit/armor/reactive/ectoplasm,
+		/obj/effect/anomaly/fog						= /obj/item/clothing/suit/armor/reactive/smoke,
 		)
 
 	if(istype(I, /obj/item/assembly/signaler/anomaly))
@@ -35,7 +36,7 @@
 	icon_state = "reactiveoff"
 	item_state = "reactiveoff"
 	blood_overlay_type = "armor"
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 0, RAD = 0, FIRE = 100, ACID = 100)
+	armor_type = /datum/armor/fireproof_and_acidproof_misc
 	actions_types = list(/datum/action/item_action/toggle)
 	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | ACID_PROOF
 	rad_flags = RAD_PROTECT_CONTENTS | RAD_NO_CONTAMINATE
@@ -352,5 +353,20 @@
 
 	reactivearmor_cooldown = world.time + reactivearmor_cooldown_duration
 	return TRUE
+
 /obj/item/clothing/suit/armor/reactive/ectoplasm/emp_act(mob/living/carbon/human/owner, atom/movable/hitby, attack_text = "the attack", final_block_chance = 0, damage = 0)
 	owner.reagents?.add_reagent(/datum/reagent/impure/helgrasp, 20)
+
+/obj/item/clothing/suit/armor/reactive/smoke
+	name = "reactive smoke armor"
+	desc = "An experimental suit of armor that leaks clouds of thick smoke."
+	reactivearmor_cooldown_duration = 15 SECONDS
+
+/obj/item/clothing/suit/armor/reactive/smoke/block_action(mob/living/carbon/human/owner, atom/movable/hitby, attack_text, final_block_chance, damage)
+	if(world.time < reactivearmor_cooldown)
+		return
+	var/datum/effect_system/smoke_spread/smoke = new
+	smoke.set_up(5, src)
+	smoke.start()
+	reactivearmor_cooldown = world.time + reactivearmor_cooldown_duration
+	return TRUE

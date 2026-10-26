@@ -14,7 +14,7 @@
 	var/size = 2 //can vary between num or text, just used in icon_state strings
 	var/datum/reagent/fluid_id = null
 	var/fluid_max_volume = 50
-	var/fluid_efficiency = 1
+	var/fluid_efficiency = 1 // not being used. consider deleting or implementing it.
 	var/fluid_rate = CUM_RATE
 	var/fluid_mult = 1
 	var/last_orgasmed = 0
@@ -241,10 +241,11 @@
 /obj/item/organ/genital/proc/generate_fluid(datum/reagents/R)
 	var/amount = get_fluid()
 	R.clear_reagents()
-	R.maximum_volume = fluid_max_volume
 	if(fluid_id)
+		R.maximum_volume = fluid_max_volume
 		R.add_reagent(fluid_id,amount, owner.get_blood_data())
 	else if(linked_organ?.fluid_id)
+		R.maximum_volume = linked_organ.fluid_max_volume
 		R.add_reagent(linked_organ.fluid_id,amount, owner.get_blood_data())
 	return TRUE
 
@@ -372,7 +373,7 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 					item_names += I.name
 		if(!isemptylist(item_names))
 			var/tooltip_content = "[ru_name_capital] имеет: [item_names.Join(", ")]"
-			. += " [span_tooltip(tooltip_content, "\[+\]", "", "userlove", "")]"
+			. += " [span_tooltip(tooltip_content, "\[+\]", "", "bold", "color:#ff42a6")]"
 
 /mob/living/carbon/human/proc/update_genitals()
 	if(QDELETED(src))
@@ -385,6 +386,7 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 	for(var/L in relevant_layers) //Less hardcode
 		remove_overlay(layers_num[L])
 	remove_overlay(GENITALS_EXPOSED_LAYER)
+	remove_overlay(GENITAL_EFFECT_LAYER)
 	if(!LAZYLEN(internal_organs) || ((NOGENITALS in dna.species.species_traits) && !genital_override) || HAS_TRAIT(src, TRAIT_HUSK))
 		return
 
@@ -397,8 +399,7 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 		//SPLURT edit
 		if(CHECK_BITFIELD(G.genital_flags, GENITAL_CHASTENED)) //Checks if the genital's chastened
 			continue
-		//
-		if(G.is_exposed()) //Checks appropriate clothing slot and if it's through_clothes
+		if(G.is_exposed() || is_genital_forced_visible(G.slot))
 			LAZYADD(gen_index[G.layer_index], G)
 	if(has_strapon() == HAS_EXPOSED_GENITAL)
 		LAZYADD(gen_index[PENIS_LAYER_INDEX], get_strapon())
@@ -407,6 +408,8 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 			LAZYADD(genitals_to_add, L)
 	if(!genitals_to_add)
 		return
+	var/mutant_string
+	var/forced_by_hardlight
 	//Now we added all genitals that aren't internal and should be rendered
 	//start applying overlays
 	for(var/layer in relevant_layers)
@@ -415,8 +418,12 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 		for(var/A in genitals_to_add)
 			if(istype(A, /obj/item/clothing/underwear/briefs/strapon))
 				var/obj/item/clothing/underwear/briefs/strapon/strapon = A
+				if(!strapon.attached_dildo)
+					continue
 				//BLUEMOON EDIT START
 				var/datum/sprite_accessory/S = GLOB.cock_shapes_list[GLOB.dildo_shape_to_cock_shape[strapon.attached_dildo.dildo_shape]]
+				mutant_string = S.mutant_part_string
+				forced_by_hardlight = is_genital_forced_visible(mutant_string)
 				var/mutable_appearance/genital_overlay = mutable_appearance(S.icon, layer = -layer)
 				genital_overlay.color = strapon.attached_dildo.color
 				genital_overlay.icon_state = "[ORGAN_SLOT_PENIS]_[S.icon_state]_[strapon.attached_dildo.dildo_size]_[1]_[layertext]"
@@ -425,15 +432,18 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 				// dirty fix to render the dildo above the strap
 				if(strapon.is_exposed())
 					genital_overlay.layer = -GENITALS_EXPOSED_LAYER
+					dna.species.update_overlay_by_key(mutant_string, src, genital_overlay)
 					LAZYADD(fully_exposed, genital_overlay)
 				else
 					genital_overlay.layer = -layers_num[layer]
+
 					standing += genital_overlay
 				continue
 
 			var/obj/item/organ/genital/G = A
 			var/datum/sprite_accessory/S
 			var/size = G.size_to_state()
+
 			switch(G.type)
 				if(/obj/item/organ/genital/penis)
 					S = GLOB.cock_shapes_list[G.shape]
@@ -452,6 +462,17 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 
 			if(!S || S.icon_state == "none")
 				continue
+
+			// BLUEMOON ADD
+			var/suffix = ""
+			if(istype(G, /obj/item/organ/genital/breasts) \
+				&& dna.features["breasts_sprite_variant"] == "Old" \
+				&& S?.icon_state == "pair")
+				suffix = "old_"
+			// BLUEMOON ADD
+
+			mutant_string = S.mutant_part_string
+			forced_by_hardlight = is_genital_forced_visible(mutant_string)
 			var/aroused_state = G.aroused_state && S.alt_aroused
 			var/accessory_icon = S.icon
 			var/do_center = S.center
@@ -488,10 +509,23 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 					if("anus_color")
 						genital_overlay.color = "#[dna.features["anus_color"]]"
 
-			genital_overlay.icon_state = "[G.slot]_[S.icon_state]_[size][(dna.species.use_skintones && !dna.skin_tone_override) ? "_s" : ""]_[aroused_state]_[layertext]"
+			genital_overlay.icon_state = "[G.slot]_[S.icon_state]_[suffix][size][(dna.species.use_skintones && !dna.skin_tone_override) ? "_s" : ""]_[aroused_state]_[layertext]"
+			// BLUEMOON ADD
+			var/mutable_appearance/nipples_overlay
+			if(istype(G, /obj/item/organ/genital/breasts) \
+				&& dna.features["breasts_nipples"] \
+				&& dna.features["breasts_sprite_variant"] != "Old" \
+				&& S.icon_state == "pair" \
+				&& size != "плоского")
+				nipples_overlay = mutable_appearance(accessory_icon, layer = -layer)
+				if(do_center)
+					nipples_overlay = center_image(nipples_overlay, dim_x, dim_y)
+				nipples_overlay.color = "#[dna.features["breasts_nipples_color"]]"
+				nipples_overlay.icon_state = "nipples_[S.icon_state]_[size]_[aroused_state]_[layertext]"
+			// BLUEMOON ADD
 
 			// Check if the flag is on, or the genitals are exposed with no uniform on (except for gear harness)
-			var/should_promote = (G.genital_flags & GENITAL_THROUGH_CLOTHES) || (G.is_exposed() && !(w_uniform && !istype(w_uniform, /obj/item/clothing/under/misc/gear_harness)))
+			var/should_promote = (G.genital_flags & GENITAL_THROUGH_CLOTHES) || forced_by_hardlight || (G.is_exposed() && !(w_uniform && !istype(w_uniform, /obj/item/clothing/under/misc/gear_harness)))
 			// Keep the genital rendered but hidden if player is wearing underwear that got a keep_genitals_below flag on a specific genital
 			if(G.is_exposed() && !(G.genital_flags & GENITAL_THROUGH_CLOTHES))
 				var/obj/item/clothing/under_check
@@ -515,16 +549,29 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 			// While still keeping the option to render them underneath the clothing when needed
 			if(layers_num[layer] == GENITALS_FRONT_LAYER && should_promote)
 				genital_overlay.layer = -GENITALS_EXPOSED_LAYER
+				dna.species.update_overlay_by_key(mutant_string, src, genital_overlay)
 				LAZYADD(fully_exposed, genital_overlay)
 				if(has_emissive_part(dna.features, G.slot))
-					var/mutable_appearance/genital_emissive = emissive_copy(genital_overlay)
+					var/mutable_appearance/genital_emissive = emissive_copy(genital_overlay, offset_spokesman = src)
 					LAZYADD(fully_exposed, genital_emissive)
+				// BLUEMOON ADD
+				if(nipples_overlay)
+					nipples_overlay.layer = -GENITALS_EXPOSED_LAYER
+					LAZYADD(fully_exposed, nipples_overlay)
+					if(has_emissive_part(dna.features, G.slot))
+						LAZYADD(fully_exposed, emissive_copy(nipples_overlay))
 			else
 				genital_overlay.layer = -layers_num[layer]
 				standing += genital_overlay
 				if(has_emissive_part(dna.features, G.slot))
-					var/mutable_appearance/genital_emissive = emissive_copy(genital_overlay)
+					var/mutable_appearance/genital_emissive = emissive_copy(genital_overlay, offset_spokesman = src)
 					standing += genital_emissive
+				// BLUEMOON ADD
+				if(nipples_overlay)
+					nipples_overlay.layer = -layers_num[layer]
+					standing += nipples_overlay
+					if(has_emissive_part(dna.features, G.slot))
+						standing += emissive_copy(nipples_overlay)
 
 		if(LAZYLEN(standing))
 			overlays_standing[layers_num[layer]] = standing
@@ -532,10 +579,10 @@ GLOBAL_LIST_EMPTY(genital_slot_dna_features)
 	if(LAZYLEN(fully_exposed))
 		overlays_standing[GENITALS_EXPOSED_LAYER] = fully_exposed
 		apply_overlay(GENITALS_EXPOSED_LAYER)
+		apply_overlay(GENITAL_EFFECT_LAYER)
 
 	for(var/L in relevant_layers)
 		apply_overlay(layers_num[L])
-
 
 //Checks to see if organs are new on the mob, and changes their colours so that they don't get crazy colours.
 /mob/living/carbon/human/proc/emergent_genital_call()

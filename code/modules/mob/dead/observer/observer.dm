@@ -92,12 +92,13 @@ GLOBAL_VAR_INIT(observer_default_invisibility, INVISIBILITY_OBSERVER)
 
 		if(ishuman(body))
 			var/mob/living/carbon/human/body_human = body
-			if(HAIR in body_human.dna.species.species_traits)
-				hair_style = body_human.hair_style
-				hair_color = brighten_color(body_human.hair_color)
-			if(FACEHAIR in body_human.dna.species.species_traits)
-				facial_hair_style = body_human.facial_hair_style
-				facial_hair_color = brighten_color(body_human.facial_hair_color)
+			if(body_human.dna?.species)
+				if(HAIR in body_human.dna.species.species_traits)
+					hair_style = body_human.hair_style
+					hair_color = brighten_color(body_human.hair_color)
+				if(FACEHAIR in body_human.dna.species.species_traits)
+					facial_hair_style = body_human.facial_hair_style
+					facial_hair_color = brighten_color(body_human.facial_hair_color)
 
 	update_icon()
 
@@ -131,10 +132,19 @@ GLOBAL_VAR_INIT(observer_default_invisibility, INVISIBILITY_OBSERVER)
 		AA.onNewMob(src)
 
 	. = ..()
+	register_mousewheel_handler(src, PROC_REF(on_mousewheel))
 	AddElement(/datum/element/ghost_role_eligibility)
+	var/datum/action/join_shift/join_action = new(src)
+	join_action.Grant(src)
 	grant_all_languages()
 	show_data_huds()
 	data_huds_on = 1
+
+/mob/dead/observer/proc/on_mousewheel(mob/user, atom/target, delta_x, delta_y, list/modifiers)
+	if(!delta_y || !modifiers[SHIFT_CLICK])
+		return FALSE
+	add_view_range(delta_y > 0 ? -1 : 1)
+	return TRUE
 
 /mob/dead/observer/get_status_tab_items()
 	. = ..()
@@ -191,8 +201,6 @@ GLOBAL_VAR_INIT(observer_default_invisibility, INVISIBILITY_OBSERVER)
 	hair_overlay = null
 	facial_hair_overlay = null
 	managed_overlays = null
-	realized_overlays = null
-	realized_underlays = null
 
 	var/image/departing_default = ghostimage_default
 	var/image/departing_simple = ghostimage_simple
@@ -538,7 +546,11 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	var/list/filtered = list()
 	for(var/V in GLOB.sortedAreas)
 		var/area/A = V
-		if(!A.hidden)
+		if(istype(A, /area/antag_training))
+			var/area/antag_training/training = A
+			if(training.arena?.ready)
+				filtered += A
+		else if(!A.hidden)
 			filtered += A
 	var/area/thearea = tgui_input_list(src, "Area to jump to", "BOOYEA", filtered)
 
@@ -724,9 +736,13 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 			lighting_alpha = LIGHTING_PLANE_ALPHA_VISIBLE
 
 	update_sight()
+	// Смены z здесь не будет, подъём под включённую темноту заказывается вручную.
+	if(registered_z)
+		for(var/visible_z in SSmapping.get_levels_visible_from(registered_z))
+			request_ghost_lighting_init(visible_z)
 
 /mob/dead/observer/update_sight(forced = TRUE)
-	if(client?.prefs)
+	if(client)
 		ghost_others = client.prefs.ghost_others //A quick update just in case this setting was changed right before calling the proc
 
 	if (!ghostvision)
@@ -839,9 +855,17 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	..()
 	if(usr == src)
 		if(href_list["follow"])
-			var/atom/movable/target = locate(href_list["follow"])
-			if(istype(target) && (target != src))
+			var/atom/movable/target = ghost_follow_resolve(href_list["follow"], href_list["follow_token"])
+			if(target && (target != src))
 				ManualFollow(target)
+				return
+			// Координатный запасной путь есть только у FOLLOW_OR_TURF_LINK - ему падать
+			// ниже, в ветку x/y/z. У голого FOLLOW_LINK запасного пути нет, и раньше
+			// клик по протухшей ссылке просто НИЧЕГО не делал: ни следования, ни строки
+			// в чат. Так на проде и выглядела "рандомная невозможность орбититься по
+			// ссылкам" - жалоба раунда 10127 (27.08.2026).
+			if(!href_list["x"] || !href_list["y"] || !href_list["z"])
+				to_chat(src, span_warning("Цель этой ссылки больше не существует. Актуальный список - в меню орбиты (Orbit)."))
 				return
 		if(href_list["x"] && href_list["y"] && href_list["z"])
 			var/tx = text2num(href_list["x"])
@@ -914,13 +938,13 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 		client.prefs.real_name = random_unique_name(gender)
 	if(client.prefs.be_random_body)
 		client.prefs.random_character(gender)
-
-	if(HAIR in client.prefs.pref_species.species_traits)
-		hair_style = client.prefs.hair_style
-		hair_color = brighten_color(client.prefs.hair_color)
-	if(FACEHAIR in client.prefs.pref_species.species_traits)
-		facial_hair_style = client.prefs.facial_hair_style
-		facial_hair_color = brighten_color(client.prefs.facial_hair_color)
+	if(client.prefs.pref_species)
+		if(HAIR in client.prefs.pref_species.species_traits)
+			hair_style = client.prefs.hair_style
+			hair_color = brighten_color(client.prefs.hair_color)
+		if(FACEHAIR in client.prefs.pref_species.species_traits)
+			facial_hair_style = client.prefs.facial_hair_style
+			facial_hair_color = brighten_color(client.prefs.facial_hair_color)
 
 	update_icon()
 
@@ -934,11 +958,13 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	. = ..()
 	switch(var_name)
 		if(NAMEOF(src, icon))
-			ghostimage_default.icon = icon
-			ghostimage_simple.icon = icon
+			if(ghostimage_default && ghostimage_simple)
+				ghostimage_default.icon = icon
+				ghostimage_simple.icon = icon
 		if(NAMEOF(src, icon_state))
-			ghostimage_default.icon_state = icon_state
-			ghostimage_simple.icon_state = icon_state
+			if(ghostimage_default && ghostimage_simple)
+				ghostimage_default.icon_state = icon_state
+				ghostimage_simple.icon_state = icon_state
 		if(NAMEOF(src, fun_verbs))
 			if(fun_verbs)
 				add_verb(src, /mob/dead/observer/verb/boo)
@@ -946,6 +972,8 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 			else
 				remove_verb(src, /mob/dead/observer/verb/boo)
 				remove_verb(src, /mob/dead/observer/verb/possess)
+		if(NAMEOF(src, invisibility))
+			set_invisibility(invisibility) // updates light
 
 /mob/dead/observer/reset_perspective(atom/A)
 	// Отвязываемся по observetarget, а не по client.eye. Прежнее условие требовало, чтобы
@@ -953,14 +981,15 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	// на турф, на самого госта или обнулиться - тогда прежняя цель навсегда оставалась с
 	// записью о нас в observers. observetarget - единственная авторитетная запись о связи,
 	// и снимать её надо независимо от наличия клиента.
-	if(observetarget)
-		var/mob/previous_target = observetarget
+	var/mob/previous_target = observetarget
+	if(previous_target)
 		observetarget = null
 		if(previous_target.observers)
 			previous_target.observers -= src
 			UNSETEMPTY(previous_target.observers)
 	if(..())
-		if(hud_used)
+		// Экран подменяет только do_observe; орбита и смена глаза HUD не трогают.
+		if(previous_target && hud_used)
 			client.clear_screen()
 			hud_used.show_hud(hud_used.hud_version)
 
@@ -995,14 +1024,18 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 			// в observers старой цели (класс утечек обсерверов). Лечим, но логируем.
 			stack_trace("do_observe у [src] при уже занятой цели (была: [observetarget], новая: [mob_eye])")
 			reset_perspective(null)
-		client.eye = mob_eye
+		client.set_eye(mob_eye)
+		set_observetarget(mob_eye)
 		if(mob_eye.hud_used)
 			client.clear_screen()
-			LAZYINITLIST(mob_eye.observers)
-			mob_eye.observers |= src
 			mob_eye.hud_used.show_hud(mob_eye.hud_used.hud_version, src)
-			observetarget = mob_eye
-			mob_eye.investigate_log("was observed by [src] as a ghost.", INVESTIGATE_GHOST)
+		mob_eye.investigate_log("was observed by [src] as a ghost.", INVESTIGATE_GHOST)
+
+/// Двусторонняя связь с наблюдаемым; нужна и мобу без худа, иначе его смена этажа не доходит до рендера госта.
+/mob/dead/observer/proc/set_observetarget(mob/mob_eye)
+	observetarget = mob_eye
+	LAZYINITLIST(mob_eye.observers)
+	mob_eye.observers |= src
 
 /mob/dead/observer/verb/register_pai_candidate()
 	set category = "Ghost"
@@ -1061,13 +1094,8 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 		set_light(0, 0)
 
 // Ghosts have no momentum, being massless ectoplasm
-/mob/dead/observer/Process_Spacemove(movement_dir, continuous_move = FALSE)
+/mob/dead/observer/Process_Spacemove(movement_dir)
 	return TRUE
-
-/mob/dead/observer/vv_edit_var(var_name, var_value)
-	. = ..()
-	if(var_name == NAMEOF(src, invisibility))
-		set_invisibility(invisibility) // updates light
 
 /proc/set_observer_default_invisibility(amount, message=null)
 	for(var/mob/dead/observer/G in GLOB.player_list)
@@ -1090,3 +1118,77 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 
 /mob/dead/observer/can_admin_interact()
 	return check_rights(R_ADMIN, 0)
+
+
+/**
+ * Годится ли атом на конце ссылки (F) в качестве цели слежения.
+ *
+ * ЗАЧЕМ. Ссылка (F) уезжает в чат текстом и живёт там до конца раунда, а REF() внутри неё -
+ * это индекс в таблице BYOND, который переиспользуется, как только атом удалён. Поэтому
+ * протухшая ссылка не просто "не находит цель": locate() честно отдаёт ТО, ЧТО заняло слот,
+ * а прежняя проверка istype(target, /atom/movable) пропускала дальше что угодно - включая
+ * служебные атомы вроде объекта освещения, которых на карте сотни тысяч и которые в этом
+ * билде массово создаются и удаляются при сносе и подъёме света отложенных z-уровней
+ * (раунд 10127: 29 сносов и 32 подъёма, около 1.4 млн созданий и удалений за смену).
+ *
+ * ismob() отсекает весь служебный движимый хлам за одну проверку типа, а немобовые цели у
+ * FOLLOW_LINK единичны и все либо зарегистрированы как POI, либо являются ориентирами карты.
+ *
+ * ЭТО ЗАПАСНОЙ ПУТЬ. Основной - токен идентичности ниже: проверка типа пропускает ДРУГОГО
+ * моба, занявшего освободившийся слот, и сюда доходят только ссылки без токена.
+ */
+/proc/ghost_follow_target_valid(atom/movable/target)
+	if(QDELETED(target))
+		return FALSE
+	if(ismob(target))
+		return TRUE
+	if(target in GLOB.poi_list)
+		return TRUE
+	return istype(target, /obj/effect/landmark)
+
+/**
+ * Монотонный счётчик токенов идентичности. Значения НЕ переиспользуются - в этом весь смысл.
+ *
+ * Проверка типа выше отсекает служебный хлам, занявший переиспользованный слот, но не
+ * отличает исходную цель от ДРУГОГО моба, занявшего тот же слот: обоим ismob() говорит "да".
+ * Токен отличает, потому что счётчик никогда не выдаёт значение дважды: совпадение токена -
+ * это доказательство, что перед нами ровно тот атом, для которого ссылка была построена.
+ */
+GLOBAL_VAR_INIT(follow_token_serial, 0)
+
+/**
+ * Токен идентичности цели слежения, выдаётся лениво.
+ *
+ * Слот переменной платится только атомами, на которых ссылка (F) или строка меню орбиты
+ * реально строилась, - у остальных вар объявлен, но не записан, и места не занимает
+ * (см. модель блока переменных инстанса BYOND).
+ */
+/atom/movable/var/follow_token = 0
+
+/atom/movable/proc/get_follow_token()
+	if(!follow_token)
+		follow_token = ++GLOB.follow_token_serial
+	return follow_token
+
+/// Пара "ссылка + токен" для href слежения. Цель вычисляется РОВНО один раз: макросы
+/// FOLLOW_LINK и FOLLOW_OR_TURF_LINK подставляют сюда своё выражение-аргумент.
+/proc/follow_href_params(atom/movable/target)
+	if(!istype(target))
+		return "follow=[REF(target)]"
+	return "follow=[REF(target)];follow_token=[target.get_follow_token()]"
+
+/**
+ * Достаёт цель слежения из href-а и доказывает, что это ТА САМАЯ цель.
+ *
+ * Токен в ссылке есть - решает только он: не совпал, значит слот переиспользован, и
+ * следовать некуда. Токена нет (старая ссылка из чата, пережившая перезапуск раунда, или
+ * немовабельная цель) - остаётся прежняя проверка по типу, то есть не хуже, чем было.
+ */
+/proc/ghost_follow_resolve(target_ref, token)
+	var/atom/movable/target = locate(target_ref)
+	if(!istype(target) || QDELETED(target))
+		return null
+	var/expected_token = text2num(token)
+	if(expected_token)
+		return target.follow_token == expected_token ? target : null
+	return ghost_follow_target_valid(target) ? target : null

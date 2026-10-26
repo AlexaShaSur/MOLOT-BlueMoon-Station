@@ -132,7 +132,6 @@
 	player_minimum = 25
 	cost = 16
 	purchasable_from = UPLINK_SYNDICATE
-	blocked_round_types = list(ROUNDTYPE_DYNAMIC_LIGHT)
 
 /datum/uplink_item/dangerous/doublesword/get_discount()
 	return pick(4;0.8,2;0.65,1;0.5)
@@ -358,7 +357,7 @@
 			Позволяет рубить на расстоянии!"
 	item = /obj/item/gun/magic/staff/motivation
 	cost = 10
-	purchasable_from = UPLINK_NUKE_OPS | UPLINK_CLOWN_OPS | UPLINK_SYNDICATE
+	purchasable_from = UPLINK_NUKE_OPS | UPLINK_CLOWN_OPS | UPLINK_SYNDICATE | UPLINK_TRAITORS
 
 /datum/uplink_item/dangerous/kudzu_seeds
 	name = "Pack of Kudzu Seeds"
@@ -367,3 +366,17 @@
 	cost = 4
 	surplus = 10
 	purchasable_from = ~UPLINK_SYNDICATE_PACT_CREW
+
+/datum/uplink_item/dangerous/cowboy
+	name = "The Man Without A Name Kit"
+	desc = "Includes a belt and two revolvers that can be reloaded instantly using the belt with cartridges, shooting with both hands is highly recommended."
+	item = /obj/item/storage/box/inteq_kit/cowboy_kit
+	cost = 10
+	purchasable_from = UPLINK_NUKE_OPS | UPLINK_CLOWN_OPS | UPLINK_SYNDICATE | UPLINK_TRAITORS
+
+/datum/uplink_item/dangerous/ncr
+	name = "Passing Bell"
+	desc = "45-70 revolver, nothing to say."
+	item = /obj/item/storage/box/inteq_kit/ncr_kit
+	cost = 10
+	purchasable_from = UPLINK_NUKE_OPS | UPLINK_CLOWN_OPS | UPLINK_SYNDICATE | UPLINK_TRAITORS

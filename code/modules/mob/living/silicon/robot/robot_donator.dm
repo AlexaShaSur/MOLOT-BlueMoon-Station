@@ -9,7 +9,7 @@
  * 5. Не забудьте добавить новый datum в GLOB.borg_donator_skins внизу файла.
  *
  * Правила доступа:
- * - ckey_whitelist проверяется без учёта регистра, но сами ckey всё равно лучше писать в lowercase.
+ * - ckey_whitelist поддерживает исходные key, нормализованные ckey и enc1 ID от любого из этих вариантов.
  * - donator_group можно использовать вместо ckey_whitelist или вместе с ним.
  */
 
@@ -20,7 +20,7 @@
 
 	return preview
 
-/datum/borg_donator_skin	
+/datum/borg_donator_skin
 	var/name = ""
 	var/module_type = /obj/item/robot_module
 
@@ -47,16 +47,17 @@
 	var/sit_lamp_has_state = null
 
 /datum/borg_donator_skin/proc/can_use(client/C)
-	if(!C)
+	return C && is_allowed_for(C.key)
+
+/// Whitelist membership OR donor group membership grants access; neither configured means no access.
+/datum/borg_donator_skin/proc/is_allowed_for(user_key)
+	if(!length_char(ckey(user_key)))
 		return FALSE
 
-	if(length(ckey_whitelist))
-		var/user_ckey = lowertext(C.ckey)
-		for(var/allowed_ckey in ckey_whitelist)
-			if(lowertext("[allowed_ckey]") == user_ckey)
-				return TRUE
+	if(length(ckey_whitelist) && is_key_in_whitelist(user_key, ckey_whitelist))
+		return TRUE
 
-	if(donator_group != DONATOR_GROUP_NONE && is_donator_group(C.ckey, donator_group))
+	if(donator_group != DONATOR_GROUP_NONE && is_donator_group(user_key, donator_group))
 		return TRUE
 
 	return FALSE
@@ -282,7 +283,7 @@
 	name = "Ratvar Meka"
 	module_type = /obj/item/robot_module/engineering
 	preview_icon = 'modular_splurt/icons/mob/robots_32x64.dmi'
-	preview_icon_state = "ratvarmeka"
+	preview_icon_state = "ratvrarmeka"
 	ckey_whitelist = list("foxrtotlimda")
 	cyborg_base_icon = "ratvrarmeka"
 	cyborg_icon_override = 'modular_splurt/icons/mob/robots_32x64.dmi'
@@ -295,7 +296,7 @@
 	preview_icon = 'modular_splurt/icons/mob/robots_32x64.dmi'
 	preview_icon_state = "ratvrarmeka"
 	ckey_whitelist = list("foxrtotlimda")
-	cyborg_base_icon = "ratvarmeka"
+	cyborg_base_icon = "ratvrarmeka"
 	cyborg_icon_override = 'modular_splurt/icons/mob/robots_32x64.dmi'
 	hat_offset = TALL_HAT_OFFSET
 	hasrest = TRUE
@@ -303,14 +304,81 @@
 /datum/borg_donator_skin/peacemaker/moth_meka
 	name = "Moth Meka"
 	module_type = /obj/item/robot_module/peacekeeper
-	preview_icon = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	preview_icon = 'modular_splurt/icons/mob/robots_tech_r2_32x64.dmi'
 	preview_icon_state = "mekamoth"
 	ckey_whitelist = list("techgrid", "mrpelmenik007")
 	cyborg_base_icon = "mekamoth"
-	cyborg_icon_override = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	cyborg_icon_override = 'modular_splurt/icons/mob/robots_tech_r2_32x64.dmi'
 	hat_offset = TALL_HAT_OFFSET
 	hasrest = TRUE
 	sit_lamp_has_state = TRUE
+
+/datum/borg_donator_skin/medical
+	name = "Moth Meka"
+	module_type = /obj/item/robot_module/medical
+	preview_icon = 'modular_splurt/icons/mob/robots_tech_r2_32x64.dmi'
+	preview_icon_state = "mekamoth"
+	ckey_whitelist = list("techgrid", "mrpelmenik007")
+	cyborg_base_icon = "mekamoth"
+	cyborg_icon_override = 'modular_splurt/icons/mob/robots_tech_r2_32x64.dmi'
+	hat_offset = TALL_HAT_OFFSET
+	hasrest = TRUE
+	sit_lamp_has_state = TRUE
+
+/datum/borg_donator_skin/standard/servmeka
+	name = "Serv Meka"
+	module_type = /obj/item/robot_module/standard
+	preview_icon = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	preview_icon_state = "sfmekaserv"
+	ckey_whitelist = list("foxrtotlimda")
+	cyborg_base_icon = "sfmekaserv"
+	cyborg_icon_override = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	hat_offset = TALL_HAT_OFFSET
+	hasrest = TRUE
+
+/datum/borg_donator_skin/butler/servmeka
+	name = "Serv Meka"
+	module_type = /obj/item/robot_module/butler
+	preview_icon = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	preview_icon_state = "sfmekaserv"
+	ckey_whitelist = list("foxrtotlimda")
+	cyborg_base_icon = "sfmekaserv"
+	cyborg_icon_override = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	hat_offset = TALL_HAT_OFFSET
+	hasrest = TRUE
+
+/datum/borg_donator_skin/syndicatejack/flmekagas
+	name = "Plasma Meka"
+	module_type = /obj/item/robot_module/syndicatejack
+	preview_icon = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	preview_icon_state = "flmekagas"
+	ckey_whitelist = list("foxrtotlimda")
+	cyborg_base_icon = "flmekagas"
+	cyborg_icon_override = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	hat_offset = TALL_HAT_OFFSET
+	hasrest = TRUE
+
+/datum/borg_donator_skin/miner/flmekagas
+	name = "Plasma Meka"
+	module_type = /obj/item/robot_module/miner
+	preview_icon = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	preview_icon_state = "flmekagas"
+	ckey_whitelist = list("foxrtotlimda")
+	cyborg_base_icon = "flmekagas"
+	cyborg_icon_override = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	hat_offset = TALL_HAT_OFFSET
+	hasrest = TRUE
+
+/datum/borg_donator_skin/security/flmekagas
+	name = "Plasma Meka"
+	module_type = /obj/item/robot_module/security
+	preview_icon = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	preview_icon_state = "flmekagas"
+	ckey_whitelist = list("foxrtotlimda")
+	cyborg_base_icon = "flmekagas"
+	cyborg_icon_override = 'modular_splurt/icons/mob/robots_32x64.dmi'
+	hat_offset = TALL_HAT_OFFSET
+	hasrest = TRUE
 
 /proc/smart_init_borgs_skin()
 	. = list()

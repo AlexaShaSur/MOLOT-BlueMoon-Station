@@ -1,3 +1,13 @@
+/// Имя фильтра наносьюта на носителе. Раньше состояния костюма ПРИСВАИВАЛИ moba.filters
+/// целиком, а выключение обнуляло список - вместе с чужими именованными фильтрами
+/// (тень хардкрита и стамкрита, замыленные глаза), которые живут в filter_data. Хуже
+/// того, присвоение расходится с filter_data, и первый же чужой add_filter пересобирал
+/// список заново, молча теряя фильтр самого костюма. Имя решает обе стороны: состояния
+/// у костюма взаимоисключающие, поэтому имя одно.
+#define NANOSUIT_FILTER "nanosuit"
+/// Поверх ambient occlusion, но ниже конуса обзора.
+#define NANOSUIT_FILTER_PRIORITY 50
+
 /datum/action/item_action/dusting_implant
 	check_flags =  NONE
 	name = "Activate Dusting Implant"
@@ -33,7 +43,7 @@
 	desc = "Boots part of a nanosuit. Slip resistant. Property of CryNet Systems."
 	clothing_flags = NOSLIP
 	gas_transfer_coefficient = 0.01
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 100, FIRE = 0, ACID = 0)
+	armor_type = /datum/armor/bio100
 	resistance_flags = INDESTRUCTIBLE | FIRE_PROOF | ACID_PROOF | FREEZE_PROOF
 	item_flags = DROPDEL
 
@@ -47,7 +57,7 @@
 	desc = "CryNet-issue guerrilla tackling gloves built into the nanosuit. Fireproof, shock resistant, and tuned for devastating rushes."
 	resistance_flags = INDESTRUCTIBLE | FIRE_PROOF | ACID_PROOF | FREEZE_PROOF
 	gas_transfer_coefficient = 0.01
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 100, FIRE = 0, ACID = 0)
+	armor_type = /datum/armor/bio100
 	item_flags = DROPDEL
 	tackle_stam_cost = 35
 	base_knockdown = 1.5 SECONDS
@@ -166,7 +176,8 @@
 	item_state = "nanosuit"
 	name = "nanosuit"
 	desc = "Some sort of alien future suit. It looks very robust. Property of CryNet Systems."
-	armor = list(MELEE = 45, BULLET = 45, LASER = 45, ENERGY = 50, BOMB = 80, BIO = 100, RAD = 100, FIRE = 100, ACID = 100, WOUND = 40)
+	armor_type = /datum/armor/nano
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	allowed = list(/obj/item/gun, /obj/item/melee, /obj/item/grenade, /obj/item/nullrod, /obj/item/ammo_box, /obj/item/ammo_casing, /obj/item/tank/internals)
 	heat_protection = CHEST|GROIN|LEGS|FEET|ARMS|HANDS					//Uncomment to enable firesuit protection
 	max_heat_protection_temperature = FIRE_IMMUNITY_MAX_TEMP_PROTECT
@@ -390,7 +401,7 @@
 				slowdown = initial(slowdown)
 				armor = armor.setRating(melee = 60, bullet = 60, laser = 55, energy = 60, bomb = 95, rad = 100, fire = 100, acid = 100, wound = 50)
 				helmet.armor = helmet.armor.setRating(melee = 60, bullet = 60, laser = 55, energy = 60, bomb = 95, rad = 100, fire = 100, acid = 100, wound = 50)
-				Wearer.filters = list()
+				Wearer.remove_filter(NANOSUIT_FILTER)
 				animate(Wearer, alpha = 255, time = 5)
 				Wearer.remove_movespeed_modifier(/datum/movespeed_modifier/nanospeed)
 				REMOVE_TRAIT(Wearer, TRAIT_IGNORESLOWDOWN, NANO_SPEED)
@@ -407,7 +418,7 @@
 				slowdown = 0.25 //cloaking makes us move slightly faster
 				armor = armor.setRating(melee = 45, bullet = 45, laser = 45, energy = 50, bomb = 80, rad = 100, fire = 100, acid = 100, wound = 40)
 				helmet.armor = helmet.armor.setRating(melee = 45, bullet = 45, laser = 45, energy = 50, bomb = 80, rad = 100, fire = 100, acid = 100, wound = 40)
-				Wearer.filters = filter(type="blur",size=1)
+				Wearer.add_filter(NANOSUIT_FILTER, NANOSUIT_FILTER_PRIORITY, list(type="blur", size=1))
 				animate(Wearer, alpha = 40, time = 2)
 				Wearer.remove_movespeed_modifier(/datum/movespeed_modifier/nanospeed)
 				REMOVE_TRAIT(Wearer, TRAIT_IGNORESLOWDOWN, NANO_SPEED)
@@ -426,7 +437,7 @@
 				helmet.armor = helmet.armor.setRating(melee = 45, bullet = 45, laser = 45, energy = 50, bomb = 80, rad = 100, fire = 100, acid = 100, wound = 40)
 				Wearer.adjustOxyLoss(-5, 0)
 				Wearer.adjustStaminaLoss(-20)
-				Wearer.filters = filter(type="outline", size=0.1, color=rgb(255,255,224))
+				Wearer.add_filter(NANOSUIT_FILTER, NANOSUIT_FILTER_PRIORITY, list(type="outline", size=0.1, color=rgb(255,255,224)))
 				animate(Wearer, alpha = 255, time = 5)
 				REMOVE_TRAIT(Wearer, TRAIT_PUSHIMMUNE, NANO_STRENGTH)
 				REMOVE_TRAIT(Wearer, TRAIT_HEAVY_MELEE, NANO_STRENGTH)
@@ -444,7 +455,7 @@
 				slowdown = initial(slowdown)
 				armor = armor.setRating(melee = 45, bullet = 45, laser = 45, energy = 50, bomb = 80, rad = 100, fire = 100, acid = 100, wound = 40)
 				helmet.armor = helmet.armor.setRating(melee = 45, bullet = 45, laser = 45, energy = 50, bomb = 80, rad = 100, fire = 100, acid = 100, wound = 40)
-				Wearer.filters = filter(type="outline", size=0.1, color=rgb(255,0,0))
+				Wearer.add_filter(NANOSUIT_FILTER, NANOSUIT_FILTER_PRIORITY, list(type="outline", size=0.1, color=rgb(255,0,0)))
 				animate(Wearer, alpha = 255, time = 5)
 				ADD_TRAIT(Wearer, TRAIT_PUSHIMMUNE, NANO_STRENGTH)
 				ADD_TRAIT(Wearer, TRAIT_HEAVY_MELEE, NANO_STRENGTH)
@@ -460,7 +471,7 @@
 				slowdown = initial(slowdown)
 				armor = armor.setRating(melee = 45, bullet = 45, laser = 45, energy = 50, bomb = 80, rad = 100, fire = 100, acid = 100, wound = 40)
 				helmet.armor = helmet.armor.setRating(melee = 45, bullet = 45, laser = 45, energy = 50, bomb = 80, rad = 100, fire = 100, acid = 100, wound = 40)
-				Wearer.filters = list()
+				Wearer.remove_filter(NANOSUIT_FILTER)
 				animate(Wearer, alpha = 255, time = 5)
 				REMOVE_TRAIT(Wearer, TRAIT_PUSHIMMUNE, NANO_STRENGTH)
 				REMOVE_TRAIT(Wearer, TRAIT_HEAVY_MELEE, NANO_STRENGTH)
@@ -587,7 +598,7 @@
 	//item_color = "nano"
 	siemens_coefficient = 0
 	gas_transfer_coefficient = 0.01
-	armor = list(MELEE = 45, BULLET = 45, LASER = 45, ENERGY = 50, BOMB = 80, BIO = 100, RAD = 100, FIRE = 100, ACID = 100, WOUND = 40)
+	armor_type = /datum/armor/nano
 	resistance_flags = INDESTRUCTIBLE | FIRE_PROOF | ACID_PROOF | FREEZE_PROOF //No longer shall our kind be foiled by lone chemists with spray bottles!
 	heat_protection = HEAD
 	max_heat_protection_temperature = FIRE_IMMUNITY_MAX_TEMP_PROTECT
@@ -716,6 +727,7 @@
 		Wearer.verbs -= help_verb
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/bootSequence()
+//Перевести на таймеры надо :(
 	helmet.display_visor_message("Crynet - UEFI v1.32 Syndicate Systems")
 	sleep(10)
 	helmet.display_visor_message("P.O.S.T. Загрузка...")
@@ -1083,7 +1095,7 @@
 			var/obj/item/gun/G = W
 			if(G.suppressed && G.can_shoot())
 				set_nano_energy(15)
-				Wearer.filters = null
+				Wearer.remove_filter(NANOSUIT_FILTER)
 				animate(Wearer, alpha = 255, time = stealth_cloak_out)
 				addtimer(CALLBACK(src, PROC_REF(resume_cloak)),CLICK_CD_RANGE,TIMER_UNIQUE|TIMER_OVERRIDE)
 				return
@@ -1091,7 +1103,7 @@
 
 /obj/item/clothing/suit/space/hardsuit/nano/proc/resume_cloak()
 	if(cell.charge && mode == NANO_CLOAK)
-		Wearer.filters = filter(type="blur",size=1)
+		Wearer.add_filter(NANOSUIT_FILTER, NANOSUIT_FILTER_PRIORITY, list(type="blur", size=1))
 		animate(Wearer, alpha = 40, time = stealth_cloak_in)
 
 /obj/item/storage/box/syndie_kit/nanosuit
@@ -1235,10 +1247,10 @@
 	name = "Нанокостюм CryNet"
 	desc = "Станьте постчеловеческим воином с этим тяжелобронированным и мощным костюмом. Нанокостюм нельзя снять, а также он предупреждает экипаж о вашем местоположении, если вы его надели."
 	item = /obj/item/storage/box/syndie_kit/nanosuit
-	cost = 30
+	cost = 15
 	surplus = 1
 	cant_discount = TRUE
-	purchasable_from = ~(UPLINK_NUKE_OPS | UPLINK_CLOWN_OPS)
+	purchasable_from = ~(UPLINK_NUKE_OPS | UPLINK_CLOWN_OPS | UPLINK_SYNDICATE)
 	hijack_only = TRUE
 
 /datum/movespeed_modifier/nanospeed
@@ -1276,3 +1288,6 @@
 			return TRUE
 		return FALSE
 	return ..()
+
+#undef NANOSUIT_FILTER
+#undef NANOSUIT_FILTER_PRIORITY

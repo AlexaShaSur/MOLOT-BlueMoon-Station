@@ -7,8 +7,9 @@
 	icon = 'icons/mob/human_parts.dmi'
 	w_class = WEIGHT_CLASS_SMALL
 	icon_state = ""
-	layer = BELOW_MOB_LAYER //so it isn't hidden behind objects when on the floor
 	appearance_flags = KEEP_TOGETHER | LONG_GLIDE | PIXEL_SCALE | TILE_BOUND
+	layer = BELOW_MOB_LAYER //so it isn't hidden behind objects when on the floor
+	var/as_mob_layer = BODYPARTS_LAYER
 	var/mob/living/carbon/owner = null
 	var/datum/weakref/original_owner = null
 	var/status = BODYPART_ORGANIC
@@ -72,6 +73,9 @@
 	var/dmg_overlay_type //the type of damage overlay (if any) to use when this bodypart is bruised/burned.
 	/// If we're bleeding, which icon are we displaying on this part
 	var/bleed_overlay_icon
+	/// A list of /datum/bodypart_overlay datums attached to this limb (e.g. augment implants).
+	/// Rendered by get_limb_icon() after all other bodypart images are assembled.
+	var/list/bodypart_overlays
 
 	//Damage messages used by help_shake_act()
 	var/light_brute_msg = "немного повреждена"
@@ -260,10 +264,10 @@
 	var/wounding_type = (brute > burn ? WOUND_BLUNT : WOUND_BURN)
 	var/wounding_dmg = max(brute, burn)
 	var/mangled_state = get_mangled_state()
-	var/bio_state = owner.get_biological_state()
-	var/easy_dismember = HAS_TRAIT(owner, TRAIT_EASYDISMEMBER) // if we have easydismember, we don't reduce damage when redirecting damage to different types (slashing weapons on mangled/skinless limbs attack at 100% instead of 50%)
-	var/glass_bones = HAS_TRAIT(owner, TRAIT_GLASS_BONES)
-	var/paper_skin = HAS_TRAIT(owner, TRAIT_PAPER_SKIN)
+	var/bio_state = owner ? owner.get_biological_state() : (BIO_JUST_FLESH | BIO_JUST_BONE)
+	var/easy_dismember = owner && HAS_TRAIT(owner, TRAIT_EASYDISMEMBER) // if we have easydismember, we don't reduce damage when redirecting damage to different types (slashing weapons on mangled/skinless limbs attack at 100% instead of 50%)
+	var/glass_bones = owner && HAS_TRAIT(owner, TRAIT_GLASS_BONES)
+	var/paper_skin = owner && HAS_TRAIT(owner, TRAIT_PAPER_SKIN)
 
 	if(wounding_type == WOUND_BLUNT)
 		if(sharpness == SHARP_EDGED)
@@ -528,7 +532,11 @@
 //Heals brute and burn damage for the organ. Returns 1 if the damage-icon states changed at all.
 //Damage cannot go below zero.
 //Cannot remove negative damage (i.e. apply damage)
-/obj/item/bodypart/proc/heal_damage(brute, burn, stamina, only_robotic = FALSE, only_organic = TRUE, updating_health = TRUE)
+/obj/item/bodypart/proc/heal_damage(brute, burn, stamina, only_robotic = FALSE, only_organic = TRUE, updating_health = TRUE, forced = FALSE)
+	// Bloodsucker antags have TRAIT_NONATURALHEAL but they use this proc to heal themselves despite the clear decription of this trait.
+	// Not wise. But I don't want to ruin their mechanics. So let them have this proc.
+	if((brute || burn) && HAS_TRAIT_NOT_FROM(owner, TRAIT_NONATURALHEAL, BLOODSUCKER_TRAIT) && !forced)
+		return
 
 	if(only_robotic && !is_robotic_limb()) //This makes organic limbs not heal when the proc is in Robotic mode.
 		return
@@ -723,101 +731,102 @@
 
 	if(!animal_origin)
 		var/mob/living/carbon/human/H = C
-		color_src = FALSE
+		if(H.dna?.species)
+			color_src = FALSE
 
-		var/datum/species/S = H.dna.species
-		base_bp_icon = S?.icon_limbs || DEFAULT_BODYPART_ICON
-		species_id = S.mutant_bodyparts["limbs_id"]
-		species_flags_list = H.dna.species.species_traits
+			var/datum/species/S = H.dna.species
+			base_bp_icon = S?.icon_limbs || DEFAULT_BODYPART_ICON
+			species_id = S.mutant_bodyparts["limbs_id"]
+			species_flags_list = H.dna.species.species_traits
 
-		//body marking memes
-		var/list/colorlist = list()
-		colorlist.Cut()
-		colorlist += ReadRGB("[H.dna.features["mcolor"]]00")
-		colorlist += ReadRGB("[H.dna.features["mcolor2"]]00")
-		colorlist += ReadRGB("[H.dna.features["mcolor3"]]00")
-		colorlist += list(0,0,0, S.hair_alpha)
-		for(var/index=1, index<=colorlist.len, index++)
-			colorlist[index] = colorlist[index]/255
+			//body marking memes
+			var/list/colorlist = list()
+			colorlist.Cut()
+			colorlist += ReadRGB("[H.dna.features["mcolor"]]00")
+			colorlist += ReadRGB("[H.dna.features["mcolor2"]]00")
+			colorlist += ReadRGB("[H.dna.features["mcolor3"]]00")
+			colorlist += list(0,0,0, S.hair_alpha)
+			for(var/index=1, index<=colorlist.len, index++)
+				colorlist[index] = colorlist[index]/255
 
-		if(S.use_skintones)
-			skin_tone = H.skin_tone
-		else
-			skin_tone = ""
-
-		body_gender = H.dna.features["body_model"]
-		if(GLOB.nongendered_limb_types[species_id])
-			should_draw_gender = FALSE
-		else
-			should_draw_gender = S.sexes
-		if(S.id == SPECIES_IPC && is_robotic_limb(FALSE) && (body_zone == BODY_ZONE_HEAD || body_zone == BODY_ZONE_CHEST))
-			should_draw_gender = TRUE
-			var/list/current_states = icon_states(icon)
-			if(body_zone == BODY_ZONE_HEAD && !(("robotic_head" in current_states) || (("head_f" in current_states) && ("head_m" in current_states))))
-				icon = 'icons/mob/augmentation/augments.dmi'
-			else if(body_zone == BODY_ZONE_CHEST && !(("robotic_chest" in current_states) || (("chest_f" in current_states) && ("chest_m" in current_states))))
-				icon = 'icons/mob/augmentation/augments.dmi'
-
-		var/mut_colors = (MUTCOLORS in S.species_traits)
-		if(mut_colors)
-			if(S.fixed_mut_color)
-				species_color = S.fixed_mut_color
+			if(S.use_skintones)
+				skin_tone = H.skin_tone
 			else
-				species_color = H.dna.features["mcolor"]
-		else
-			species_color = ""
+				skin_tone = ""
 
-		if(S.mutant_bodyparts["legs"])
-			if(body_zone == BODY_ZONE_L_LEG || body_zone == BODY_ZONE_R_LEG)
-				if(DIGITIGRADE in S.species_traits)
-					digitigrade_type = lowertext(H.dna.features["legs"])
+			body_gender = H.dna.features["body_model"]
+			if(GLOB.nongendered_limb_types[species_id])
+				should_draw_gender = FALSE
 			else
-				digitigrade_type = null
+				should_draw_gender = S.sexes
+			if(S.id == SPECIES_IPC && is_robotic_limb(FALSE) && (body_zone == BODY_ZONE_HEAD || body_zone == BODY_ZONE_CHEST))
+				should_draw_gender = TRUE
+				var/list/current_states = icon_states(icon)
+				if(body_zone == BODY_ZONE_HEAD && !(("robotic_head" in current_states) || (("head_f" in current_states) && ("head_m" in current_states))))
+					icon = 'icons/mob/augmentation/augments.dmi'
+				else if(body_zone == BODY_ZONE_CHEST && !(("robotic_chest" in current_states) || (("chest_f" in current_states) && ("chest_m" in current_states))))
+					icon = 'icons/mob/augmentation/augments.dmi'
 
-		if(S.mutant_bodyparts["mam_body_markings"]) // checks if the species can actually have body markings
-			// get all markings for this bodypart type
-			for(var/list/marking in H.dna.features["mam_body_markings"])
-				// marking is a list containing bodypart type, bodymarking name, and then the colour (colour won't be used in v1)
-				if(marking[1] == body_part)
-					var/datum/sprite_accessory/Smark
-					Smark = GLOB.mam_body_markings_list[marking[2]]
-					var/body_markings_icon = default_body_markings_icon
-					if(Smark)
-						body_markings_icon = Smark.icon
-					var/marking_value = "" // combination of body and aux markings from old system
-					if(H.dna.features["mam_body_markings"] != "None")
-						marking_value = Smark?.icon_state || lowertext(H.dna.features["mam_body_markings"])
-					else
-						marking_value = "plain"
-					var/list/color_values
-					if(length(marking) >= 3 && islist(marking[3]))
-						color_values = marking[3]
-					else
-						color_values = list("#FFFFFF", "#FFFFFF", "#FFFFFF")
-					var/emissive_value = (length(marking) >= 4 && marking[4]) ? TRUE : FALSE
-					body_markings_list += list(list(body_markings_icon, marking_value, color_values, emissive_value))
-
-			markings_color = list(colorlist)
-		else
-			marking_value = null
-
-		if(S.override_bp_icon)
-			base_bp_icon = S.override_bp_icon
-		else
-			if(species_id in GLOB.greyscale_limb_types) //should they have greyscales?
-				base_bp_icon = DEFAULT_BODYPART_ICON_ORGANIC
+			var/mut_colors = (MUTCOLORS in S.species_traits)
+			if(mut_colors)
+				if(S.fixed_mut_color)
+					species_color = S.fixed_mut_color
+				else
+					species_color = H.dna.features["mcolor"]
 			else
-				base_bp_icon = DEFAULT_BODYPART_ICON
+				species_color = ""
 
-		if(base_bp_icon != DEFAULT_BODYPART_ICON)
-			color_src = mut_colors ? MUTCOLORS : ((H.dna.skin_tone_override && S.use_skintones == USE_SKINTONES_GRAYSCALE_CUSTOM) ? CUSTOM_SKINTONE : SKINTONE)
+			if(S.mutant_bodyparts["legs"])
+				if(body_zone == BODY_ZONE_L_LEG || body_zone == BODY_ZONE_R_LEG)
+					if(DIGITIGRADE in S.species_traits)
+						digitigrade_type = lowertext(H.dna.features["legs"])
+				else
+					digitigrade_type = null
 
-		if(!dropping_limb && H.dna.check_mutation(HULK))
-			mutation_color = "00aa00"
-		else
-			mutation_color = ""
+			if(S.mutant_bodyparts["mam_body_markings"]) // checks if the species can actually have body markings
+				// get all markings for this bodypart type
+				for(var/list/marking in H.dna.features["mam_body_markings"])
+					// marking is a list containing bodypart type, bodymarking name, and then the colour (colour won't be used in v1)
+					if(marking[1] == body_part)
+						var/datum/sprite_accessory/Smark
+						Smark = GLOB.mam_body_markings_list[marking[2]]
+						var/body_markings_icon = default_body_markings_icon
+						if(Smark)
+							body_markings_icon = Smark.icon
+						var/marking_value = "" // combination of body and aux markings from old system
+						if(H.dna.features["mam_body_markings"] != "None")
+							marking_value = Smark?.icon_state || lowertext(H.dna.features["mam_body_markings"])
+						else
+							marking_value = "plain"
+						var/list/color_values
+						if(length(marking) >= 3 && islist(marking[3]))
+							color_values = marking[3]
+						else
+							color_values = list("#FFFFFF", "#FFFFFF", "#FFFFFF")
+						var/emissive_value = (length(marking) >= 4 && marking[4]) ? TRUE : FALSE
+						body_markings_list += list(list(body_markings_icon, marking_value, color_values, emissive_value))
 
-		dmg_overlay_type = S.damage_overlay_type
+				markings_color = list(colorlist)
+			else
+				marking_value = null
+
+			if(S.override_bp_icon)
+				base_bp_icon = S.override_bp_icon
+			else
+				if(species_id in GLOB.greyscale_limb_types) //should they have greyscales?
+					base_bp_icon = DEFAULT_BODYPART_ICON_ORGANIC
+				else
+					base_bp_icon = DEFAULT_BODYPART_ICON
+
+			if(base_bp_icon != DEFAULT_BODYPART_ICON)
+				color_src = mut_colors ? MUTCOLORS : ((H.dna.skin_tone_override && S.use_skintones == USE_SKINTONES_GRAYSCALE_CUSTOM) ? CUSTOM_SKINTONE : SKINTONE)
+
+			if(!dropping_limb && H.dna.check_mutation(HULK))
+				mutation_color = "00aa00"
+			else
+				mutation_color = ""
+
+			dmg_overlay_type = S.damage_overlay_type
 
 	else if(animal_origin == MONKEY_BODYPART) //currently monkeys are the only non human mob to have damage overlays.
 		dmg_overlay_type = animal_origin
@@ -910,14 +919,14 @@
 					mark.color = marking_list[3]
 				. += mark
 				if(length(marking_list) >= 4 && marking_list[4] && emissives_allowed(owner?.dna))
-					var/image/mark_emissive = emissive_copy(mark)
-					mark_emissive.icon = make_marking_emissive_icon(mark.icon, mark.icon_state)
+					var/image/mark_emissive = emissive_copy(mark, offset_spokesman = owner || src)
 					. += mark_emissive
 
-	var/image/limb = image(layer = -BODYPARTS_LAYER, dir = image_dir)
+	var/image/limb = image(layer = -as_mob_layer, dir = image_dir)
 	var/image/second_limb
 	var/list/aux = list()
 	var/list/marking_emissives = list()
+	var/render_species_id = species_id
 
 	. += limb
 
@@ -940,22 +949,30 @@
 		// BLUEMOON ADD START - красивые ноги
 		var/use_racial_sprite = FALSE
 		if(istype(src, /obj/item/bodypart/l_leg) || istype(src, /obj/item/bodypart/r_leg))
-			if(species_id in list(SPECIES_HUMAN, SPECIES_MAMMAL, SPECIES_SHADEKIN, SPECIES_XENOHYBRID, SPECIES_SLIME_LUMI, SPECIES_SLIME, SPECIES_SYNTH_LIZARD, SPECIES_STARGAZER, SPECIES_JELLY, "vox", "sergal")) // заносим только те расы, у которых есть свои прорисованные ноги. Иначе используется бэкап ниже
+			if(species_id in list(SPECIES_HUMAN, SPECIES_MAMMAL, SPECIES_SHADEKIN, SPECIES_XENOHYBRID, SPECIES_SLIME_LUMI, SPECIES_SLIME, SPECIES_SYNTH_LIZARD, SPECIES_STARGAZER, SPECIES_JELLY, "vox", "sergal", "sergal2")) // заносим только те расы, у которых есть свои прорисованные ноги. Иначе используется бэкап ниже
 				use_racial_sprite = TRUE
 		// BLUEMOON ADD END
+		render_species_id = species_id
+		if(species_id == "sergal2")
+			if(body_zone == BODY_ZONE_HEAD)
+				render_species_id = "human"
+			else if(body_zone == BODY_ZONE_CHEST)
+				render_species_id = "sergal2"
+			else
+				render_species_id = "sergal"
 		limb.icon = base_bp_icon || 'icons/mob/human_parts.dmi'
 		if(should_draw_gender)
-			limb.icon_state = "[species_id]_[body_zone]_[icon_gender]"
+			limb.icon_state = "[render_species_id]_[body_zone]_[icon_gender]"
 		else if (use_digitigrade)
 			if(!use_racial_sprite) // BLUEMOON CHANGES - was if(base_bp_icon == DEFAULT_BODYPART_ICON_ORGANIC) - чтобы использовались наши спрайты ног
 				limb.icon_state = "[digitigrade_type]_[use_digitigrade]_[body_zone]"
 			else
-				limb.icon_state = "[species_id]_[digitigrade_type]_[use_digitigrade]_[body_zone]"
+				limb.icon_state = "[render_species_id]_[digitigrade_type]_[use_digitigrade]_[body_zone]"
 		else
-			limb.icon_state = "[species_id]_[body_zone]"
+			limb.icon_state = "[render_species_id]_[body_zone]"
 
 		if(istype(src, /obj/item/bodypart/l_leg) || istype(src, /obj/item/bodypart/r_leg))
-			second_limb = image(layer = -BODYPARTS_LAYER-0.1, dir = image_dir) // BLUEMOON CHANGES - WAS second_limb = image(layer = -BODYPARTS_LAYER, dir = image_dir) - фикс для отображения ног (РАБОТАЕТ ТОЛЬКО ЕСЛИ ИСПОЛЬЗУЕТСЯ НАШ GREYSCALE ФАЙЛ КОНЕЧНОСТЕЙ)
+			second_limb = image(layer = -as_mob_layer-0.1, dir = image_dir) // BLUEMOON CHANGES - WAS second_limb = image(layer = -BODYPARTS_LAYER, dir = image_dir) - фикс для отображения ног (РАБОТАЕТ ТОЛЬКО ЕСЛИ ИСПОЛЬЗУЕТСЯ НАШ GREYSCALE ФАЙЛ КОНЕЧНОСТЕЙ)
 			second_limb.icon = limb.icon
 			. += second_limb
 
@@ -984,8 +1001,7 @@
 						mark.color = marking_list[3]
 					limb.overlays += mark
 					if(length(marking_list) >= 4 && marking_list[4] && emissives_allowed(owner?.dna))
-						var/image/mark_emissive = emissive_copy(mark)
-						mark_emissive.icon = make_marking_emissive_icon(mark.icon, mark.icon_state)
+						var/image/mark_emissive = emissive_copy(mark, offset_spokesman = owner || src)
 						mark_emissive.pixel_x = limb.pixel_x
 						mark_emissive.pixel_y = limb.pixel_y
 						marking_emissives += mark_emissive
@@ -995,7 +1011,7 @@
 		if(aux_icons)
 			for(var/I in aux_icons)
 				var/aux_layer = aux_icons[I]
-				var/image/aux_img = image(limb.icon, "[species_id]_[I]", -aux_layer, image_dir)
+				var/image/aux_img = image(limb.icon, "[render_species_id]_[I]", -aux_layer, image_dir)
 				if(species_id == "husk")
 					var/image/husk_aux_mark = image('modular_citadel/icons/mob/markings_notmammals.dmi', "husk_[I]", -aux_layer, image_dir)
 					husk_aux_mark.appearance_flags = RESET_COLOR
@@ -1008,8 +1024,7 @@
 							aux_marking_image.color = marking_list[3]
 						aux_img.overlays += aux_marking_image
 						if(length(marking_list) >= 4 && marking_list[4] && emissives_allowed(owner?.dna))
-							var/image/aux_marking_emissive = emissive_copy(aux_marking_image)
-							aux_marking_emissive.icon = make_marking_emissive_icon(aux_marking_image.icon, aux_marking_image.icon_state)
+							var/image/aux_marking_emissive = emissive_copy(aux_marking_image, offset_spokesman = owner || src)
 							aux_marking_emissive.pixel_x = limb.pixel_x + aux_img.pixel_x
 							aux_marking_emissive.pixel_y = limb.pixel_y + aux_img.pixel_y
 							marking_emissives += aux_marking_emissive
@@ -1035,7 +1050,7 @@
 			if(prosthetic_digi_limbs_cache[cache_id])
 				limb.icon_state = "digi_[body_zone]"
 				if(istype(src, /obj/item/bodypart/l_leg) || istype(src, /obj/item/bodypart/r_leg))
-					second_limb = image(layer = -BODYPARTS_LAYER-0.1, dir = image_dir)
+					second_limb = image(layer = -as_mob_layer-0.1, dir = image_dir)
 					second_limb.icon = limb.icon
 					var/original_state = limb.icon_state
 					limb.icon_state = "[original_state]_front"
@@ -1059,8 +1074,7 @@
 							aux_marking_image.color = marking_list[3]
 						aux_img.overlays += aux_marking_image
 						if(length(marking_list) >= 4 && marking_list[4] && emissives_allowed(owner?.dna))
-							var/image/aux_marking_emissive = emissive_copy(aux_marking_image)
-							aux_marking_emissive.icon = make_marking_emissive_icon(aux_marking_image.icon, aux_marking_image.icon_state)
+							var/image/aux_marking_emissive = emissive_copy(aux_marking_image, offset_spokesman = owner || src)
 							aux_marking_emissive.pixel_x = limb.pixel_x + aux_img.pixel_x
 							aux_marking_emissive.pixel_y = limb.pixel_y + aux_img.pixel_y
 							marking_emissives += aux_marking_emissive
@@ -1091,12 +1105,12 @@
 						mark.color = marking_list[3]
 					limb.overlays += mark
 					if(length(marking_list) >= 4 && marking_list[4] && emissives_allowed(owner?.dna))
-						var/image/mark_emissive = emissive_copy(mark)
-						mark_emissive.icon = make_marking_emissive_icon(mark.icon, mark.icon_state)
+						var/image/mark_emissive = emissive_copy(mark, offset_spokesman = owner || src)
 						mark_emissive.pixel_x = limb.pixel_x
 						mark_emissive.pixel_y = limb.pixel_y
 						marking_emissives += mark_emissive
 		. += marking_emissives
+		. += get_bodypart_overlay_images()
 		return
 
 	if(color_src) //TODO - add color matrix support for base species limbs (or dont because color matrixes suck)
@@ -1124,9 +1138,38 @@
 		second_limb.icon_state = "[original_state]_behind"
 		second_limb.color = limb.color
 
+	. += get_bodypart_overlay_images()
+
 /obj/item/bodypart/deconstruct(disassembled = TRUE)
 	drop_organs()
 	qdel(src)
+
+/// Adds a /datum/bodypart_overlay to this limb. The overlay is drawn by get_limb_icon().
+/obj/item/bodypart/proc/add_bodypart_overlay(datum/bodypart_overlay/overlay)
+	if(!istype(overlay))
+		return
+	if(!bodypart_overlays)
+		bodypart_overlays = list()
+	bodypart_overlays |= overlay
+
+/// Removes a /datum/bodypart_overlay from this limb.
+/obj/item/bodypart/proc/remove_bodypart_overlay(datum/bodypart_overlay/overlay)
+	if(!bodypart_overlays || !(overlay in bodypart_overlays))
+		return
+	bodypart_overlays -= overlay
+	if(!length(bodypart_overlays))
+		bodypart_overlays = null
+
+/// Returns a combined list of all images produced by every bodypart_overlay attached to this limb.
+/// Intended to be called from get_limb_icon() after body_markings are processed.
+/obj/item/bodypart/proc/get_bodypart_overlay_images()
+	if(!bodypart_overlays)
+		return null
+	. = list()
+	for(var/datum/bodypart_overlay/overlay as anything in bodypart_overlays)
+		if(!overlay.can_draw_on_bodypart(src, owner))
+			continue
+		. += overlay.get_all_overlays(src)
 
 /// Get whatever wound of the given type is currently attached to this limb, if any
 /obj/item/bodypart/proc/get_wound_type(checking_type)
@@ -1175,6 +1218,8 @@
 	if(wounds)
 		listclearnulls(wounds)
 	for(var/datum/wound/W as anything in wounds)
+		if(W.is_bleed_suppressed()) // BLUEMOON EDIT - свежая повязка глушит истечение крови из раны
+			continue
 		bleed_rate += W.blood_flow
 	if(owner.mobility_flags & ~MOBILITY_STAND)
 		bleed_rate *= 1.2
@@ -1242,11 +1287,19 @@
   * Arguments:
   * * gauze- Just the gauze stack we're taking a sheet from to apply here
   */
-/obj/item/bodypart/proc/apply_gauze(obj/item/stack/medical/gauze)
-	if(!istype(gauze) || !gauze.absorption_capacity)
+/obj/item/bodypart/proc/apply_gauze(obj/item/stack/gauze)
+	if(!gauze || (!istype(gauze, /obj/item/stack/medical/gauze) && !istype(gauze, /obj/item/stack/sticky_tape)) || !gauze.absorption_capacity)
+		return
+	// Киборгский стак умеет существовать только внутри /obj/item/robot_module: его
+	// Initialize() отказывается стартовать где угодно ещё и самоудаляется, а
+	// current_gauze оставался ссылкой на qdel-нутый предмет (прод-раунд 10150,
+	// "Cyborg stack created outside of a robot module"). На конечность кладём
+	// обычный аналог того же типа.
+	var/gauze_type = gauze.is_cyborg ? type2parent(gauze.type) : gauze.type
+	if(!ispath(gauze_type, /obj/item/stack/medical))
 		return
 	QDEL_NULL(current_gauze)
-	current_gauze = new gauze.type(src, 1)
+	current_gauze = new gauze_type(src, 1)
 	gauze.use(1)
 	if(owner)
 		owner.update_bandage_overlays()
@@ -1264,15 +1317,22 @@
 		return
 	var/old_capacity = current_gauze.absorption_capacity
 	current_gauze.absorption_capacity = max(0, current_gauze.absorption_capacity - seep_amt)
-	if(old_capacity > 0 && !current_gauze.absorption_capacity && owner)
-		owner.balloon_alert(owner, "[current_gauze] пропитался кровью, его пора снимать")
+	// BLUEMOON EDIT - пропитавшийся бинт больше не сдерживает кровотечение.
+	// Если под ним ещё жива рана - кровь пойдёт снова, а если рана успела
+	// свернуться под повязкой - лишь сообщаем, что бинт отработал своё.
+	if(old_capacity > 0 && !current_gauze.absorption_capacity && owner && owner.stat != DEAD)
+		if(get_bleed_rate() > 0)
+			owner.balloon_alert(owner, "[current_gauze] пропитался, кровотечение возобновилось!")
+		else
+			owner.balloon_alert(owner, "[current_gauze] пропитался, кровотечение остановилось.")
 
 /**
-  * remove_gauze() removes the gauze wrapping from this bodypart and returns it to the user.
+  * remove_gauze() removes the gauze wrapping from this bodypart and leaves
+  * used gauze trash behind (washed into improvised gauze later).
   *
   * Arguments:
   * * user - The mob removing the gauze
-  * * to_hands - If TRUE, attempt to place the gauze in the user's hands
+  * * to_hands - If TRUE, attempt to place the trash gauze in the user's hands
   */
 /obj/item/bodypart/proc/remove_gauze(mob/user, to_hands = TRUE)
 	if(!current_gauze || !owner)
@@ -1280,8 +1340,18 @@
 	var/obj/item/stack/medical/gauze/removed = current_gauze
 	var/mob/living/carbon/gauze_owner = owner
 	current_gauze = null
-	removed.forceMove(user || gauze_owner)
+	// BLUEMOON ADD START - снятый бинт становится использованным мусором:
+	// он попадает в руки снимающего, если там есть место, иначе остаётся на полу.
+	var/list/blood_info = gauze_owner.get_blood_dna_list()
+	var/mob/drop_mob = user || gauze_owner
+	var/obj/item/trash/gauze/used_gauze = new /obj/item/trash/gauze(drop_mob.drop_location(), removed, blood_info?["color"], blood_info?["blendmode"])
 	if(to_hands && user)
-		user.put_in_hands(removed)
+		user.put_in_hands(used_gauze)
+	qdel(removed)
+	// BLUEMOON ADD END
 	gauze_owner.update_bandage_overlays()
+	// BLUEMOON ADD START - сняв повязку, игрок должен узнать, что рана никуда не делась
+	if(gauze_owner.stat != DEAD && gauze_owner.get_total_bleed_rate() > 0)
+		gauze_owner.balloon_alert(gauze_owner, "кровотечение возобновилось!")
+	// BLUEMOON ADD END
 	return TRUE

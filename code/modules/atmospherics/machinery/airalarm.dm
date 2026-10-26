@@ -85,7 +85,7 @@
 #define AALARM_MODE_PANIC 3 //like siphon, but stronger (enables widenet)
 #define AALARM_MODE_REPLACEMENT 4 //sucks off all air, then refill and swithes to scrubbing
 #define AALARM_MODE_OFF 5
-#define AALARM_MODE_FLOOD 6 //Emagged mode; turns off scrubbers and pressure checks on vents
+#define AALARM_MODE_FLOOD 6 //Emagged mode; fills to the vent maximum (50 atm)
 #define AALARM_MODE_SIPHON 7 //Scrubbers suck air
 #define AALARM_MODE_CONTAMINATED 8 //Turns on all filtering and widenet scrubbing.
 #define AALARM_MODE_REFILL 9 //just like normal, but with triple the air output
@@ -162,7 +162,7 @@
 	id = AALARM_MODE_FLOOD
 	name = "Flood"
 	ui_name = "Затопление"
-	description = "Снимает проверки давления и открывает подающую сеть."
+	description = "Заполняет помещение до максимума вентов (50 атм)."
 	danger = TRUE
 	emag_only = TRUE
 
@@ -206,6 +206,16 @@ GLOBAL_LIST_INIT(air_alarm_modes, init_air_alarm_modes())
 /// no excited group): its air cannot drift, so reads only guard against missed excitations.
 #define AALARM_INACTIVE_PROCESS_INTERVAL 15
 
+/// Потолок, в который затопление гонит венты - он же верхний клапан клампа
+/// set_external_pressure в vent_pump.dm. Со снятой проверкой давления вент не
+/// имел границы вообще и не уходил в простой до конца смены; барокамера на
+/// 5066 кПа - тот же смертельный замысел режима, но с конечным состоянием.
+#define AALARM_FLOOD_TARGET_PRESSURE (ONE_ATMOSPHERE * 50)
+/// Отсек стравлен: ниже этого давления откачивать уже нечего, и режим снимает
+/// себя сам. Без отсечки widenet-скруббер щупает пустую комнату до конца смены -
+/// по своей ветке process_atmos() он в простой не уходит.
+#define AALARM_EMERGENCY_SIPHON_CUTOFF (ONE_ATMOSPHERE * 0.05)
+
 #define AALARM_OVERLAY_OFF		"alarm_off"
 #define AALARM_OVERLAY_GREEN	"alarm_green"
 #define AALARM_OVERLAY_WARN		"alarm_amber"
@@ -224,7 +234,7 @@ GLOBAL_LIST_INIT(air_alarm_modes, init_air_alarm_modes())
 	req_access = list(ACCESS_ATMOSPHERICS)
 	max_integrity = 250
 	integrity_failure = 0.33
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 100, BOMB = 0, BIO = 100, RAD = 100, FIRE = 90, ACID = 30)
+	armor_type = /datum/armor/airalarm
 	resistance_flags = FIRE_PROOF
 
 	COOLDOWN_DECLARE(decomp_alarm)
@@ -426,6 +436,13 @@ GLOBAL_LIST_INIT(air_alarm_modes, init_air_alarm_modes())
 	var/list/air_scrub_names = list()
 	var/list/air_vent_info = list()
 	var/list/air_scrub_info = list()
+	///Монотонные счётчики номеров в подписях вентиляции. Номер брался как
+	///длина реестра плюс один, а Destroy() запись из реестра удаляет - поэтому
+	///любой снятый вент освобождал свой номер следующему, и в отсеке, который
+	///хоть раз пересобирали, появлялись два и три "#20" разом. Счётчик номера
+	///не возвращает: дырка в нумерации честнее двойника.
+	var/air_vent_serial = 0
+	var/air_scrub_serial = 0
 	///Air alarms in this exact area (not the base-area group). Lazy, maintained
 	///by /obj/machinery/airalarm Initialize/Destroy so per-area consumers never
 	///have to type-scan area contents.
@@ -457,6 +474,29 @@ GLOBAL_LIST_INIT(air_alarm_modes, init_air_alarm_modes())
 	alarm_area = get_area(src)
 	if(alarm_area)
 		LAZYADD(alarm_area.airalarms, src)
+
+/obj/machinery/airalarm/on_area_swap(area/old_area, area/new_area)
+	. = ..()
+	// Тревогу снимаем адресно со СТАРОЙ зоны: alarm_handler определяет область лениво,
+	// через get_area(source_atom), а турф к этому моменту уже переписан на новую. Обычный
+	// clear_alarm() посчитал бы новую зону, не нашёл бы её в sent_alarms и вышел бы с FALSE -
+	// у покинутой области ALARM_ATMOS оставался бы поднятым до конца раунда.
+	// Если воздух в новой зоне по-прежнему плох, apply_danger_level() поднимет тревогу заново.
+	alarm_manager.clear_alarm_from_area(ALARM_ATMOS, old_area)
+	if(alarm_area)
+		LAZYREMOVE(alarm_area.airalarms, src)
+	alarm_area = get_area(src)
+	if(alarm_area)
+		LAZYADD(alarm_area.airalarms, src)
+	// Имя автогенерится от БАЗОВОЙ области (см. Initialize), с ней же и сверяем: у подобласти
+	// собственное имя другое, и переименование молча не срабатывало.
+	var/area/old_base = get_base_area(old_area)
+	if(old_base && name == "[old_base.name] Air Alarm") // имя было автогенерённым - обновляем под новую зону
+		name = "[get_area_name(src, get_base_area = TRUE)] Air Alarm"
+	// Пересчёт по новой зоне: danger_level не менялся, а значит штатный process()
+	// уже не позовёт apply_danger_level() - без этого тревога снялась бы со старой
+	// области и не поднялась бы в новой.
+	apply_danger_level()
 
 /obj/machinery/airalarm/add_context(atom/source, list/context, obj/item/held_item, mob/living/user)
 	. = ..()
@@ -969,10 +1009,19 @@ GLOBAL_LIST_INIT(air_alarm_modes, init_air_alarm_modes())
 				send_signal(device_id, list(
 					"power" = 0
 				))
+			// Потолок вместо снятой проверки. С "checks" = 0 вент не имел границы
+			// вообще: pressure_delta оставался равным стартовым 10000 кПа, порог
+			// ATMOS_VENT_PRESSURE_EPSILON не достигался никогда, вент не уходил в
+			// простой, а assume_air_moles переактивировал турф каждый фаер до конца
+			// смены - устойчивого состояния у режима не существовало по построению.
+			// EXT_BOUND на верхнем клапане клампа (AALARM_FLOOD_TARGET_PRESSURE,
+			// см. vent_pump.dm) оставляет комнату смертельной барокамерой на
+			// 5066 кПа: замысел режима цел, но атмос получает конечное состояние.
 			for(var/device_id in A.air_vent_names)
 				send_signal(device_id, list(
 					"power" = 1,
-					"checks" = 0,
+					"checks" = 1,
+					"set_external_pressure" = AALARM_FLOOD_TARGET_PRESSURE,
 					"is_pressurizing" = 1
 				))
 				send_signal(device_id, list(
@@ -1108,7 +1157,7 @@ GLOBAL_LIST_INIT(air_alarm_modes, init_air_alarm_modes())
 	// Adaptive backoff: read every fire while danger_level is moving (or we're mid-air-replacement
 	// and watching for the pressure cutoff); coast at AALARM_MAX_PROCESS_INTERVAL once it settles.
 	// A turf parked outside active atmos exchange cannot drift at all, so coast much longer there.
-	if(old_danger_level != danger_level || mode == AALARM_MODE_REPLACEMENT)
+	if(old_danger_level != danger_level || mode == AALARM_MODE_REPLACEMENT || mode == AALARM_MODE_PANIC)
 		process_interval = 1
 	else
 		var/max_interval = AALARM_MAX_PROCESS_INTERVAL
@@ -1118,9 +1167,24 @@ GLOBAL_LIST_INIT(air_alarm_modes, init_air_alarm_modes())
 		process_interval = min(process_interval + 1, max_interval)
 	process_skips_left = process_interval - 1
 
-	if(mode == AALARM_MODE_REPLACEMENT && environment_pressure < ONE_ATMOSPHERE * 0.05)
-		mode = AALARM_MODE_SCRUBBING
-		apply_mode()
+	// Аварийная откачка делит набор команд с прокачкой (общий case в
+	// apply_mode_commands), но отсечки по давлению у неё не было ни одной:
+	// widenet-скруббер по своей ветке в process_atmos() не умеет уходить в
+	// простой, поэтому режим молотил уже пустую комнату до конца смены, а
+	// перекушенный провод PANIC вешал его вообще навсегда. Механизм выхода
+	// написан и отлажен на соседнем режиме - распространяем на этот.
+	//
+	// Уходим в Off, а не в Фильтрацию: цель режима достигнута, и надувать отсек
+	// заново - не то, чего просил тот, кто его включил. Воздух назад не пойдёт,
+	// венты погашены той же командой режима.
+	if(environment_pressure < AALARM_EMERGENCY_SIPHON_CUTOFF)
+		if(mode == AALARM_MODE_REPLACEMENT)
+			mode = AALARM_MODE_SCRUBBING
+			apply_mode()
+		else if(mode == AALARM_MODE_PANIC)
+			mode = AALARM_MODE_OFF
+			apply_mode()
+			investigate_log("вышел из аварийной откачки в Off: отсек стравлен до [round(environment_pressure, 0.1)] кПа", INVESTIGATE_ATMOS)
 
 	return
 
@@ -1315,6 +1379,14 @@ GLOBAL_LIST_INIT(air_alarm_modes, init_air_alarm_modes())
 		new /obj/item/stack/cable_coil(loc, 3)
 	qdel(src)
 
+/// Полновесная пожарная тревога базового ареала по разгерметизации: сирена,
+/// захлоп файрлоков каждые десять секунд, ручной сброс с панели.
+///
+/// Единственный законный вызов - `SSair.handle_decompression_area()`, то есть уже
+/// ПОДТВЕРЖДЁННОЕ декомп-событие (зона обязана перевзвестись более поздним фаером,
+/// см. `queue_decompression_base`). Вешать этот прок на одиночный замер нельзя:
+/// сама тревога автоматически не снимается ничем, а одноразовый перепад давления
+/// даёт любой цикл шлюза и любой выпуск баллона в проёме.
 /obj/machinery/airalarm/proc/handle_decomp_alarm()
 	if(!is_operational || !COOLDOWN_FINISHED(src, decomp_alarm))
 		return
@@ -1334,3 +1406,5 @@ GLOBAL_LIST_INIT(air_alarm_modes, init_air_alarm_modes())
 #undef AALARM_MODE_REFILL
 #undef AALARM_REPORT_TIMEOUT
 #undef AALARM_THRESHOLD_VARS
+#undef AALARM_FLOOD_TARGET_PRESSURE
+#undef AALARM_EMERGENCY_SIPHON_CUTOFF

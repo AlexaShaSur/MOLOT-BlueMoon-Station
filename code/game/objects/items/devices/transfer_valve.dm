@@ -119,7 +119,7 @@
 	. = ..()
 
 	var/client/client = user.client
-	if (CONFIG_GET(flag/use_exp_tracking) && client && client.get_exp_living(TRUE) < 480) // Player with less than 8 hours playtime has touched a bomb valve.
+	if (CONFIG_GET(flag/use_exp_tracking) && client && client.get_exp_living(TRUE) < 480 && !is_antag_training_atom(src)) // Player with less than 8 hours playtime has touched a bomb valve.
 		if(client.next_valve_grief_warning < world.time)
 			var/turf/T = get_turf(src)
 			client.next_valve_grief_warning = world.time + 15 MINUTES // Wait 15 minutes before alerting admins again
@@ -239,9 +239,12 @@
 	it explodes properly when it gets a signal (and it does).
 */
 /obj/item/transfer_valve/proc/toggle_valve()
+	var/turf/bombturf = get_turf(src)
+	if (bombturf && is_pact_siege_level(bombturf.z))
+		balloon_alert(src.loc, "You cannot detonate this bomb in SIEGE territory!")
+		return
 	if(!valve_open && tank_one && tank_two)
 		valve_open = TRUE
-		var/turf/bombturf = get_turf(src)
 
 		var/attachment
 		if(attached_device)

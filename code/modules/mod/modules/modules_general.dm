@@ -8,20 +8,24 @@
 			Она использует множество датчиков и гироскопов чтобы своевременно перераспределять нагрузку и стабилизировать \
 			её относительно корпуса пользователя для минимизации нагрузки на точки опоры."
 	icon_state = "harness"
-	complexity = 5
+	complexity = 4
+	var/list/allowed_items = list(
+		/obj/item/storage/backpack,
+		/obj/item/gun,
+	)
 
 /obj/item/mod/module/backpack_harness/on_install()
 	. = ..()
-	var/obj/item/clothing/suit/mod/chestplate = mod.chestplate
-	chestplate.allowed += /obj/item/storage/backpack
+	var/obj/item/clothing/mod_part/suit/chestplate = mod.get_chestplate()
+	chestplate.allowed += allowed_items
 
 /obj/item/mod/module/backpack_harness/on_uninstall()
 	. = ..()
-	var/obj/item/clothing/suit/mod/chestplate = mod.chestplate
+	var/obj/item/clothing/mod_part/suit/chestplate = mod.get_chestplate()
 	var/mob/living/carbon/human/wearer = mod.wearer
 	var/obj/item/item_to_drop
-	if(/obj/item/storage/backpack in chestplate.allowed)
-		chestplate.allowed -= /obj/item/storage/backpack
+	if(/obj/item/storage/backpack in chestplate.allowed) //тут надо будет заменить backpack на проверку по list/allowed_items, я просто не знаю как правильнее.
+		chestplate.allowed -= allowed_items
 		item_to_drop = wearer.s_store
 		wearer.dropItemToGround(item_to_drop)
 
@@ -30,16 +34,21 @@
 	desc = "Набор встроенных отделений для хранения и специализированных карманов, установленных по всей \
 		поверхности костюма, полезных для хранения различных мелочей и штучек."
 	icon_state = "storage"
-	complexity = 3
+	complexity = 1
 	incompatible_modules = list(/obj/item/mod/module/storage)
-	module_type = MODULE_USABLE
 	cooldown_time = 0.5 SECONDS
 	allowed_inactive = TRUE
 	mod_module_flags = MOD_MODULE_GENERAL // BLUEMOON
 	var/storage_flags = STORAGE_FLAGS_VOLUME_DEFAULT
-	var/max_volume = STORAGE_VOLUME_BACKPACK
+	var/max_volume = STORAGE_VOLUME_MOD_DEFAULT
 	var/max_w_class = MAX_WEIGHT_CLASS_BACKPACK
 	var/component_type = /datum/component/storage/concrete
+	var/datum/component/storage/mod_storage
+	var/silent = FALSE
+
+/obj/item/mod/module/storage/Destroy()
+	. = ..()
+	QDEL_NULL(mod_storage)
 
 /obj/item/mod/module/storage/extended
 	name = "Extended MOD storage module"
@@ -47,8 +56,8 @@
 	desc = "Расширенная разгрузка с расширенным отделением под крупногабаритные предметы. \
 			Является улучшенной версией, по сравнению с обычным модулем рюкзака и равноценна спортивной сумке. \
 			Может быть улучшена с помощью БС ядра, путём вставки вручную в специальное отверстие."
-	max_volume = STORAGE_VOLUME_DUFFLEBAG
-	complexity = 5
+	max_volume = STORAGE_VOLUME_MOD_EXTENDED
+	complexity = 2
 
 /obj/item/mod/module/storage/extended/attackby(obj/item/I, mob/living/user, params)
 	. = ..()
@@ -60,7 +69,7 @@
 				большого количества вещей в карманном измерении. Изолирована от воздействий телепортации."
 		max_w_class = MAX_WEIGHT_CLASS_BAG_OF_HOLDING
 		storage_flags = STORAGE_FLAGS_VOLUME_DEFAULT
-		max_volume = STORAGE_VOLUME_BAG_OF_HOLDING
+		max_volume = STORAGE_VOLUME_MOD_BLUESPACE
 		qdel(I)
 
 /obj/item/mod/module/storage/syndicate
@@ -68,23 +77,29 @@
 	desc = "Набор встроенных отделений для хранения и специализированных карманов, установленных по всей \
 		поверхности костюма, полезных для хранения различных мелочей и штучек. Имеет модный кроваво-красный окрас."
 	icon_state = "storage_syndi"
-	complexity = 2 //на 1 меньше, чем обычная версия.
+	complexity = 0
+	silent = TRUE
 
 /obj/item/mod/module/storage/extended/syndicate
 	name = "MOD Blood-red Extended storage module"
 	desc = "Компактный расширенный модуль хранилища с лого Синдиката и модной кроваво-красной расцвекой."
 	icon_state = "storage_case"
-	complexity = 2
+	complexity = 1
+	silent = TRUE
 
 /obj/item/mod/module/storage/on_install()
 	. = ..()
-	if(component_type)
-		mod.AddComponent(component_type)
+	if(!component_type)
+		return
 
-		var/datum/component/storage/Storage = mod.GetComponent(/datum/component/storage)
-		Storage.storage_flags = storage_flags
-		Storage.max_volume = max_volume
-		Storage.max_w_class = max_w_class
+	mod_storage = mod.AddComponent(component_type)
+	mod_storage?.silent = silent
+	if(mod.theme.need_block_storage_when_not_active && !mod.is_active())
+		mod.toggle_storage(mod.is_active())
+	var/datum/component/storage/Storage = mod.GetComponent(/datum/component/storage)
+	Storage.storage_flags = storage_flags
+	Storage.max_volume = max_volume
+	Storage.max_w_class = max_w_class
 
 /obj/item/mod/module/storage/on_uninstall()
 	. = ..()
@@ -93,10 +108,11 @@
 		return
 	//вещи лежат в contents самого костюма, а окно к ним даёт только компонент:
 	//снести компонент молча = запереть содержимое в МОДе навсегда
-	Storage.do_quick_empty(mod.drop_location())
+	if(mod.contents)
+		Storage.do_quick_empty(mod.drop_location())
+	Storage.RemoveComponent()
+	mod_storage = null
 	qdel(Storage)
-
-
 
 //PAI модуль
 //функции вытаскивания и изъятия pai в файле mod_ai.dm
@@ -157,21 +173,13 @@
 	return ..()
 
 /// Потолок, до которого этот двигатель разгоняет свободный полёт. Вровень с шаговой скоростью носителя в этом же костюме.
-/obj/item/mod/module/jetpack/proc/thrust_cap()
-	return full_speed ? INERTIA_THRUST_CAP_JETPACK_FULL : INERTIA_THRUST_CAP_JETPACK
-
 /obj/item/mod/module/jetpack/on_activation()
 	. = ..()
 	if(!.)
 		return
 	ion_trail.start()
 	RegisterSignal(mod.wearer, COMSIG_LIVING_DEATH, PROC_REF(on_wearer_death), override = TRUE)
-	mod.wearer.register_thrust_source(src, cap = thrust_cap())
-	if(full_speed)
-		mod.wearer.add_movespeed_modifier(/datum/movespeed_modifier/jetpack/fullspeed)
-	else
-		mod.wearer.add_movespeed_modifier(/datum/movespeed_modifier/jetpack)
-	mod.wearer.update_flight_alert()
+	mod.wearer.update_movespeed()
 
 /obj/item/mod/module/jetpack/on_deactivation(display_message = TRUE, deleting = FALSE)
 	. = ..()
@@ -181,10 +189,7 @@
 	if(!mod?.wearer)
 		return
 	UnregisterSignal(mod.wearer, COMSIG_LIVING_DEATH)
-	mod.wearer.unregister_thrust_source(src)
-	mod.wearer.remove_movespeed_modifier(/datum/movespeed_modifier/jetpack/fullspeed)
-	mod.wearer.remove_movespeed_modifier(/datum/movespeed_modifier/jetpack)
-	mod.wearer.update_flight_alert()
+	mod.wearer.update_movespeed()
 
 /**
  * Костюм снимают раньше, чем обнуляют носителя: `unset_wearer()` сначала обходит модули, и только
@@ -211,16 +216,13 @@
 		if("stabilizers")
 			set_stabilizers(text2num(value), mod?.wearer)
 
-/// Единая точка переключения режима: её же дёргает клик по алерту полёта.
+/// Единая точка переключения режима: её же дёргает конфиг MOD-костюма.
 /obj/item/mod/module/jetpack/proc/set_stabilizers(new_state, mob/user)
 	if(stabilizers == new_state)
 		return FALSE
 	stabilizers = new_state
 	if(user)
 		to_chat(user, "<span class='notice'>Стабилизация [stabilizers ? "включена - дрейф гасится" : "выключена - свободный полёт"].</span>")
-	// Алерт висит на носителе, а не на том, кто щёлкнул тумблером: режим мог поменять кто угодно
-	// через конфиг-меню костюма, и надпись обязана догнать состояние в любом случае.
-	mod?.wearer?.update_flight_alert()
 	return TRUE
 
 /**
@@ -272,16 +274,18 @@
 	mod_module_flags = MOD_MODULE_GENERAL // BLUEMOON ADD
 
 /obj/item/mod/module/mouthhole/on_install()
-	former_flags = mod.helmet.flags_cover
-	former_visor_flags = mod.helmet.visor_flags_cover
-	mod.helmet.flags_cover &= ~HEADCOVERSMOUTH
-	mod.helmet.visor_flags_cover &= ~HEADCOVERSMOUTH
+	var/obj/item/clothing/mod_part/head/helmet = mod.get_helmet()
+	former_flags = helmet.flags_cover
+	former_visor_flags = helmet.visor_flags_cover
+	helmet.flags_cover &= ~HEADCOVERSMOUTH
+	helmet.visor_flags_cover &= ~HEADCOVERSMOUTH
 
 /obj/item/mod/module/mouthhole/on_uninstall(deleting = FALSE)
 	if(deleting)
 		return
-	mod.helmet.flags_cover |= former_flags
-	mod.helmet.visor_flags_cover |= former_visor_flags
+	var/obj/item/clothing/mod_part/head/helmet = mod.get_helmet()
+	helmet.flags_cover |= former_flags
+	helmet.visor_flags_cover |= former_visor_flags
 
 ///EMP Shield - Protects the suit from EMPs.
 /obj/item/mod/module/emp_shield
@@ -291,9 +295,34 @@
 		Однако для этого он будет потреблять энергию костюма."
 	icon_state = "empshield"
 	complexity = 1
-	idle_power_cost = DEFAULT_CHARGE_DRAIN * 0.3
+	idle_power_cost = DEFAULT_CHARGE_DRAIN * 0.5
 	incompatible_modules = list(/obj/item/mod/module/emp_shield)
 	mod_module_flags = MOD_MODULE_GENERAL // BLUEMOON ADD
+	var/is_advanced = FALSE
+
+/obj/item/mod/module/emp_shield/handle_emp_act(source, severity)
+	. = ..()
+	var/obj/item/stock_parts/cell/mod_cell = mod.get_cell()
+	if(!mod_cell)
+		return
+	var/can_bloow_up = FALSE
+	//Запись ниже выглядит примерно так: (18 * 100) = 1800, далее 1800 * 7 = 12600
+	//т.е только если МОД забит модулями подзавязку ЕМП будет очень быстро сажать батарею.
+	var/charge_waste = (mod.complexity * severity) * MOD_EMP_CHARGE_LOOSE_MODIFICATOR
+	if(!is_advanced && severity >= MOD_EMP_SEVERITY_MAX)
+		can_bloow_up = mod_cell.self_recharge ? prob(MOD_CELL_BLOOW_UP_CHANCE) : FALSE
+	//Бабах с шансом, если батарейка перезаряжается сама
+	if(charge_waste > mod_cell.charge)
+		charge_waste = mod_cell.charge //батарека не может разрядиться ниже нуля.
+	mod_cell.use(charge_waste, can_bloow_up)
+
+/obj/item/mod/module/emp_shield/on_suit_activation()
+	. = ..()
+	RegisterSignal(mod.wearer, COMSIG_LIVING_FORCE_EMP, PROC_REF(handle_emp_act))
+
+/obj/item/mod/module/emp_shield/on_suit_deactivation(deleting)
+	. = ..()
+	UnregisterSignal(mod.wearer, COMSIG_LIVING_FORCE_EMP)
 
 /obj/item/mod/module/emp_shield/on_install()
 	mod.AddElement(/datum/element/empprotection, EMP_PROTECT_SELF|EMP_PROTECT_WIRES|EMP_PROTECT_CONTENTS)
@@ -307,11 +336,14 @@
 		электромагнитные импульсы, которые в противном случае повредили бы электронные системы костюма или электронные устройства на носителе, \
 		включая аугментации. Однако для этого он будет потреблять энергию костюма."
 	complexity = 2
+	is_advanced = TRUE
 
 /obj/item/mod/module/emp_shield/advanced/on_suit_activation()
+	. = ..()
 	mod.wearer.AddElement(/datum/element/empprotection, EMP_PROTECT_SELF|EMP_PROTECT_CONTENTS)
 
 /obj/item/mod/module/emp_shield/advanced/on_suit_deactivation(deleting)
+	. = ..()
 	mod.wearer.RemoveElement(/datum/element/empprotection, EMP_PROTECT_SELF|EMP_PROTECT_CONTENTS)
 
 ///Flashlight - Gives the suit a customizable flashlight.
@@ -337,6 +369,7 @@
 	/// Maximum range we can set.
 	var/max_range = 5
 	mod_module_flags = MOD_MODULE_GENERAL // BLUEMOON ADD
+	required_modpart_index = MOD_PART_HEAD
 
 /obj/item/mod/module/flashlight/on_activation()
 	. = ..()
@@ -386,6 +419,13 @@
 			mod.set_light_range(clamp(value, min_range, max_range))
 			light_range = clamp(value, min_range, max_range)
 
+/obj/item/mod/module/flashlight/vanguard
+	name = "Advanced Flaslight Module"
+	desc = "Особый улучшенный модуль фонарика эксклюзивно для экспедиционного корпуса Нанотрейзен"
+	complexity = 0
+	light_range = 8
+	light_power = 2
+
 ///Dispenser - Dispenses an item after a time passes.
 /obj/item/mod/module/dispenser
 	name = "MOD burger dispenser module"
@@ -404,6 +444,7 @@
 	/// Time it takes for us to dispense.
 	var/dispense_time = 0 SECONDS
 	mod_module_flags = MOD_MODULE_GENERAL // BLUEMOON ADD
+	required_modpart_index = MOD_PART_GLOVES
 
 /obj/item/mod/module/dispenser/on_use()
 	. = ..()
@@ -420,6 +461,33 @@
 	return dispensed
 
 ///Longfall
+/obj/item/mod/module/longfall
+	name = "MOD longfall module"
+	desc = "Гироскопы и демпферы в ботинках костюма гасят удар при падении с высоты, переводя его в заряд батареи. \
+		Пригодится в шахте, на мостках над пустотой и при прыжке с этажа на этаж."
+	icon_state = "longfall"
+	complexity = 1
+	use_power_cost = DEFAULT_CHARGE_DRAIN * 5
+	incompatible_modules = list(/obj/item/mod/module/longfall)
+	mod_module_flags = MOD_MODULE_GENERAL
+
+/obj/item/mod/module/longfall/on_suit_activation()
+	RegisterSignal(mod.wearer, COMSIG_LIVING_Z_IMPACT, PROC_REF(z_impact_react))
+
+/obj/item/mod/module/longfall/on_suit_deactivation()
+	UnregisterSignal(mod.wearer, COMSIG_LIVING_Z_IMPACT)
+
+/obj/item/mod/module/longfall/proc/z_impact_react(datum/source, levels, turf/fell_on)
+	SIGNAL_HANDLER
+	if(!drain_power(use_power_cost * levels))
+		return NONE
+	new /obj/effect/temp_visual/mook_dust(fell_on)
+	if(levels >= 2)
+		mod.wearer.Knockdown(levels SECONDS)
+		mod.wearer.visible_message(span_notice("[mod.wearer] приземляется на [fell_on] и едва удерживается на ногах."), span_notice("[src] гасит удар!"))
+	else
+		mod.wearer.visible_message(span_notice("[mod.wearer] мягко приземляется на [fell_on]."), span_notice("[src] гасит удар!"))
+	return ZIMPACT_CANCEL_DAMAGE | ZIMPACT_NO_MESSAGE | ZIMPACT_NO_SPIN
 
 ///Thermal Regulator - Naw.
 
@@ -438,6 +506,13 @@
 	/// The DNA we lock with.
 	var/dna = null
 	mod_module_flags = MOD_MODULE_GENERAL // BLUEMOON ADD
+	var/individual_protect_from_emp
+
+/obj/item/mod/module/dna_lock/antag
+	name = "Advanced DNA Lock Module"
+	icon_state = "dnalock_ninja"
+	complexity = 1
+	individual_protect_from_emp = TRUE
 
 /obj/item/mod/module/dna_lock/on_install()
 	RegisterSignal(mod, COMSIG_MOD_ACTIVATE, PROC_REF(on_mod_activation))
@@ -450,6 +525,7 @@
 	UnregisterSignal(mod, COMSIG_MOD_MODULE_REMOVAL)
 	UnregisterSignal(mod, COMSIG_ATOM_EMP_ACT)
 	UnregisterSignal(mod, COMSIG_ATOM_EMAG_ACT)
+	DISABLE_BITFIELD(mod.status_flags, MOD_DNA_LOCKED)
 
 /obj/item/mod/module/dna_lock/on_use()
 	. = ..()
@@ -458,6 +534,7 @@
 	dna = mod.wearer.dna.unique_enzymes
 	mod.balloon_alert(mod.wearer, "данные ДНК обновлены")
 	drain_power(use_power_cost)
+	ENABLE_BITFIELD(mod.status_flags, MOD_DNA_LOCKED)
 
 /obj/item/mod/module/dna_lock/emp_act(severity)
 	. = ..()
@@ -481,13 +558,17 @@
 
 /obj/item/mod/module/dna_lock/proc/on_emp(datum/source, severity)
 	SIGNAL_HANDLER
+	if(individual_protect_from_emp)
+		return FALSE
 
 	dna = null
+	DISABLE_BITFIELD(mod.status_flags, MOD_DNA_LOCKED)
 
 /obj/item/mod/module/dna_lock/proc/on_emag(datum/source, mob/user, obj/item/card/emag/emag_card)
 	SIGNAL_HANDLER
 
 	dna = null
+	DISABLE_BITFIELD(mod.status_flags, MOD_DNA_LOCKED)
 
 /obj/item/mod/module/dna_lock/proc/on_mod_activation(datum/source, mob/user)
 	SIGNAL_HANDLER

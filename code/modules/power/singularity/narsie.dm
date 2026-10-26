@@ -55,7 +55,7 @@
 	GLOB.cult_narsie = src
 	var/list/all_cults = list()
 	for(var/datum/antagonist/cult/C in GLOB.antagonists)
-		if(!C.owner)
+		if(!C.owner || istype(C, /datum/antagonist/cult/training))
 			continue
 		if(C.cult_team)
 			all_cults |= C.cult_team
@@ -172,7 +172,7 @@
 		mezzer()
 
 
-/obj/singularity/narsie/Process_Spacemove(movement_dir = 0, continuous_move = FALSE)
+/obj/singularity/narsie/Process_Spacemove(movement_dir = 0)
 	return clashing
 
 

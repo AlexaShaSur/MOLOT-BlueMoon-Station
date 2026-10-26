@@ -21,6 +21,18 @@
 	var/point_type = POINT_TYPE_SCIENCE
 	var/max_repeat_usage = 6
 	var/slaver_mode = FALSE
+	var/datum/techweb/linked_techweb //BLUEMOON ADD: связанная исследовательская сеть
+
+/obj/machinery/research_table/LateInitialize()
+	. = ..()
+	AddComponent(/datum/component/techweb_holder)
+	RegisterSignal(src, COMSIG_ATOM_TECHWEB_CHANGED, PROC_REF(on_techweb_changed))
+	SEND_SIGNAL(src, COMSIG_ATOM_SET_TECHWEB, find_rnd_network_for_object(src))
+
+/obj/machinery/research_table/proc/on_techweb_changed(datum/source, datum/techweb/new_web)
+	SIGNAL_HANDLER
+
+	linked_techweb = new_web
 
 /obj/machinery/research_table/examine(mob/user)
 	. = ..()
@@ -96,7 +108,6 @@
 		else
 			to_chat(user, "<span class='warning'>You fail to unbuckle [buckled_mob].</span>")
 		return
-	UnregisterSignal(buckled_mob, COMSIG_MOB_POST_CAME)
 	say("User left, resetting scanners.")
 	return ..()
 
@@ -108,10 +119,14 @@
 			return FALSE
 	return TRUE
 
-/obj/machinery/research_table/buckle_mob(mob/living/buckled_mob, force, check_loc)
+/obj/machinery/research_table/post_buckle_mob(mob/living/buckled_mob)
+	. = ..()
 	RegisterSignal(buckled_mob, COMSIG_MOB_POST_CAME, PROC_REF(on_cum))
 	say("New user detected, tracking data.")
+
+/obj/machinery/research_table/post_unbuckle_mob(mob/living/buckled_mob)
 	. = ..()
+	UnregisterSignal(buckled_mob, COMSIG_MOB_POST_CAME)
 
 /obj/machinery/research_table/RefreshParts()
 	var/parts = 0
@@ -148,7 +163,7 @@
 	points_awarded *= CONFIG_GET(number/sex_table_multiplier)
 	switch(point_type)
 		if(POINT_TYPE_SCIENCE)
-			SSresearch.science_tech.add_point_list(list(TECHWEB_POINT_TYPE_GENERIC = points_awarded))
+			linked_techweb?.add_point_list(list(TECHWEB_POINT_TYPE_GENERIC = points_awarded))
 		else
 			if(slaver_mode) // Slaver version generates money for the slavers instead.
 				GLOB.slavers_credits_balance += points_awarded

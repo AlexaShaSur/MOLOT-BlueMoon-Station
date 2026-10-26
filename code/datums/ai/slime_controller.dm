@@ -28,7 +28,7 @@
 	var/step_delay = slime_pawn.movement_delay()
 	if(step_delay <= 0)
 		step_delay = SLIME_AI_STEP_DELAY_FLOOR
-	movement_delay = step_delay + SLIME_AI_STEP_DELAY_SLACK
+	movement_delay = (step_delay + SLIME_AI_STEP_DELAY_SLACK) * GLOB.ai_move_delay_scale
 
 ///Погоня планируется только при живой цели от мозга Life; гейты исполнения
 ///повторяют выходы старого цикла - слайм стоит, но цель не бросает
@@ -135,7 +135,7 @@
 ///Отказ от цели 1:1 с легаси: чистим и Target слайма, и blackboard; движение
 ///остановит finish_action по флагу FAILED
 /datum/ai_behavior/slime_pursue_and_feed/proc/give_up(datum/ai_controller/controller, mob/living/simple_animal/slime/slime_pawn, target_key)
-	slime_pawn.Target = null
+	slime_pawn.set_slime_target(null)
 	slime_pawn.chase_hunger = 0 //погоня окончена - следующая возьмёт свежую оценку голода
 	controller.clear_blackboard_key(target_key)
 	return AI_BEHAVIOR_DELAY | AI_BEHAVIOR_FAILED

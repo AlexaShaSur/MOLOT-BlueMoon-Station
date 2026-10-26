@@ -2,6 +2,7 @@
 #define IC_COMPLEXITY_BASE		75
 
 /obj/item/electronic_assembly
+	armor_type = /datum/armor/electronic_assembly
 	name = "electronic assembly"
 	obj_flags = CAN_BE_HIT | UNIQUE_RENAME
 	desc = "It's a case, for building small electronics with."
@@ -41,11 +42,15 @@
 	var/datum/weakref/ie_gui_examined_circuit
 	var/ie_gui_examined_x = 0
 	var/ie_gui_examined_y = 0
-	/// TGUI: подсветка связи при передаче данных по проводу
-	var/ie_tgui_pulse_until = 0
-	var/ie_tgui_pulse_output_ref = null
-	var/ie_tgui_pulse_input_ref = null
-	var/datum/weakref/ie_tgui_pulse_chip_weak
+	/// TGUI: очередь «живых» импульсов для подсветки проводов/нод; храним все недавние, чтобы
+/// троттлинг не терял промежуточные активации (порядок = порядок активации).
+	/// entry: list("out"=REF, "in"=REF, "chip_in"=weakref, "chip_out"=weakref, "until"=world.time)
+	var/list/ie_tgui_pulses = list()
+	/// TGUI: троттлинг форс-обновлений окна при непрерывной работе схемы (иначе каждый push_data → полная ресериализация сотен компонентов).
+	var/ie_tgui_last_ui_push = 0
+	/// TGUI: пины, для которых открыт нативный редактор значений (список/текст) — REF(io) активен.
+	var/datum/integrated_io/ie_gui_editor_io
+	var/ie_gui_editor_is_output = FALSE
 	/// Last coarse diagnostic HUD state from compute_diagnostic_hud_process_key; skips redundant health/cell updates in process().
 	var/last_diag_process_key = ""
 	/// Cached "[icon]-[icon_state]-[dir]" so sync_diagnostic_hud_offsets avoids allocating /icon every diag call.
@@ -54,7 +59,6 @@
 	hud_possible = list(DIAG_STAT_HUD, DIAG_BATT_HUD, DIAG_TRACK_HUD, DIAG_CIRCUIT_HUD) //diagnostic hud overlays
 	max_integrity = 50
 	pass_flags = 0
-	armor = list(MELEE = 50, BULLET = 70, LASER = 70, ENERGY = 100, BOMB = 10, BIO = 100, RAD = 100, FIRE = 0, ACID = 0)
 	anchored = FALSE
 	var/can_anchor = TRUE
 	var/detail_color = COLOR_ASSEMBLY_BLACK
@@ -977,8 +981,8 @@
 			pixel_x = -31
 		if(WEST)
 			pixel_x = 31
-	plane = ABOVE_WALL_PLANE
+	SET_PLANE_IMPLICIT(src, ABOVE_WALL_PLANE)
 
 /obj/item/electronic_assembly/wallmount/Moved(atom/OldLoc, Dir, Forced = FALSE) //reset the plane if moved off the wall.
 	. = ..()
-	plane = GAME_PLANE
+	SET_PLANE_IMPLICIT(src, GAME_PLANE)

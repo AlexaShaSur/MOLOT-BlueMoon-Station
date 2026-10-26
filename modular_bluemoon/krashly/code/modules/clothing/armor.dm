@@ -17,7 +17,7 @@
 	item_state = "greatcoat"
 
 /obj/item/clothing/head/donator/bm/cerberus_helmet/armored
-	armor = list(MELEE = 45, BULLET = 30, LASER = 30,ENERGY = 10, BOMB = 25, BIO = 0, RAD = 0, FIRE = 70, ACID = 90, WOUND = 10)
+	armor_type = /datum/armor/cerberus_armored
 	cold_protection = HEAD
 	min_cold_protection_temperature = SPACE_HELM_MIN_TEMP_PROTECT
 	heat_protection = HEAD
@@ -27,11 +27,24 @@
 
 /obj/item/clothing/suit/donator/bm/cerberus_suit/armored
 	body_parts_covered = CHEST|GROIN|ARMS|LEGS
-	armor = list(MELEE = 45, BULLET = 30, LASER = 30, ENERGY = 10, BOMB = 25, BIO = 0, RAD = 0, FIRE = 70, ACID = 90, WOUND = 10)
+	armor_type = /datum/armor/cerberus_armored
+	brc_mitigation_bonus = 10  // BLUEMOON ADD
 	cold_protection = CHEST|GROIN|LEGS|ARMS
 	heat_protection = CHEST|GROIN|LEGS|ARMS
 	strip_delay = 80
 	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+
+/obj/item/clothing/suit/donator/bm/cerberus_suit/armored/equipped(mob/user, slot)  // BLUEMOON ADD
+	. = ..()
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation += brc_mitigation_bonus
+		brc_worn = TRUE
+
+/obj/item/clothing/suit/donator/bm/cerberus_suit/armored/dropped(mob/user)  // BLUEMOON ADD
+	. = ..()
+	if(brc_worn && isliving(user))
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
+		brc_worn = FALSE
 
 /obj/item/clothing/suit/donator/bm/cerberus_suit/armored/censor
 	name = "censor's coat"
@@ -80,6 +93,7 @@
 	item_state = "deepcoat"
 	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
 	body_parts_covered = CHEST|GROIN|LEGS|ARMS
+
 ////////////////////////////////////////////////
 /obj/item/clothing/suit/hooded/plaguedoc_new
 	name = "plague doctor robe"
@@ -94,8 +108,8 @@
 	permeability_coefficient = 0.01
 	clothing_flags = THICKMATERIAL
 	body_parts_covered = CHEST|GROIN|LEGS|FEET|ARMS|HANDS
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0,ENERGY = 0, BOMB = 0, BIO = 100, RAD = 75, FIRE = 50, ACID = 100)
-	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT|HIDETAUR
+	armor_type = /datum/armor/plaguedoc_new
+	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT|HIDETAUR|HIDETAIL
 	strip_delay = 70
 	equip_delay_other = 70
 	resistance_flags = ACID_PROOF
@@ -110,7 +124,7 @@
 	item_state = "plaguedoc_hood"
 	flags_inv = HIDEHAIR|HIDEEARS
 ///////////////////////////////////////////////
-obj/item/clothing/suit/donator/bm/cerberus_suit/armored/inkvd
+/obj/item/clothing/suit/donator/bm/cerberus_suit/armored/inkvd
 	name = "inquisitor's overcoat"
 	desc = "Large overcoat with red embroidery on the sleeves. It also has a cross stitch on it."
 	icon = 'modular_bluemoon/krashly/icons/obj/clothing/suits.dmi'
@@ -129,6 +143,7 @@ obj/item/clothing/suit/donator/bm/cerberus_suit/armored/inkvd
 	anthro_mob_worn_overlay = 'modular_bluemoon/krashly/icons/mob/clothing/suits.dmi'
 	icon_state = "armor"
 	item_state = "armor"
+	brc_mitigation_bonus = 10  // BLUEMOON ADD
 
 /obj/item/clothing/suit/armor/inteq/honorable_vanguard
 	name = "InteQ black armored coat"

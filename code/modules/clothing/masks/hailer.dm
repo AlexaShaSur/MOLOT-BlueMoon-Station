@@ -65,7 +65,7 @@ GLOBAL_LIST_EMPTY(sechailers)
 	var/safety = TRUE
 	var/obj/item/radio/radio //For engineering alerts.
 	var/radio_key = /obj/item/encryptionkey/headset_sec
-	var/radio_channel = "Security"
+	var/radio_channel = RADIO_CHANNEL_SECURITY
 	var/dispatch_cooldown = 250
 	var/last_dispatch = 0
 
@@ -115,6 +115,17 @@ GLOBAL_LIST_EMPTY(sechailers)
 
 /obj/item/clothing/mask/gas/sechailer/screwdriver_act(mob/living/user, obj/item/I)
 	if(..())
+		return TRUE
+	// BLUEMOON ADD - harm intent снимает модуль как device/hailer
+	if(user.a_intent == INTENT_HARM)
+		var/obj/item/device/hailer/H = new(get_turf(src))
+		if(!safety)
+			H.insults = rand(1,3)
+		user.put_in_hands(H)
+		broken_hailer = TRUE
+		GLOB.sechailers -= src
+		QDEL_NULL(radio)
+		to_chat(user, span_notice("Вы выковыриваете Compli-o-Nator модуль из [src]."))
 		return TRUE
 	switch(aggressiveness)
 		if(-1)
@@ -353,6 +364,6 @@ GLOBAL_LIST_EMPTY(sechailers)
 	desc = "A close-fitting tactical mask created in cooperation with a certain megacorporation, comes with an especially aggressive Compli-o-nator 3000."
 	icon_state = "spacepol"
 	item_state = "spacepol"
-	mutantrace_variation = STYLE_NO_ANTHRO_ICON
+	mutantrace_variation = STYLE_MUZZLE
 	flags_cover = MASKCOVERSMOUTH | MASKCOVERSEYES
 	visor_flags_cover = MASKCOVERSMOUTH | MASKCOVERSEYES

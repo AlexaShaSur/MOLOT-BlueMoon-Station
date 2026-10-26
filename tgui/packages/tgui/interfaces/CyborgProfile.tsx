@@ -31,6 +31,9 @@ interface CyborgProfileContext {
   unholy_tag: string;
   extreme_tag: string;
   very_extreme_tag: string;
+  antag_opt_in: string;
+  antag_opt_in_color: string;
+  antag_opt_in_desc: string;
 }
 
 export const CyborgProfile = (props) => {
@@ -55,13 +58,13 @@ export const CyborgProfile = (props) => {
           </Flex.Item>
           <Flex.Item pl="10px" grow>
             <Collapsible title="Описание Юнита" open>
-              <Section style={{ whiteSpace: "pre-line" }}>
-                {data.silicon_flavor_text || "———"}
+              <Section>
+                <Box dangerouslySetInnerHTML={{ __html: data.silicon_flavor_text || "———" }} />
               </Section>
             </Collapsible>
             <Collapsible title="Внеигровые заметки" open>
-              <Section style={{ whiteSpace: "pre-line" }}>
-                {data.oocnotes || "Отсутствуют"}
+              <Section>
+                <Box dangerouslySetInnerHTML={{ __html: data.oocnotes || "Отсутствуют" }} />
               </Section>
             </Collapsible>
             <Section title="Преференсы киборга" width="100%">
@@ -74,6 +77,11 @@ export const CyborgProfile = (props) => {
                     <Tooltip content={tag.name}>{tag.value}</Tooltip>
                   </LabeledList.Item>
                 ))}
+                <LabeledList.Item
+                  color={data.antag_opt_in_color}
+                  label="Задания антагов">
+                  <Tooltip content={data.antag_opt_in_desc}>{data.antag_opt_in}</Tooltip>
+                </LabeledList.Item>
               </LabeledList>
             </Section>
           </Flex.Item>

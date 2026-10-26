@@ -15,7 +15,6 @@
 	new /obj/item/gun/energy/e_gun(src)
 	new /obj/item/door_remote/captain(src)
 	new /obj/item/storage/photo_album/Captain(src)
-	new /obj/item/mod/construction/armor/magnate(src)
 	new /obj/item/mod/module/holster(src)
 	new /obj/item/storage/garment_case/captain(src) //BLUEMOON add
 	new /obj/item/choice_beacon/box/desk(src) //BLUEMOON add
@@ -62,7 +61,6 @@
 	new /obj/item/pinpointer/nuke(src)
 	new /obj/item/circuitboard/machine/techfab/department/security(src)
 	new /obj/item/storage/photo_album/HoS(src)
-	new /obj/item/mod/construction/armor/safeguard(src)
 	new /obj/item/mod/module/jetpack(src)
 	new /obj/item/mod/module/holster(src)
 	new /obj/item/storage/garment_case/hos(src) //Bluemoon add
@@ -84,7 +82,6 @@
 	new /obj/item/flashlight/seclite(src)
 	new /obj/item/clothing/gloves/krav_maga/sec(src)
 	new /obj/item/door_remote/head_of_security(src)
-	new /obj/item/gun/ballistic/shotgun/automatic/combat/warden(src)
 	new /obj/item/storage/garment_case/warden(src) // Bluemoon Add
 
 /obj/structure/closet/secure_closet/security

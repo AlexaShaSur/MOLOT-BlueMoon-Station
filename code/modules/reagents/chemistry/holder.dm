@@ -305,12 +305,17 @@
 	var/list/cached_reagents = reagent_list
 	if (!target)
 		return
-	if (!target.reagents || src.total_volume<=0 || !src.get_reagent_amount(reagent))
+	var/datum/reagents/R
+	if(istype(target, /datum/reagents))
+		R = target
+	else
+		if(!target.reagents)
+			return
+		R = target.reagents
+	if (src.total_volume<=0 || !src.get_reagent_amount(reagent))
 		return
 	if(amount < 0)
 		return
-
-	var/datum/reagents/R = target.reagents
 	if(src.get_reagent_amount(reagent)<amount)
 		amount = src.get_reagent_amount(reagent)
 	amount = min(amount, R.maximum_volume-R.total_volume)
@@ -407,16 +412,20 @@
 			reagent.metabolizing = TRUE
 			reagent.on_mob_metabolize(owner)
 		if(can_overdose)
+			var/const/inversed_quant_level = ceil(INVERSE(CHEMICAL_QUANTISATION_LEVEL))
+			var/rounded_volume = round(reagent.volume * inversed_quant_level) / inversed_quant_level
 			if(reagent.overdose_threshold)
-				if(reagent.volume >= reagent.overdose_threshold && !reagent.overdosed)
+				if(rounded_volume > reagent.overdose_threshold && !reagent.overdosed)
 					reagent.overdosed = TRUE
 					need_mob_update += reagent.overdose_start(owner)
-					log_game("[key_name(owner)] has started overdosing on [reagent.name] at [reagent.volume] units.")
+					log_game("[key_name(owner)] has started overdosing on [reagent.name] at [rounded_volume] units.")
+				else if(reagent.overdosed && rounded_volume <= reagent.overdose_threshold)
+					reagent.overdosed = FALSE
 
 			// for(var/addiction in reagent.addiction_types)
 			// 	owner.mind?.add_addiction_points(addiction, reagent.addiction_types[addiction] * REAGENTS_METABOLISM)
 			if(reagent.addiction_threshold)
-				if(reagent.volume > reagent.addiction_threshold && !is_type_in_list(reagent, addiction_list))
+				if(rounded_volume > reagent.addiction_threshold && !is_type_in_list(reagent, addiction_list))
 					var/datum/reagent/new_reagent = new reagent.type()
 					addiction_list.Add(new_reagent)
 			if(is_type_in_list(reagent, addiction_list))
@@ -481,6 +490,8 @@
 	var/datum/cached_my_atom = my_atom
 
 	var/reaction_occurred = 0 // checks if reaction, binary variable
+	/// Жидкости по возврату решают, пересобрать ли лужу после реакции.
+	var/any_reaction = FALSE
 	var/continue_reacting = FALSE //Helps keep track what kind of reaction is occuring; standard or fermi.
 
 	do
@@ -639,11 +650,12 @@
 
 				selected_reaction.on_reaction(src, multiplier, special_react_result)
 				reaction_occurred = 1
+				any_reaction = TRUE
 				continue_reacting = TRUE
 
 	while(reaction_occurred)
 	update_total()
-	return FALSE
+	return any_reaction
 
 /datum/reagents/process()
 	var/datum/chemical_reaction/C = fermiReactID
@@ -885,7 +897,7 @@
 	pH = REAGENT_NORMAL_PH
 	return FALSE
 
-/datum/reagents/proc/reaction(atom/A, method = TOUCH, volume_modifier = 1, show_message = 1, from_gas = 0, affected_bodypart)
+/datum/reagents/proc/reaction(atom/A, method = TOUCH, volume_modifier = 1, show_message = 1, from_gas = 0, affected_bodypart, from_liquid = FALSE)
 	var/react_type
 	if(isliving(A))
 		react_type = "LIVING"
@@ -910,7 +922,7 @@
 					touch_protection = L.get_permeability_protection()
 				R.reaction_mob(A, method, R.volume * volume_modifier, show_message, touch_protection, affected_bodypart = bodypart)
 			if("TURF")
-				R.reaction_turf(A, R.volume * volume_modifier, show_message, from_gas)
+				R.reaction_turf(A, R.volume * volume_modifier, show_message, from_gas, from_liquid)
 			if("OBJ")
 				R.reaction_obj(A, R.volume * volume_modifier, show_message)
 	SEND_SIGNAL(A, COMSIG_ATOM_EXPOSE_REAGENTS, cached_reagents, src, method, volume_modifier, show_message, from_gas)
@@ -980,6 +992,7 @@
 					remove_reagent(reagentgas.type, portion, safety = TRUE)
 			s.set_up(R, clamp(amount/10, 0, 2), T)
 			s.start()
+			qdel(R)
 			return FALSE
 
 	if(!pH)

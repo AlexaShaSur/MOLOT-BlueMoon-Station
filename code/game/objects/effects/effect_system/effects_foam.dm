@@ -8,6 +8,8 @@
 /// Во сколько раз медленная фаза пены тикает реже быстрой (SSprocessing 1с / SSfastprocess 0.2с).
 /// Доза химии и расход жизни масштабируются этим же множителем - суммарный эффект как раньше.
 #define FOAM_SLOW_TICK_MULTIPLIER 5
+/// Игровое время на один шаг разлива. amount считает проходы SSfastprocess, а срок по world.time ограничивает разлив, даже если проходы тормозят.
+#define FOAM_SPREAD_STEP_TIME (1 SECONDS)
 
 /obj/effect/particle_effect/foam
 	name = "foam"
@@ -18,6 +20,8 @@
 	layer = EDGED_TURF_LAYER
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	var/amount = 10
+	/// world.time, после которого пена больше не растекается. Потомки наследуют срок источника.
+	var/spread_deadline = 0
 	animate_movement = 0
 	var/metal = 0
 	var/lifetime = 40
@@ -26,6 +30,12 @@
 	var/slow_processing = FALSE
 	/// FALSE = пене нужен быстрый тик всю жизнь (пожарная пена жрёт хотспоты на 5 Гц).
 	var/allow_slow_processing = TRUE
+	/// TRUE = химия турфу и предметам копится тиками и выдаётся одной дозой (см. process()).
+	var/batch_reagent_doses = FALSE
+	/// Тиков накоплено с прошлой реакции; -1 = пена ещё не тикала, первый тик реагирует сразу.
+	var/react_ticks = -1
+	/// Сколько пены удалено за раунд: каждая FOAM_GC_SAMPLE-я идёт через очередь GC.
+	var/static/destroyed_count = 0
 	var/static/list/blacklisted_turfs = typecacheof(list(
 	/turf/open/space/transit,
 	/turf/open/chasm,
@@ -64,13 +74,14 @@
 		T.air_update_turf()
 
 /obj/effect/particle_effect/foam/firefighting/kill_foam()
-	STOP_PROCESSING(SSfastprocess, src)
+	stop_processing()
 
 	if(absorbed_plasma)
 		var/obj/effect/decal/cleanable/plasma/P = (locate(/obj/effect/decal/cleanable/plasma) in get_turf(src))
 		if(!P)
 			P = new(loc)
-		P.reagents.add_reagent(/datum/reagent/stable_plasma, absorbed_plasma)
+		if(!QDELETED(P))
+			P.reagents.add_reagent(/datum/reagent/stable_plasma, absorbed_plasma)
 
 	flick("[icon_state]-disolve", src)
 	QDEL_IN(src, 5)
@@ -110,6 +121,9 @@
 
 /obj/effect/particle_effect/foam/short_life
 	lifetime = 1 SECONDS
+	// Батчится любая химия, налитая в пену. Пороговые по объёму reaction_turf/reaction_obj
+	// с укрупнённой дозы могут сработать там, где дольки не срабатывали: размен принят.
+	batch_reagent_doses = TRUE
 
 /obj/effect/particle_effect/foam/long_life
 	lifetime = 30 SECONDS
@@ -118,21 +132,45 @@
 	. = ..()
 	MakeSlippery()
 	create_reagents(1000, NONE, NO_REAGENTS_VALUE) //limited by the size of the reagent holder anyway.
+	set_spread_amount(amount)
 	START_PROCESSING(SSfastprocess, src)
 	playsound(src, 'sound/effects/bubbles2.ogg', 80, 1, -3)
+
+/obj/effect/particle_effect/foam/proc/set_spread_amount(new_amount)
+	amount = new_amount
+	spread_deadline = world.time + (max(new_amount, 0) + 1) * FOAM_SPREAD_STEP_TIME
 
 /obj/effect/particle_effect/foam/proc/MakeSlippery()
 	AddComponent(/datum/component/slippery, 100)
 
 /obj/effect/particle_effect/foam/Destroy()
-	STOP_PROCESSING(SSfastprocess, src)
-	STOP_PROCESSING(SSprocessing, src)
-	return ..()
+	stop_processing()
+	. = ..()
+	if(++destroyed_count % FOAM_GC_SAMPLE)
+		return QDEL_HINT_IWILLGC
 
+
+/obj/effect/particle_effect/foam/proc/stop_processing()
+	if(!(datum_flags & DF_ISPROCESSING))
+		return
+	if(slow_processing)
+		STOP_PROCESSING(SSprocessing, src)
+	else
+		STOP_PROCESSING(SSfastprocess, src)
+
+/// Выдаёт недоданный остаток батча химии турфу и предметам; звать повторно безопасно.
+/obj/effect/particle_effect/foam/proc/flush_batched_reagent_dose()
+	if(!batch_reagent_doses || react_ticks <= 0)
+		return
+	var/spent_ticks = min(react_ticks, max(reagent_divisor, 1))
+	react_ticks = 0
+	if(!reagents?.total_volume)
+		return
+	apply_reagent_dose(spent_ticks / max(reagent_divisor, 1), get_turf(src))
 
 /obj/effect/particle_effect/foam/proc/kill_foam()
-	STOP_PROCESSING(SSfastprocess, src)
-	STOP_PROCESSING(SSprocessing, src)
+	stop_processing()
+	flush_batched_reagent_dose()
 	switch(metal)
 		if(ALUMINUM_FOAM)
 			new /obj/structure/foamedmetal(get_turf(src))
@@ -144,8 +182,8 @@
 	QDEL_IN(src, 5)
 
 /obj/effect/particle_effect/foam/smart/kill_foam() //Smart foam adheres to area borders for walls
-	STOP_PROCESSING(SSfastprocess, src)
-	STOP_PROCESSING(SSprocessing, src)
+	stop_processing()
+	flush_batched_reagent_dose()
 	if(metal)
 		var/turf/T = get_turf(src)
 		if(isspaceturf(T)) //Block up any exposed space
@@ -162,38 +200,42 @@
 	// В медленной фазе тик приходит в FOAM_SLOW_TICK_MULTIPLIER раз реже -
 	// расход жизни и доза химии масштабируются, суммарный эффект прежний.
 	var/tick_multiplier = slow_processing ? FOAM_SLOW_TICK_MULTIPLIER : 1
+	var/divisor = max(reagent_divisor, 1)
 	lifetime -= tick_multiplier
 	if(lifetime < 1)
 		kill_foam()
 		return
 
-	var/fraction = tick_multiplier/initial(reagent_divisor)
 	// range(0, src) строил список из турфа и его содержимого ДВАЖДЫ за тик на каждую
 	// пену: при пожаротушении это 5427 пен в одном проходе SSfastprocess (раунд 9859),
 	// то есть десять тысяч лишних списков. Турф и так известен.
 	var/turf/foam_turf = get_turf(src)
-	// Условие на reagent_divisor от объекта не зависит - его считали внутри цикла на
-	// каждый предмет турфа. Каждый reagent_divisor-й тик весь цикл вообще холостой.
-	var/should_react = lifetime % reagent_divisor
-	if(should_react && foam_turf)
-		for(var/obj/O in foam_turf)
-			if(O.type == src.type)
-				continue
-			if(isturf(O.loc))
-				var/turf/T = O.loc
-				if(T.intact && O.level == 1) //hidden under the floor
-					continue
-			reagents.reaction(O, TOUCH, fraction)
+
+	// Обычная пена дозирует долю каждый рабочий тик, короткоживущая (batch_reagent_doses)
+	// копит тики и выдаёт их одной дозой, а остаток отдаёт на смерти: сумма за жизнь та же.
+	var/react_fraction = 0
+	var/working_tick = lifetime % divisor
+	if(batch_reagent_doses)
+		var/first_react = react_ticks < 0 // первый тик реагирует сразу
+		react_ticks = max(react_ticks, 0) + (working_tick ? tick_multiplier : 0)
+		if((first_react && react_ticks) || react_ticks >= divisor)
+			var/spent_ticks = min(react_ticks, divisor)
+			react_fraction = spent_ticks / divisor
+			react_ticks -= spent_ticks
+	else if(working_tick)
+		react_fraction = tick_multiplier / divisor
+
+	// У пожарной и металлической пены холдер пуст: обходить содержимое турфа незачем.
+	if(react_fraction && reagents?.total_volume)
+		apply_reagent_dose(react_fraction, foam_turf)
 	var/hit = 0
 	if(foam_turf)
 		for(var/mob/living/L in foam_turf)
 			hit += foam_mob(L, tick_multiplier)
 	if(hit)
 		lifetime += tick_multiplier //this is so the decrease from mobs hit and the natural decrease don't cumulate.
-	if(lifetime % reagent_divisor)
-		reagents.reaction(foam_turf, TOUCH, fraction)
 
-	if(--amount < 0)
+	if(--amount < 0 || world.time > spread_deadline)
 		// Разлив закончен: пена больше не спредится, дотикивать жизнь и травить
 		// стоящих в ней можно на медленном процессинге. Именно одновременность
 		// тысяч пен на быстром тике давала 228мс/проход SSfastprocess (раунд 9746,
@@ -205,14 +247,28 @@
 		return
 	spread_foam()
 
+/// Одна доза химии турфу и его содержимому: общая для рабочего тика и для остатка батча.
+/obj/effect/particle_effect/foam/proc/apply_reagent_dose(react_fraction, turf/foam_turf)
+	if(!react_fraction || !foam_turf)
+		return
+	for(var/obj/O in foam_turf)
+		if(O.type == src.type)
+			continue
+		if(isturf(O.loc))
+			var/turf/T = O.loc
+			if((T.turf_flags & TURF_INTACT) && O.level == 1) //hidden under the floor
+				continue
+		reagents.reaction(O, TOUCH, react_fraction)
+	reagents.reaction(foam_turf, TOUCH, react_fraction)
+
 /obj/effect/particle_effect/foam/proc/foam_mob(mob/living/L, tick_multiplier = 1)
 	if(lifetime<1)
 		return FALSE
 	if(!istype(L))
 		return FALSE
-	var/fraction = tick_multiplier/initial(reagent_divisor)
-	if(lifetime % reagent_divisor)
-		reagents.reaction(L, TOUCH, fraction)
+	var/divisor = max(reagent_divisor, 1)
+	if(lifetime % divisor)
+		reagents.reaction(L, TOUCH, tick_multiplier / divisor)
 	lifetime -= tick_multiplier
 	return TRUE
 
@@ -220,7 +276,13 @@
 	var/turf/t_loc = get_turf(src)
 	if(!t_loc) // пену могли убрать из мира (kill_foam/подбор) между постановкой в очередь и спредом
 		return
-	for(var/turf/T in t_loc.GetAtmosAdjacentTurfs())
+	var/list/adjacent_turfs = t_loc.atmos_adjacent_turfs
+	var/copied_adjacency = FALSE
+	for(var/adjacent_index in 1 to length(adjacent_turfs))
+		var/turf/T = adjacent_turfs[adjacent_index]
+		// Через дыру пена стекает вниз, но не поднимается к потолку.
+		if(T.z != t_loc.z && T != GET_TURF_BELOW(t_loc))
+			continue
 		var/obj/effect/particle_effect/foam/foundfoam = locate() in T //Don't spread foam where there's already foam!
 		if(foundfoam)
 			continue
@@ -228,10 +290,15 @@
 		if(is_type_in_typecache(T, blacklisted_turfs))
 			continue
 
+		// Реакция на мобе может изменить соседство; до неё снимок не нужен.
+		if(!copied_adjacency)
+			adjacent_turfs = adjacent_turfs.Copy()
+			copied_adjacency = TRUE
 		for(var/mob/living/L in T)
 			foam_mob(L)
 		var/obj/effect/particle_effect/foam/F = new src.type(T)
 		F.amount = amount
+		F.spread_deadline = spread_deadline
 		reagents.copy_to(F, (reagents.total_volume))
 		F.add_atom_colour(color, FIXED_COLOUR_PRIORITY)
 		F.metal = metal
@@ -250,9 +317,19 @@
 //FOAM EFFECT DATUM
 /datum/effect_system/foam_spread
 	var/amount = 25		// the size of the foam spread.
+	/// Носитель химии до момента рождения пены. Голый /obj, у которого reagents.my_atom
+	/// смотрит обратно на него же - ссылочный цикл, а рефкаунт BYOND циклы не разбирает
+	/// никогда. Разорвать его может только Destroy(), то есть qdel самой системы.
 	var/obj/chemholder
 	effect_type = /obj/effect/particle_effect/foam
 	var/metal = 0
+	// Система одноразовая и убирает себя сама в конце start() - ровно та же болезнь и то же
+	// лечение, что у /datum/effect_system/smoke_spread/chem, подробный разбор там. Коротко:
+	// ни одно место создания пены qdel не звало, поэтому каждый разлив оставлял в мире
+	// навсегда голый /obj + /datum/reagents(1000); перепись прода 10050/10052/10054 видела
+	// это как непрерывный рост числа голых /obj. Цена - экземпляр не переиспользуем; ни
+	// одного foam_spread в переменной объекта в дереве нет, все места создания локальные.
+	autocleanup = TRUE
 
 /datum/effect_system/foam_spread/watertype                      //Для ситуаций, когда требуется якобы потоп
 	effect_type = /obj/effect/particle_effect/foam/watertype
@@ -296,12 +373,20 @@
 	metal = metaltype
 
 /datum/effect_system/foam_spread/start()
+	// Система себя уже убрала (см. autocleanup у типа) - chemholder отпущен, дальше идти
+	// некуда. Гард такой же, как у /datum/effect_system/start().
+	if(QDELETED(src))
+		return
 	var/obj/effect/particle_effect/foam/F = new effect_type(location)
 	var/foamcolor = mix_color_from_reagents(chemholder.reagents.reagent_list)
 	chemholder.reagents.copy_to(F, chemholder.reagents.total_volume/amount)
 	F.add_atom_colour(foamcolor, FIXED_COLOUR_PRIORITY)
-	F.amount = amount
+	F.set_spread_amount(amount)
 	F.metal = metal
+
+	// Химия отдана рождённой пене, chemholder больше не нужен ни на что.
+	if(autocleanup)
+		qdel(src)
 
 
 //////////////////////////////////////////////////////////
@@ -389,3 +474,4 @@
 #undef IRON_FOAM
 #undef RESIN_FOAM
 #undef FOAM_SLOW_TICK_MULTIPLIER
+#undef FOAM_SPREAD_STEP_TIME

@@ -50,6 +50,7 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 	var/atom/movable/screen/rest_icon
 	var/atom/movable/screen/throw_icon
 	var/atom/movable/screen/module_store_icon
+	var/atom/movable/screen/ammo_counter //BLUEMOON ADDITION
 
 	var/list/static_inventory = list() //the screen objects which are static
 	var/list/toggleable_inventory = list() //the screen objects which can be hidden
@@ -58,9 +59,18 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 	var/list/screenoverlays = list() //the screen objects used as whole screen overlays (flash, damageoverlay, etc...)
 	var/list/inv_slots[SLOTS_AMT] // /atom/movable/screen/inventory objects, ordered by their slot ID.
 	var/list/hand_slots // /atom/movable/screen/inventory/hand objects, assoc list of "[held_index]" = object
-	var/list/atom/movable/screen/plane_master/plane_masters = list() // see "appearance_flags" in the ref, assoc list of "[plane]" = object
+	/// see "appearance_flags" in the ref, assoc list of "[plane]" = object
+	/// Ссылка на список основной группы; прямой индекс даёт мастера нулевого этажа.
+	var/list/atom/movable/screen/plane_master/plane_masters = list()
 	///Assoc list of controller groups, associated with key string group name with value of the plane master controller ref
 	var/list/atom/movable/plane_master_controller/plane_master_controllers = list()
+	var/list/datum/plane_master_group/master_groups = list()
+	/// Этаж глаза в стопке: 0 - верх, растёт вниз.
+	var/current_plane_offset = 0
+	/// Глубина связки глаза; меняется независимо от смещения.
+	var/current_stack_depth = 0
+	/// Атом, за сменой этажа которого следит худ: client.eye, без клиента - сам моб.
+	var/atom/tracked_eye
 
 	///UI for screentips that appear when you mouse over things
 	var/atom/movable/screen/screentip/screentip_text
@@ -94,8 +104,23 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 	var/datum/action_group/listed/listed_actions
 	var/list/floating_actions
 
-	var/atom/movable/screen/healths
+	/// HUD здоровья обычных mob/living/carbon/human
+	var/atom/movable/screen/healths/healths
+	/// Вариант HUD здоровья для синтетов isrobotic()
+	var/atom/movable/screen/healths/robot/healths_synth
 	var/atom/movable/screen/healthdoll
+
+	/// UI element for hunger
+	var/atom/movable/screen/hunger
+	/// UI element for thirst
+	var/atom/movable/screen/thirst
+	/// UI элемент для "голода" синтетов
+	var/atom/movable/screen/hunger/robotic/charge
+
+	/// Extra inventory slots visible?
+	var/extra_shown = FALSE
+	/// Equipped item screens that don't show up even if using the initial toggle
+	var/list/extra_inventory = list()
 
 	var/atom/movable/screen/wanted/wanted_lvl
 	// subtypes can override this to force a specific UI style
@@ -117,12 +142,15 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 
 	hand_slots = list()
 
-	for(var/mytype in subtypesof(/atom/movable/screen/plane_master))
-		var/atom/movable/screen/plane_master/instance = new mytype(null, src)
-		plane_masters["[instance.plane]"] = instance
-		instance.backdrop(mymob)
+	var/datum/plane_master_group/main/main_group = new(PLANE_GROUP_MAIN)
+	main_group.attach_to(src)
+	plane_masters = main_group.plane_masters
 
-	owner.overlay_fullscreen("see_through_darkness", /atom/movable/screen/fullscreen/special/see_through_darkness)
+	RegisterSignal(SSmapping, COMSIG_PLANE_OFFSET_INCREASE, PROC_REF(on_plane_increase))
+	RegisterSignal(owner, COMSIG_MOB_CLIENT_LOGIN, PROC_REF(on_client_login))
+	RegisterSignal(owner, COMSIG_MOB_CLIENT_LOGOUT, PROC_REF(on_client_logout))
+	if(owner.client)
+		RegisterSignal(owner.client, COMSIG_CLIENT_SET_EYE, PROC_REF(on_client_set_eye))
 
 	for(var/mytype in subtypesof(/atom/movable/plane_master_controller))
 		var/atom/movable/plane_master_controller/controller_instance = new mytype(null, src)
@@ -174,11 +202,14 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 	QDEL_LIST(infodisplay)
 
 	healths = null
+	healths_synth = null
 	healthdoll = null
-	wanted_lvl = null
 
 	hunger = null
 	thirst = null
+	charge = null
+
+	wanted_lvl = null
 
 	lingchemdisplay = null
 	devilsouldisplay = null
@@ -188,15 +219,16 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 	alien_queen_finder = null
 	combo_display = null
 
-	for(var/key in plane_masters)
-		var/atom/movable/screen/P = plane_masters[key]
-		P.screen_loc = null
-	if(mymob?.client)
-		for(var/key in plane_masters)
-			mymob.client.screen -= plane_masters[key]
-	QDEL_LIST_ASSOC_VAL(plane_masters)
+	ammo_counter = null
+
+	//Список plane_masters принадлежит основной группе.
+	plane_masters = null
+	QDEL_LIST_ASSOC_VAL(master_groups)
 	QDEL_LIST_ASSOC_VAL(plane_master_controllers)
 	QDEL_LIST(screenoverlays)
+	if(mymob?.client)
+		UnregisterSignal(mymob.client, COMSIG_CLIENT_SET_EYE)
+	track_eye(null)
 	mymob = null
 
 	QDEL_NULL(screentip_text)
@@ -208,23 +240,39 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 /datum/hud/proc/set_screentip_cache(atom/new_atom, obj/item/new_held_item)
 	if(last_screentip_atom == new_atom && last_screentip_held == new_held_item)
 		return
-	if(last_screentip_atom)
-		UnregisterSignal(last_screentip_atom, COMSIG_PARENT_QDELETING)
-	if(last_screentip_held && last_screentip_held != last_screentip_atom)
-		UnregisterSignal(last_screentip_held, COMSIG_PARENT_QDELETING)
+	var/atom/old_atom = last_screentip_atom
+	var/obj/item/old_held = last_screentip_held
 
 	last_screentip_atom = new_atom
 	last_screentip_held = new_held_item
 
-	if(last_screentip_atom)
-		RegisterSignal(last_screentip_atom, COMSIG_PARENT_QDELETING, PROC_REF(on_screentip_cache_target_qdeleting))
-	if(last_screentip_held && last_screentip_held != last_screentip_atom)
-		RegisterSignal(last_screentip_held, COMSIG_PARENT_QDELETING, PROC_REF(on_screentip_cache_target_qdeleting))
+	if(old_atom)
+		unwatch_qdel(old_atom)
+	if(old_held)
+		unwatch_qdel(old_held)
+	if(new_atom)
+		watch_qdel(new_atom)
+	if(new_held_item)
+		watch_qdel(new_held_item)
 
-/datum/hud/proc/on_screentip_cache_target_qdeleting(datum/source)
+/// Одна подписка на удаление атома делится между кэшем скринтипа и отслеживаемым глазом.
+/datum/hud/proc/watch_qdel(atom/target)
+	RegisterSignal(target, COMSIG_PARENT_QDELETING, PROC_REF(on_watched_qdeleting), override = TRUE)
+
+/datum/hud/proc/unwatch_qdel(atom/target)
+	if(target == last_screentip_atom || target == last_screentip_held)
+		return
+	if(target == tracked_eye && target != mymob)
+		return
+	UnregisterSignal(target, COMSIG_PARENT_QDELETING)
+
+/datum/hud/proc/on_watched_qdeleting(datum/source)
 	SIGNAL_HANDLER
 	if(source == last_screentip_atom || source == last_screentip_held)
 		set_screentip_cache(null, null)
+	if(source == tracked_eye && source != mymob)
+		track_eye(mymob)
+		eye_z_changed()
 
 /mob/proc/create_mob_hud()
 	if(!client || hud_used)
@@ -339,10 +387,99 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 
 /datum/hud/proc/plane_masters_update()
 	// Plane masters are always shown to OUR mob, never to observers
-	for(var/thing in plane_masters)
-		var/atom/movable/screen/plane_master/PM = plane_masters[thing]
-		PM.backdrop(mymob)
-		mymob.client.screen += PM
+	for(var/group_key in master_groups)
+		var/datum/plane_master_group/group = master_groups[group_key]
+		group.refresh_hud()
+
+/datum/hud/proc/get_plane_master(plane, group_key = PLANE_GROUP_MAIN)
+	var/datum/plane_master_group/group = master_groups[group_key]
+	return group?.plane_masters["[plane]"]
+
+/// Мастера этой плоскости на всех этажах стопки.
+/datum/hud/proc/get_true_plane_masters(true_plane, group_key = PLANE_GROUP_MAIN)
+	var/list/atom/movable/screen/plane_master/masters = list()
+	for(var/plane in TRUE_PLANE_TO_OFFSETS(true_plane))
+		var/atom/movable/screen/plane_master/master = get_plane_master(plane, group_key)
+		if(master)
+			masters += master
+	return masters
+
+/// Плита итоговой картинки мира: сюда вешают полноэкранные эффекты, не трогающие интерфейс.
+/datum/hud/proc/get_game_screen_plate()
+	return get_plane_master(RENDER_PLANE_SCREEN)
+
+/// Подложки и фильтры плоскостей на всех этажах: для настроек графики.
+/datum/hud/proc/refresh_plane_backdrops(mob/viewer, list/true_planes)
+	for(var/true_plane in true_planes)
+		var/list/masters = get_true_plane_masters(true_plane)
+		for(var/atom/movable/screen/plane_master/master as anything in masters)
+			master.refresh_backdrop(viewer)
+
+/datum/hud/proc/on_plane_increase(datum/source, old_max_offset, new_max_offset)
+	SIGNAL_HANDLER
+	eye_z_changed(force = TRUE)
+
+/// Рендер идёт за client.eye: камера ИИ, тело под наблюдением госта, глаз докера.
+/datum/hud/proc/get_eye_atom()
+	var/atom/eye = mymob?.client?.eye
+	if(!eye || QDELETED(eye))
+		return mymob
+	return eye
+
+/// Переподписка на текущий глаз: BYOND сам переставляет client.eye при смене моба и при удалении глаза.
+/datum/hud/proc/sync_eye()
+	track_eye(get_eye_atom())
+
+/datum/hud/proc/track_eye(atom/new_eye)
+	if(tracked_eye == new_eye)
+		return
+	var/atom/old_eye = tracked_eye
+	tracked_eye = new_eye
+	if(old_eye)
+		UnregisterSignal(old_eye, COMSIG_MOVABLE_Z_CHANGED)
+		unwatch_qdel(old_eye)
+	if(!new_eye)
+		return
+	if(ismovable(new_eye))
+		RegisterSignal(new_eye, COMSIG_MOVABLE_Z_CHANGED, PROC_REF(on_eye_z_changed))
+	if(new_eye != mymob)
+		watch_qdel(new_eye)
+
+/datum/hud/proc/on_eye_z_changed(datum/source, old_z, new_z)
+	SIGNAL_HANDLER
+	eye_z_changed()
+
+/datum/hud/proc/on_client_set_eye(datum/source, atom/old_eye, atom/new_eye)
+	SIGNAL_HANDLER
+	eye_z_changed()
+
+/datum/hud/proc/on_client_login(datum/source, client/new_client)
+	SIGNAL_HANDLER
+	RegisterSignal(new_client, COMSIG_CLIENT_SET_EYE, PROC_REF(on_client_set_eye), override = TRUE)
+	eye_z_changed()
+
+/datum/hud/proc/on_client_logout(datum/source, client/old_client)
+	SIGNAL_HANDLER
+	if(old_client)
+		UnregisterSignal(old_client, COMSIG_CLIENT_SET_EYE)
+	track_eye(mymob)
+
+/// Глаз сменил этаж или связку: пересобрать видимость и масштабы этажей.
+/datum/hud/proc/eye_z_changed(force = FALSE)
+	SHOULD_CALL_PARENT(TRUE)
+	sync_eye()
+	var/turf/eye_turf = get_turf(tracked_eye)
+	var/new_offset = eye_turf ? GET_TURF_PLANE_OFFSET(eye_turf) : 0
+	var/new_depth = eye_turf ? GET_LOWEST_STACK_OFFSET(eye_turf.z) : 0
+	if(current_plane_offset == new_offset && current_stack_depth == new_depth && !force)
+		return
+	var/old_offset = current_plane_offset
+	current_plane_offset = new_offset
+	current_stack_depth = new_depth
+	for(var/group_key in master_groups)
+		var/datum/plane_master_group/group = master_groups[group_key]
+		group.build_planes_offset(new_offset)
+	SEND_SIGNAL(src, COMSIG_HUD_OFFSET_CHANGED, old_offset, new_offset)
 
 /datum/hud/human/show_hud(version = 0,mob/viewmob)
 	. = ..()
@@ -397,6 +534,11 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 		var/atom/movable/screen/inventory/hand/H = hand_slots[h]
 		if(H)
 			static_inventory -= H
+			//Выписать из static_inventory мало: этот список - единственное, что
+			//обходит QDEL_LIST в hud/Destroy, так что каждая пересборка рук
+			//(смена числа рук, смена стиля интерфейса) оставляла старые слоты
+			//жить до конца раунда.
+			qdel(H)
 	hand_slots = list()
 	var/atom/movable/screen/inventory/hand/hand_box
 	for(var/i in 1 to mymob.held_items.len)
@@ -525,6 +667,43 @@ GLOBAL_LIST_INIT(available_ui_styles, list(
 			button = action.viewers[src]
 		else
 			position_action(button, button.location)
+
+// Called after updating extra inventory
+/datum/hud/proc/extra_inventory_update()
+	return
+
+/proc/ui_style_modular(ui_style, variant = "base")
+	var/static/cache = list()
+
+	var/check = LAZYACCESSASSOC(cache, ui_style, variant)
+	if(check)
+		return check
+
+	switch(ui_style)
+		if('icons/mob/screen_plasmafire.dmi')
+			. = "modular_sand/icons/hud/screen_plasmafire/"
+		if('icons/mob/screen_slimecore.dmi')
+			. = "modular_sand/icons/hud/screen_slimecore/"
+		if('icons/mob/screen_operative.dmi')
+			. = "modular_sand/icons/hud/screen_operative/"
+		if('icons/mob/screen_clockwork.dmi')
+			. = "modular_sand/icons/hud/screen_clockwork/"
+		if('icons/mob/screen_glass.dmi')
+			. = "modular_sand/icons/hud/screen_glass/"
+		if('icons/mob/screen_trasenknox.dmi')
+			. = "modular_sand/icons/hud/screen_trasenknox/"
+		if('icons/mob/screen_detective.dmi')
+			. = "modular_sand/icons/hud/screen_detective/"
+		if('modular_sand/icons/hud/screen_liteweb/base.dmi')
+			. = "modular_sand/icons/hud/screen_liteweb/"
+		if('modular_sand/icons/hud/screen_corru/base.dmi')
+			. = "modular_sand/icons/hud/screen_corru/"
+		else
+			. = "modular_sand/icons/hud/screen_midnight/"
+
+	. = file("[.][variant].dmi")
+	LAZYADDASSOC(cache, ui_style, variant)
+	cache[ui_style][variant] = .
 
 /datum/action_group
 	/// The hud we're owned by

@@ -36,7 +36,7 @@
 	throwforce = 25
 	wound_bonus = 10
 	bare_wound_bonus = 20
-	armour_penetration = 35
+	armour_penetration = MELEE_AP_ANTAGONIST
 	actions_types = list(/datum/action/item_action/cult_dagger)
 
 /obj/item/melee/cultblade/dagger/Initialize(mapload)
@@ -111,7 +111,7 @@
 	block_chance = 50
 	throwforce = 20
 	force = 35
-	armour_penetration = 45
+	armour_penetration = MELEE_AP_EXCLUSIVE
 	throw_speed = 1
 	throw_range = 3
 	sharpness = SHARP_EDGED
@@ -317,7 +317,7 @@
 	desc = "A torn, dust-caked hood. Strange letters line the inside."
 	flags_inv = HIDEFACE|HIDEHAIR|HIDEEARS
 	flags_cover = HEADCOVERSEYES
-	armor = list(MELEE = 40, BULLET = 30, LASER = 40,ENERGY = 20, BOMB = 65, BIO = 10, RAD = 0, FIRE = 10, ACID = 10)
+	armor_type = /datum/armor/cultrobes
 	cold_protection = HEAD
 	min_cold_protection_temperature = HELMET_MIN_TEMP_PROTECT
 	heat_protection = HEAD
@@ -331,7 +331,8 @@
 	item_state = "cultrobes"
 	body_parts_covered = CHEST|GROIN|LEGS|ARMS
 	allowed = list(/obj/item/tome, /obj/item/melee/cultblade)
-	armor = list(MELEE = 40, BULLET = 30, LASER = 40,ENERGY = 20, BOMB = 65, BIO = 10, RAD = 0, FIRE = 10, ACID = 10)
+	armor_type = /datum/armor/cultrobes
+	brc_mitigation_bonus = 10  // BLUEMOON ADD
 	flags_inv = HIDEJUMPSUIT
 	cold_protection = CHEST|GROIN|LEGS|ARMS
 	min_cold_protection_temperature = ARMOR_MIN_TEMP_PROTECT
@@ -339,6 +340,18 @@
 	max_heat_protection_temperature = ARMOR_MAX_TEMP_PROTECT
 	alternate_screams = BLOOD_SCREAMS
 	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_SNEK_TAURIC //bluemoon add
+
+/obj/item/clothing/suit/cultrobes/equipped(mob/user, slot)  // BLUEMOON ADD
+	. = ..()
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation += brc_mitigation_bonus
+		brc_worn = TRUE
+
+/obj/item/clothing/suit/cultrobes/dropped(mob/user)  // BLUEMOON ADD
+	. = ..()
+	if(brc_worn && isliving(user))
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
+		brc_worn = FALSE
 
 /obj/item/clothing/head/culthood/alt
 	name = "cultist hood"
@@ -374,7 +387,7 @@
 	item_state = "magus"
 	desc = "A helm worn by the followers of Nar'Sie."
 	flags_inv = HIDEFACE|HIDEHAIR|HIDEFACIALHAIR|HIDEEARS|HIDEEYES|HIDESNOUT
-	armor = list(MELEE = 30, BULLET = 30, LASER = 30,ENERGY = 20, BOMB = 0, BIO = 0, RAD = 0, FIRE = 10, ACID = 10)
+	armor_type = /datum/armor/magus
 	flags_cover = HEADCOVERSEYES | HEADCOVERSMOUTH
 	mutantrace_variation = STYLE_MUZZLE
 	alternate_screams = BLOOD_SCREAMS
@@ -386,16 +399,27 @@
 	item_state = "magusred"
 	body_parts_covered = CHEST|GROIN|LEGS|ARMS
 	allowed = list(/obj/item/tome, /obj/item/melee/cultblade)
-	armor = list(MELEE = 50, BULLET = 30, LASER = 50,ENERGY = 20, BOMB = 25, BIO = 10, RAD = 0, FIRE = 10, ACID = 10)
+	armor_type = /datum/armor/magusred
+	brc_mitigation_bonus = 10  // BLUEMOON ADD
 	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT
 	alternate_screams = BLOOD_SCREAMS
+
+/obj/item/clothing/suit/magusred/equipped(mob/user, slot)  // BLUEMOON ADD
+	. = ..()
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation += brc_mitigation_bonus
+
+/obj/item/clothing/suit/magusred/dropped(mob/user)  // BLUEMOON ADD
+	. = ..()
+	if(brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
 
 /obj/item/clothing/head/helmet/space/hardsuit/cult
 	name = "\improper Nar'Sien hardened helmet"
 	desc = "A heavily-armored helmet worn by warriors of the Nar'Sien cult. It can withstand hard vacuum."
 	icon_state = "cult_helmet"
 	item_state = "cult_helmet"
-	armor = list(MELEE = 60, BULLET = 50, LASER = 30,ENERGY = 15, BOMB = 30, BIO = 30, RAD = 30, FIRE = 100, ACID = 75)
+	armor_type = /datum/armor/cult
 	brightness_on = 0
 	actions_types = list()
 	alternate_screams = BLOOD_SCREAMS
@@ -413,7 +437,8 @@
 	desc = "A heavily-armored exosuit worn by warriors of the Nar'Sien cult. It can withstand hard vacuum."
 	w_class = WEIGHT_CLASS_BULKY
 	allowed = list(/obj/item/tome, /obj/item/melee/cultblade, /obj/item/tank/internals/)
-	armor = list(MELEE = 70, BULLET = 50, LASER = 30,ENERGY = 15, BOMB = 30, BIO = 30, RAD = 30, FIRE = 100, ACID = 75)
+	armor_type = /datum/armor/cult
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	helmettype = /obj/item/clothing/head/helmet/space/hardsuit/cult
 	alternate_screams = BLOOD_SCREAMS
 
@@ -443,7 +468,8 @@
 	icon_state = "cult_armor"
 	item_state = "cult_armor"
 	w_class = WEIGHT_CLASS_BULKY
-	armor = list(MELEE = 75, BULLET = 50, LASER = 50, ENERGY = 50, BOMB = 50, BIO = 100, RAD = 100, FIRE = 100, ACID = 100, MAGIC = 75)
+	armor_type = /datum/armor/cult_shield
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	body_parts_covered = CHEST|GROIN|LEGS|ARMS
 	allowed = list(/obj/item/tome, /obj/item/melee/cultblade)
 	var/current_charges = 3
@@ -456,7 +482,7 @@
 	name = "\improper Nar'Sien Empowered Helmet"
 	desc = "A heavily-armored Empowered Helmet worn by warriors of the Nar'Sien cult. It can withstand hard vacuum."
 	icon_state = "cult_hoodalt"
-	armor = list(MELEE = 75, BULLET = 50, LASER = 50, ENERGY = 50, BOMB = 50, BIO = 100, RAD = 100, FIRE = 100, ACID = 100, MAGIC = 75)
+	armor_type = /datum/armor/cult_shield
 	body_parts_covered = HEAD
 	flash_protect = 1
 	flags_inv = HIDEHAIR|HIDEFACE|HIDEEARS
@@ -478,6 +504,13 @@
 			user.emote("realagony")
 			user.adjustBruteLoss(25)
 			user.dropItemToGround(src, TRUE)
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0)  // BLUEMOON ADD
+		user.brc_mitigation += brc_mitigation_bonus
+
+/obj/item/clothing/suit/hooded/cultrobes/cult_shield/dropped(mob/living/user)  // BLUEMOON ADD
+	. = ..()
+	if(brc_mitigation_bonus > 0)
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
 
 /obj/item/clothing/suit/hooded/cultrobes/cult_shield/check_block(mob/living/owner, atom/object, damage, attack_text, attack_type, armour_penetration, mob/attacker, def_zone, final_block_chance, list/block_return)
 	if(current_charges)
@@ -509,7 +542,7 @@
 	flags_inv = HIDEJUMPSUIT
 	allowed = list(/obj/item/tome, /obj/item/melee/cultblade)
 	body_parts_covered = CHEST|GROIN|LEGS|ARMS
-	armor = list(MELEE = -50, BULLET = -50, LASER = -50,ENERGY = -50, BOMB = -50, BIO = -50, RAD = -50, FIRE = 0, ACID = 0)
+	armor_type = /datum/armor/cult_berserker
 	slowdown = -0.5
 	hoodtype = /obj/item/clothing/head/hooded/berserkerhood
 	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_SNEK_TAURIC //bluemoon add
@@ -520,7 +553,7 @@
 	icon_state = "culthood"
 	body_parts_covered = HEAD
 	flags_inv = HIDEHAIR|HIDEFACE|HIDEEARS
-	armor = list(MELEE = -50, BULLET = -50, LASER = -50, ENERGY = -50, BOMB = -50, BIO = -50, RAD = -50, FIRE = 0, ACID = 0)
+	armor_type = /datum/armor/cult_berserker
 	alternate_screams = BLOOD_SCREAMS
 
 /obj/item/clothing/suit/hooded/cultrobes/berserker/equipped(mob/living/user, slot)
@@ -546,6 +579,10 @@
 	item_state = "blindfold"
 	flash_protect = 1
 	invis_override = SEE_INVISIBLE_HIDDEN_RUNES
+	color_cutoffs = null
+	glass_colour_type = null
+	is_togglable = FALSE
+	actions_types = null
 
 /obj/item/clothing/glasses/hud/health/night/cultblind/equipped(mob/living/user, slot)
 	..()
@@ -578,6 +615,9 @@
 		user.DefaultCombatKnockdown(100)
 		user.emote("realagony")
 		to_chat(user, "<span class='warning'>Мощная сила отталкивает вас от [src]!</span>")
+		return
+	if(is_antag_training_atom(user))
+		to_chat(user, span_warning("На полигоне недоступно: сфера проклинает эвакуационный шаттл станции."))
 		return
 	if(curselimit > 1)
 		to_chat(user, "<span class='notice'>Мы исчерпали свою способность проклинать Космическую Станцию.</span>")
@@ -640,6 +680,9 @@
 		user.DefaultCombatKnockdown(100)
 		user.emote("realagony")
 		to_chat(user, "<span class='warning'>Мощная сила отталкивает вас от [src]!</span>")
+		return
+	if(is_antag_training_atom(user))
+		to_chat(user, span_warning("На полигоне недоступно: сфера насылает на станцию бурю порталов Нар'Си."))
 		return
 	if(curselimit >= 2)
 		to_chat(user, "<span class='notice'>Мы исчерпали свою способность проклинать Космическую Станцию.</span>")
@@ -731,6 +774,9 @@
 	if(!iscultist(user))
 		to_chat(user, "That doesn't seem to do anything useful.")
 		return
+	if(is_antag_training_atom(user))
+		to_chat(user, span_warning("На полигоне недоступно: факел передаёт вещи культистам станции."))
+		return
 
 	if(istype(A, /obj/item))
 		transmit_item(A, user, proximity)
@@ -780,7 +826,7 @@
 	force = 17
 	throwforce = 52
 	throw_speed = 2
-	armour_penetration = 30
+	armour_penetration = MELEE_AP_ANTAGONIST
 	block_chance = 30
 	attack_verb = list("attacked", "impaled", "stabbed", "torn", "gored")
 	sharpness = SHARP_EDGED
@@ -887,7 +933,7 @@
 	force = 17
 	throwforce = 28
 	throw_speed = 2
-	armour_penetration = 30
+	armour_penetration = MELEE_AP_ANTAGONIST
 	block_chance = 45
 	attack_verb = list("attacked", "impaled", "stabbed", "torn", "gored")
 	sharpness = SHARP_EDGED

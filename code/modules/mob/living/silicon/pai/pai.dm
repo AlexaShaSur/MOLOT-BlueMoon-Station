@@ -231,9 +231,9 @@
 	if(client)
 		client.perspective = EYE_PERSPECTIVE
 		if(holoform)
-			client.eye = src
+			client.set_eye(src)
 		else
-			client.eye = card
+			client.set_eye(card)
 
 /mob/living/silicon/pai/get_status_tab_items()
 	. += ..()
@@ -335,8 +335,8 @@
 	..()
 	P.toggle_integrated_light()
 
-/mob/living/silicon/pai/Process_Spacemove(movement_dir = 0, continuous_move = FALSE)
-	. = ..(movement_dir, continuous_move)
+/mob/living/silicon/pai/Process_Spacemove(movement_dir = 0)
+	. = ..()
 	if(!.)
 		add_movespeed_modifier(/datum/movespeed_modifier/pai_spacewalk)
 		return TRUE

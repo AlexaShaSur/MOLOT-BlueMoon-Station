@@ -2,6 +2,8 @@
 	name = "navigation computer"
 	desc = "Used to designate a precise transit location for a spacecraft."
 	jump_action = null
+	move_up_action = null
+	move_down_action = null
 	should_supress_view_changes = FALSE
 
 	var/shuttleId = ""
@@ -104,7 +106,7 @@
 			var/y_off = shuttle_turf.y - origin.y
 			I.loc = locate(origin.x + x_off, origin.y + y_off, origin.z) //we have to set this after creating the image because it might be null, and images created in nullspace are immutable.
 			I.layer = ABOVE_NORMAL_TURF_LAYER
-			I.plane = 0
+			SET_PLANE(I, ABOVE_LIGHTING_PLANE, origin)
 			I.mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 			the_eye.placement_images[I] = list(x_off, y_off)
 
@@ -191,7 +193,7 @@
 		var/image/newI = image('icons/effects/alphacolors.dmi', the_eye.loc, "blue")
 		newI.loc = place_spots.loc //It is highly unlikely that any landing spot including a null tile will get this far, but better safe than sorry.
 		newI.layer = ABOVE_OPEN_TURF_LAYER
-		newI.plane = 0
+		newI.plane = place_spots.plane
 		newI.mouse_opacity = 0
 		the_eye.placed_images += newI
 
@@ -233,21 +235,30 @@
 	var/list/bounds = shuttle_port.return_coords(the_eye.x - x_offset, the_eye.y - y_offset, the_eye.dir)
 	var/list/overlappers = SSshuttle.get_dock_overlap(bounds[1], bounds[2], bounds[3], bounds[4], the_eye.z)
 	var/list/image_cache = the_eye.placement_images
+	var/preview_plane = MUTATE_PLANE(ABOVE_LIGHTING_PLANE, eyeturf)
 	for(var/i in 1 to image_cache.len)
 		var/image/I = image_cache[i]
 		var/list/coords = image_cache[I]
 		var/turf/T = locate(eyeturf.x + coords[1], eyeturf.y + coords[2], eyeturf.z)
 		I.loc = T
+		if(I.plane != preview_plane)
+			I.plane = preview_plane
+		var/new_state = "green"
 		switch(checkLandingTurf(T, overlappers))
 			if(SHUTTLE_DOCKER_LANDING_CLEAR)
-				I.icon_state = "green"
+				EMPTY_BLOCK_GUARD
 			if(SHUTTLE_DOCKER_BLOCKED_BY_HIDDEN_PORT)
-				I.icon_state = "green"
 				if(. == SHUTTLE_DOCKER_LANDING_CLEAR)
 					. = SHUTTLE_DOCKER_BLOCKED_BY_HIDDEN_PORT
 			else
-				I.icon_state = "red"
+				new_state = "red"
 				. = SHUTTLE_DOCKER_BLOCKED
+		if(I.icon_state != new_state)
+			I.icon_state = new_state
+
+/// turf_type is the real type of T: a hidden port shows the turf it covers instead.
+/obj/machinery/computer/camera_advanced/shuttle_docker/proc/landing_turf_allowed(turf/T, turf_type)
+	return !length(whitelist_turfs) || is_type_in_typecache(turf_type, whitelist_turfs)
 
 /obj/machinery/computer/camera_advanced/shuttle_docker/proc/checkLandingTurf(turf/T, list/overlappers)
 	// Too close to the map edge is never allowed
@@ -264,10 +275,9 @@
 		if(hidden_turf_info)
 			. = SHUTTLE_DOCKER_BLOCKED_BY_HIDDEN_PORT
 
-	if(length(whitelist_turfs))
-		var/turf_type = hidden_turf_info ? hidden_turf_info[2] : T.type
-		if(!is_type_in_typecache(turf_type, whitelist_turfs))
-			return SHUTTLE_DOCKER_BLOCKED
+	var/turf_type = hidden_turf_info ? hidden_turf_info[2] : T.type
+	if(!landing_turf_allowed(T, turf_type))
+		return SHUTTLE_DOCKER_BLOCKED
 
 	// Checking for overlapping dock boundaries
 	for(var/i in 1 to overlappers.len)
@@ -276,9 +286,7 @@
 			continue
 		var/port_hidden = !see_hidden && port.hidden
 		var/list/overlap = overlappers[port]
-		var/list/xs = overlap[1]
-		var/list/ys = overlap[2]
-		if(xs["[T.x]"] && ys["[T.y]"])
+		if(T.x >= overlap[1] && T.x <= overlap[3] && T.y >= overlap[2] && T.y <= overlap[4])
 			if(port_hidden)
 				. = SHUTTLE_DOCKER_BLOCKED_BY_HIDDEN_PORT
 			else
@@ -308,6 +316,8 @@
 	var/turf/last_checked_turf
 	/// Last dir checkLandingSpot was run for; rotation invalidates the dedup.
 	var/last_checked_dir = 0
+	/// relaymove() шагает несколько раз за нажатие, проверка места нужна только после последнего шага.
+	var/batching_steps = FALSE
 
 /mob/camera/aiEye/remote/shuttle_docker/Initialize(mapload, obj/machinery/computer/camera_advanced/origin)
 	src.origin = origin
@@ -315,6 +325,17 @@
 
 /mob/camera/aiEye/remote/shuttle_docker/setLoc(turf/destination, force_update = FALSE)
 	. = ..()
+	if(batching_steps)
+		return
+	refresh_landing_spot(force_update)
+
+/mob/camera/aiEye/remote/shuttle_docker/relaymove(mob/user, direct)
+	batching_steps = TRUE
+	. = ..()
+	batching_steps = FALSE
+	refresh_landing_spot()
+
+/mob/camera/aiEye/remote/shuttle_docker/proc/refresh_landing_spot(force_update = FALSE)
 	var/obj/machinery/computer/camera_advanced/shuttle_docker/console = origin
 	var/turf/current = get_turf(src)
 	if(!force_update && current == last_checked_turf && dir == last_checked_dir)

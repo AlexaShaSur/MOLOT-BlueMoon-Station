@@ -93,8 +93,8 @@
 	icon_state = "brain-x-d"
 	var/obj/effect/proc_holder/spell/targeted/shadowwalk/shadowwalk
 
-/obj/item/organ/brain/nightmare/Insert(mob/living/carbon/M, special = 0, drop_if_replaced = TRUE)
-	..()
+/obj/item/organ/brain/nightmare/Insert(mob/living/carbon/M, special = 0, no_id_transfer = FALSE, drop_if_replaced = TRUE)
+	. = ..()
 	if(M.dna.species.id != "nightmare")
 		M.set_species(/datum/species/shadow/nightmare)
 		visible_message("<span class='warning'>[M] thrashes as [src] takes root in [M.ru_ego()] body!</span>")
@@ -183,7 +183,7 @@
 	icon_state = "arm_blade"
 	item_state = "arm_blade"
 	force = 30
-	armour_penetration = 25
+	armour_penetration = MELEE_AP_ANTAGONIST
 	stuttering = 5
 	lefthand_file = 'icons/mob/inhands/antag/changeling_lefthand.dmi'
 	righthand_file = 'icons/mob/inhands/antag/changeling_righthand.dmi'

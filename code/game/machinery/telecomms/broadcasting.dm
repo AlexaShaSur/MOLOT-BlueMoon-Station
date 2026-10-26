@@ -95,6 +95,8 @@
 /datum/signal/subspace/vocal
 	var/atom/movable/virtualspeaker/virt
 	var/datum/language/language
+	/// Сигнал с тренировочного полигона слышат только радио полигона, сигнал со станции - только радио вне его.
+	var/from_antag_training = FALSE
 
 /datum/signal/subspace/vocal/New(
 	obj/source,  // the originating radio
@@ -118,13 +120,15 @@
 		"spans" = spans
 	)
 	var/turf/T = get_turf(source)
-	levels = T ? list(T.z) : list(0)
+	levels = T ? SSmapping.get_connected_levels(T).Copy() : list(0)
+	from_antag_training = length(GLOB.antag_training_z) && is_antag_training_atom(source)
 
 /datum/signal/subspace/vocal/copy()
 	var/datum/signal/subspace/vocal/copy = new(source, frequency, virt, language)
 	copy.original = src
 	copy.data = data.Copy()
 	copy.levels = levels
+	copy.from_antag_training = from_antag_training
 	return copy
 
 // This is the meat function for making radios hear vocal transmissions.
@@ -148,24 +152,6 @@
 				if(R.can_receive(frequency, levels))
 					radios += R
 
-			// Syndicate radios can hear all well-known radio channels
-			if (num2text(frequency) in GLOB.reverseradiochannels)
-				var/list/radio_z = list(0) // reusable single-element list to avoid allocating new lists per radio
-				for(var/obj/item/radio/R in GLOB.all_radios["[FREQ_SYNDICATE]"])
-					radio_z[1] = R.z
-					if(R.can_receive(FREQ_SYNDICATE, radio_z))
-						radios |= R
-
-				for(var/obj/item/radio/R in GLOB.all_radios["[FREQ_INTEQ]"])
-					radio_z[1] = R.z
-					if(R.can_receive(FREQ_INTEQ, radio_z))
-						radios |= R
-
-				for(var/obj/item/radio/R in GLOB.all_radios["[FREQ_PIRATE]"])
-					radio_z[1] = R.z
-					if(R.can_receive(FREQ_PIRATE, radio_z))
-						radios |= R
-
 		if (TRANSMISSION_RADIO)
 			// Only radios not currently in subspace mode
 			for(var/obj/item/radio/R in GLOB.all_radios["[frequency]"])
@@ -177,6 +163,43 @@
 			for(var/obj/item/radio/R in GLOB.all_radios["[frequency]"])
 				if(R.independent && R.can_receive(frequency, levels))
 					radios += R
+
+	// Syndicate-compatible radios can hear all well-known radio channels.
+	// This covers both subspace and mundane (backup) broadcasts, so channels like
+	// Syndicate/InteQ/Pirate and DS-1/DS-2 keep working even without telecomms.
+	if(transmission_method != TRANSMISSION_SUPERSPACE && (num2text(frequency) in GLOB.reverseradiochannels))
+		var/list/radio_z = list(0) // reusable single-element list to avoid allocating new lists per radio
+		for(var/obj/item/radio/R in GLOB.all_radios["[FREQ_SYNDICATE]"])
+			radio_z[1] = R.z
+			if(R.can_receive(FREQ_SYNDICATE, radio_z))
+				radios |= R
+
+		for(var/obj/item/radio/R in GLOB.all_radios["[FREQ_INTEQ]"])
+			radio_z[1] = R.z
+			if(R.can_receive(FREQ_INTEQ, radio_z))
+				radios |= R
+
+		for(var/obj/item/radio/R in GLOB.all_radios["[FREQ_PIRATE]"])
+			radio_z[1] = R.z
+			if(R.can_receive(FREQ_PIRATE, radio_z))
+				radios |= R
+
+		for(var/obj/item/radio/R in GLOB.all_radios["[FREQ_DS1]"])
+			radio_z[1] = R.z
+			if(R.can_receive(FREQ_DS1, radio_z))
+				radios |= R
+
+		for(var/obj/item/radio/R in GLOB.all_radios["[FREQ_DS2]"])
+			radio_z[1] = R.z
+			if(R.can_receive(FREQ_DS2, radio_z))
+				radios |= R
+
+	if(length(GLOB.antag_training_z))
+		var/list/kept_radios = list()
+		for(var/obj/item/radio/radio as anything in radios)
+			if(is_antag_training_atom(radio) == from_antag_training)
+				kept_radios += radio
+		radios = kept_radios
 
 	// From the list of radios, find all mobs who can hear those.
 	var/list/receive = get_mobs_in_radio_ranges(radios)

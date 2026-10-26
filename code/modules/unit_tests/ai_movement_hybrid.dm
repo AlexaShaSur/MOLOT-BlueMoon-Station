@@ -11,6 +11,11 @@
 /datum/unit_test/proc/hold_move_loop(datum/move_loop/loop)
 	loop.pause_for(1 MINUTES)
 
+///Ждёт стартовый асинхронный маршрут лупа: на полной карте search() спит в очереди
+///SSpathfinder, и сброс repath_in_progress руками пустил бы второй поиск параллельно.
+/datum/unit_test/proc/await_initial_route(datum/move_loop/has_target/jps/loop)
+	return wait_for_var(loop, "repath_in_progress", FALSE, 10 SECONDS)
+
 ///Тестовый контроллер с гибридным движением
 /datum/ai_controller/unit_test_mover
 	ai_movement = /datum/ai_movement/hybrid
@@ -33,6 +38,11 @@
 
 /obj/structure/ai_unit_test_barrier/expensive
 	max_integrity = 200
+
+/obj/structure/ai_unit_test_barrier/stubborn
+
+/obj/structure/ai_unit_test_barrier/stubborn/attack_animal(mob/living/simple_animal/user)
+	return FALSE
 
 /// Non-dense blocker whose pathing proc must opt into evaluation explicitly.
 /obj/structure/ai_unit_test_path_probe
@@ -248,7 +258,7 @@
 	var/turf/start = run_loc_floor_bottom_left
 	var/turf/prey_turf = locate(start.x + 2, start.y + 2, start.z)
 	//Наглухо замурованная цель: ни JPS, ни фолбэк через преграды маршрута не найдут.
-	for(var/direction in GLOB.alldirs)
+	for(var/direction as anything in GLOB.alldirs)
 		allocate(/obj/structure/ai_unit_test_boundary, get_step(prey_turf, direction))
 
 	var/mob/living/simple_animal/hostile/pawn = allocate(/mob/living/simple_animal/hostile, start)
@@ -266,6 +276,89 @@
 	loop.recalculate_path()
 	TEST_ASSERT_EQUAL(length(loop.movement_path), 1, "A failed mid-route rebuild must leave the working path in place")
 	TEST_ASSERT_EQUAL(loop.movement_path[1], live_step, "The surviving path must still be the original one")
+
+	SSmove_manager.stop_looping(pawn, SSai_movement)
+	qdel(controller)
+
+///Считает попытки фолбэка через преграды.
+/datum/ai_controller/unit_test_mover/breach_counter
+	var/breach_attempts = 0
+
+/datum/ai_controller/unit_test_mover/breach_counter/get_path_through_obstacles(atom/target, max_distance, minimum_distance, obj/item/card/id/id, simulated_only, turf/avoid, skip_first, datum/cancel_source)
+	breach_attempts++
+	return ..()
+
+///Найденный чистым JPS маршрут фолбэк через преграды не запускает.
+/datum/unit_test/ai_breach_fallback_skipped_when_jps_succeeds/Run()
+	var/turf/start = run_loc_floor_bottom_left
+	var/turf/prey_turf = locate(start.x + 2, start.y, start.z)
+	var/mob/living/simple_animal/hostile/pawn = allocate(/mob/living/simple_animal/hostile, start)
+	var/mob/living/carbon/human/prey = allocate(/mob/living/carbon/human, prey_turf)
+	var/datum/ai_controller/unit_test_mover/breach_counter/controller = new(pawn)
+
+	var/datum/move_loop/has_target/jps/loop = SSmove_manager.jps_move(pawn, prey, 2, repath_delay = 10 SECONDS, max_path_length = 10, subsystem = SSai_movement, extra_info = controller)
+	TEST_ASSERT_NOTNULL(loop, "Sanity: jps_move must create a loop")
+	hold_move_loop(loop)
+	TEST_ASSERT(await_initial_route(loop), "Sanity: стартовый асинхронный маршрут обязан доехать")
+	loop.movement_path = null
+	COOLDOWN_RESET(loop, repath_cooldown)
+	controller.breach_attempts = 0
+
+	loop.recalculate_path()
+
+	TEST_ASSERT(length(loop.movement_path), "Sanity: чистый JPS обязан найти открытый маршрут")
+	TEST_ASSERT_EQUAL(controller.breach_attempts, 0, "Найденный JPS маршрут не имеет права запускать фолбэк через преграды")
+
+	SSmove_manager.stop_looping(pawn, SSai_movement)
+	qdel(controller)
+
+///Исчерпавший открытый список JPS отдаёт поиск фолбэку через преграды.
+/datum/unit_test/ai_breach_fallback_runs_when_jps_exhausted/Run()
+	var/turf/start = run_loc_floor_bottom_left
+	var/turf/prey_turf = locate(start.x + 2, start.y + 2, start.z)
+	for(var/direction as anything in GLOB.alldirs)
+		allocate(/obj/structure/ai_unit_test_boundary, get_step(prey_turf, direction))
+
+	var/mob/living/simple_animal/hostile/pawn = allocate(/mob/living/simple_animal/hostile, start)
+	var/mob/living/carbon/human/prey = allocate(/mob/living/carbon/human, prey_turf)
+	var/datum/ai_controller/unit_test_mover/breach_counter/controller = new(pawn)
+
+	var/datum/move_loop/has_target/jps/loop = SSmove_manager.jps_move(pawn, prey, 2, repath_delay = 10 SECONDS, max_path_length = 10, subsystem = SSai_movement, extra_info = controller)
+	TEST_ASSERT_NOTNULL(loop, "Sanity: jps_move must create a loop")
+	hold_move_loop(loop)
+	TEST_ASSERT(await_initial_route(loop), "Sanity: стартовый асинхронный маршрут обязан доехать")
+	TEST_ASSERT_EQUAL(controller.breach_attempts, 1, "Одна перепрокладка обязана дать ровно одну попытку фолбэка")
+
+	loop.movement_path = null
+	COOLDOWN_RESET(loop, repath_cooldown)
+	controller.breach_attempts = 0
+
+	loop.recalculate_path()
+
+	TEST_ASSERT_EQUAL(controller.breach_attempts, 1, "Исчерпанный JPS обязан отдать поиск фолбэку через преграды")
+
+	SSmove_manager.stop_looping(pawn, SSai_movement)
+	qdel(controller)
+
+///Пустой ответ JPS без исчерпания открытого списка фолбэк через преграды не запускает.
+/datum/unit_test/ai_breach_fallback_skipped_on_empty_non_exhausted_search/Run()
+	var/turf/start = run_loc_floor_bottom_left
+	var/mob/living/simple_animal/hostile/pawn = allocate(/mob/living/simple_animal/hostile, start)
+	var/mob/living/carbon/human/prey = allocate(/mob/living/carbon/human, start)
+	var/datum/ai_controller/unit_test_mover/breach_counter/controller = new(pawn)
+
+	var/datum/move_loop/has_target/jps/loop = SSmove_manager.jps_move(pawn, prey, 2, repath_delay = 10 SECONDS, max_path_length = 10, subsystem = SSai_movement, extra_info = controller)
+	TEST_ASSERT_NOTNULL(loop, "Sanity: jps_move must create a loop")
+	hold_move_loop(loop)
+	TEST_ASSERT(await_initial_route(loop), "Sanity: стартовый асинхронный маршрут обязан доехать")
+	loop.movement_path = null
+	COOLDOWN_RESET(loop, repath_cooldown)
+	controller.breach_attempts = 0
+
+	loop.recalculate_path()
+
+	TEST_ASSERT(!length(loop.movement_path), "Sanity: к цели на своём же турфе маршрута нет")
+	TEST_ASSERT_EQUAL(controller.breach_attempts, 0, "Пустой ответ JPS без исчерпания открытого списка не имеет права запускать фолбэк через преграды")
 
 	SSmove_manager.stop_looping(pawn, SSai_movement)
 	qdel(controller)
@@ -579,7 +672,14 @@
 /datum/unit_test/ai_obstacle_policy_climbs_sandbags/Run()
 	var/turf/start_turf = run_loc_floor_bottom_left
 	var/turf/barrier_turf = get_step(start_turf, EAST)
+	//на резервационном z гравитации нет: шаг залезания оставляет мобу инерцию,
+	//и дрейф укатывает его с мешков раньше ассерта позиции
+	var/area/test_area = get_area(start_turf)
+	var/saved_gravity = test_area.has_gravity
+	test_area.has_gravity = STANDARD_GRAVITY
 	var/mob/living/simple_animal/hostile/pawn = allocate(/mob/living/simple_animal/hostile, start_turf)
+	//NPC-пул блуждает свежих hostile каждый свой фаер и тоже укатывает пешку
+	pawn.stop_automated_movement = TRUE
 	var/datum/ai_controller/unit_test_mover/controller = new(pawn)
 	var/obj/structure/barricade/sandbags/sandbags = allocate(/obj/structure/barricade/sandbags, barrier_turf)
 	var/datum/obstacle_policy/policy = GET_OBSTACLE_POLICY(/datum/obstacle_policy)
@@ -594,6 +694,7 @@
 	TEST_ASSERT_EQUAL(sandbags.obj_integrity, integrity_before, "Climbing must not damage the sandbags")
 
 	qdel(controller)
+	test_area.has_gravity = saved_gravity
 
 ///Spacewalkers may plan through vacuum, while an oxygen-dependent pawn must
 ///not gain that permission merely because it can push itself through space.
@@ -814,6 +915,78 @@
 	TEST_ASSERT(!(expensive_turf in path), "The route must avoid the more expensive barrier")
 	qdel(controller)
 
+///Раунд 10466: хедкрабы ломали SMES и консоли как преграды пути и грызли собственное гнездо.
+/datum/unit_test/ai_obstacle_policy_spares_machinery_and_nest/Run()
+	var/turf/pawn_turf = run_loc_floor_bottom_left
+	var/mob/living/simple_animal/hostile/headcrab/crab = allocate(/mob/living/simple_animal/hostile/headcrab, pawn_turf)
+	var/datum/ai_controller/unit_test_mover/controller = new(crab)
+	var/datum/obstacle_policy/policy = GET_OBSTACLE_POLICY(/datum/obstacle_policy)
+	var/obj/machinery/power/smes/smes = allocate(/obj/machinery/power/smes, locate(pawn_turf.x + 1, pawn_turf.y, pawn_turf.z))
+	var/obj/structure/spawner/headcrab/nest = allocate(/obj/structure/spawner/headcrab, locate(pawn_turf.x, pawn_turf.y + 1, pawn_turf.z))
+	var/datum/component/spawner/nest_spawner = nest.GetComponent(/datum/component/spawner)
+	nest_spawner.spawn_delay = INFINITY
+	var/obj/structure/grille/grille = allocate(/obj/structure/grille, locate(pawn_turf.x + 2, pawn_turf.y, pawn_turf.z))
+
+	var/smes_integrity = smes.obj_integrity
+	TEST_ASSERT(!policy.can_smash_blocker(crab, controller, smes), "SMES не преграда пути для моба, не ломающего армированные стены")
+	TEST_ASSERT_EQUAL(policy.get_blocker_breach_cost(crab, controller, smes), 0, "Маршрут не должен планироваться сквозь SMES")
+	TEST_ASSERT(!policy.try_smash(crab, controller, smes), "Хедкраб не должен бить SMES")
+	TEST_ASSERT_EQUAL(smes.obj_integrity, smes_integrity, "SMES должен остаться целым")
+	TEST_ASSERT(!policy.can_smash_blocker(crab, controller, nest), "Своё гнездо не преграда пути")
+	TEST_ASSERT(policy.can_smash_blocker(crab, controller, grille), "Решётка остаётся законной преградой")
+
+	crab.faction = list("unit_test_outsider")
+	TEST_ASSERT(policy.can_smash_blocker(crab, controller, nest), "Чужое гнездо ломать можно")
+	crab.environment_smash |= ENVIRONMENT_SMASH_RWALLS
+	TEST_ASSERT(policy.can_smash_blocker(crab, controller, smes), "Моб уровня босса пробивает и машинерию")
+	qdel(controller)
+
+///Раунд 10466: медведь Миша с фракцией экипажа выламывал дверь и шкафы офиса ГСБ и дверь оружейной.
+/datum/unit_test/ai_obstacle_policy_crew_pet_spares_station/Run()
+	var/turf/pawn_turf = run_loc_floor_bottom_left
+	var/mob/living/simple_animal/hostile/bear/snow/misha = allocate(/mob/living/simple_animal/hostile/bear/snow, pawn_turf)
+	misha.faction = list("neutral")
+	var/datum/ai_controller/unit_test_mover/controller = new(misha)
+	var/datum/obstacle_policy/policy = GET_OBSTACLE_POLICY(/datum/obstacle_policy)
+	var/obj/structure/closet/secure_closet/locker = allocate(/obj/structure/closet/secure_closet, locate(pawn_turf.x + 1, pawn_turf.y, pawn_turf.z))
+	var/obj/machinery/door/airlock/door = allocate(/obj/machinery/door/airlock, locate(pawn_turf.x + 2, pawn_turf.y, pawn_turf.z))
+
+	var/door_integrity = door.obj_integrity
+	TEST_ASSERT(!policy.can_smash_blocker(misha, controller, locker), "Союзный экипажу моб не ломает шкафы")
+	TEST_ASSERT(!policy.can_smash_blocker(misha, controller, door), "Союзный экипажу моб не ломает двери")
+	TEST_ASSERT(!policy.try_smash(misha, controller, door), "Союзный экипажу моб не должен бить дверь")
+	TEST_ASSERT_EQUAL(door.obj_integrity, door_integrity, "Дверь должна остаться целой")
+
+	misha.faction = list("hostile")
+	TEST_ASSERT(policy.can_smash_blocker(misha, controller, locker), "Дикий медведь ломает шкаф")
+	TEST_ASSERT(policy.can_smash_blocker(misha, controller, door), "Дикий медведь ломает дверь")
+	qdel(controller)
+
+///Раунд 10466: белые волки по 10 ударов подряд бились в забор, которому нужно 20.
+/datum/unit_test/ai_obstacle_policy_gives_up_on_tough_blocker/Run()
+	var/turf/pawn_turf = run_loc_floor_bottom_left
+	var/mob/living/simple_animal/hostile/asteroid/wolf/wolf = allocate(/mob/living/simple_animal/hostile/asteroid/wolf, pawn_turf)
+	var/datum/ai_controller/unit_test_mover/controller = new(wolf)
+	var/datum/obstacle_policy/policy = GET_OBSTACLE_POLICY(/datum/obstacle_policy)
+	var/obj/structure/fence/fence = allocate(/obj/structure/fence, locate(pawn_turf.x + 1, pawn_turf.y, pawn_turf.z))
+	var/obj/structure/ai_unit_test_barrier/stubborn/stubborn = allocate(/obj/structure/ai_unit_test_barrier/stubborn, locate(pawn_turf.x, pawn_turf.y + 1, pawn_turf.z))
+
+	TEST_ASSERT(!policy.can_smash_blocker(wolf, controller, fence), "Целый забор волку не по силам - путь ищется в обход")
+	TEST_ASSERT_EQUAL(policy.get_blocker_breach_cost(wolf, controller, fence), 0, "Маршрут не должен планироваться сквозь целый забор")
+	fence.obj_integrity = wolf.obj_damage * AI_OBSTACLE_MAX_SMASH_HITS
+	TEST_ASSERT(policy.can_smash_blocker(wolf, controller, fence), "Подбитый забор в пределах лимита ударов ломать можно")
+
+	for(var/attempt in 1 to AI_OBSTACLE_SMASH_ATTEMPT_LIMIT)
+		TEST_ASSERT(policy.try_smash(wolf, controller, stubborn), "До лимита моб продолжает бить преграду")
+	TEST_ASSERT(!policy.try_smash(wolf, controller, stubborn), "После лимита ударов без результата моб сдаётся")
+	TEST_ASSERT(!policy.can_smash_blocker(wolf, controller, stubborn), "Брошенная преграда выпадает и из маршрута")
+	TEST_ASSERT(policy.can_smash_blocker(wolf, controller, fence), "Отказ адресный: другие преграды не помечены")
+
+	var/list/abandoned = controller.blackboard[BB_AI_ABANDONED_OBSTACLES]
+	abandoned[WEAKREF(stubborn)] = world.time
+	TEST_ASSERT(policy.can_smash_blocker(wolf, controller, stubborn), "Отказ от преграды протухает")
+	qdel(controller)
+
 ///JPS получает персональный бюджет контроллера, а не общий жёсткий лимит.
 /datum/unit_test/ai_hybrid_controller_path_budget/Run()
 	var/mob/living/simple_animal/hostile/pawn = allocate(/mob/living/simple_animal/hostile, run_loc_floor_bottom_left)
@@ -920,8 +1093,9 @@
 	TEST_ASSERT(pawn.ai_pursuit_speed_capped, "Санити: обычная фауна обязана быть под полом скорости")
 
 	var/mob_step = movement_quantize_delay(pawn.ai_movement_delay(), world.tick_lag)
-	var/player_step = movement_step_delay(player_run_delay, FALSE, world.tick_lag)
-	TEST_ASSERT(mob_step > player_step, "Обычная фауна обязана быть медленнее бегущего игрока по прямой ([mob_step] против [player_step])")
+	TEST_ASSERT(mob_step > player_run_delay, "Обычная фауна обязана быть медленнее бегущего игрока с дробным шагом ([mob_step] против [player_run_delay])")
+	var/rounded_player_step = movement_step_delay(player_run_delay, FALSE, world.tick_lag)
+	TEST_ASSERT(mob_step > rounded_player_step, "Обычная фауна обязана быть медленнее бегущего игрока на прежнем расписании ([mob_step] против [rounded_player_step])")
 
 ///Мув-луп ИИ платит за диагональ ту же цену, что и игрок. Без этого моб на 1.5 дс
 ///проходил диагональ за 1.5 дс, а игрок за 2.0 - скрытые 1.33x поверх паритета.

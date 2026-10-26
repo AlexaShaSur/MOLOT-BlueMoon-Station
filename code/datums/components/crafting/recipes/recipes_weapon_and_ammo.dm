@@ -323,7 +323,40 @@
 	time = 100
 	category = CAT_WEAPONRY
 	subcategory = CAT_WEAPON
+
+/datum/crafting_recipe/laser_musket
+	name = "Laser Musket"
+	result = /obj/item/gun/energy/laser/musket
+	reqs = list(
+				/obj/item/weaponcrafting/stock = 1,
+				/obj/item/stack/cable_coil = 15,
+				/obj/item/stack/rods = 4,
+				/obj/item/stock_parts/micro_laser = 1,
+				/obj/item/stock_parts/capacitor = 1,
+				/obj/item/reagent_containers/food/drinks/drinkingglass = 2,
+				)
+	tools = list(TOOL_SCREWDRIVER, TOOL_WIRECUTTER)
+	time = 100
+	category = CAT_WEAPONRY
+	subcategory = CAT_WEAPON
 //the Improvised Rifle will not be missed. Rest in Pieces 2019-2021
+
+
+/datum/crafting_recipe/heroic_musket
+	name = "Heroic Laser Musket"
+	result = /obj/item/gun/energy/laser/musket/prime
+	reqs = list(
+				/obj/item/gun/energy/laser/musket = 1,
+				/obj/item/stack/cable_coil = 30,
+				/obj/item/mod/construction/core = 1,
+				/obj/item/stock_parts/micro_laser/quadultra = 3,
+				/obj/item/stock_parts/capacitor/quadratic = 3,
+				/obj/item/stock_parts/cell/bluespace = 1,
+				)
+	tools = list(TOOL_SCREWDRIVER, TOOL_WIRECUTTER)
+	time = 180
+	category = CAT_WEAPONRY
+	subcategory = CAT_WEAPON
 
 //////////////////
 ///AMMO CRAFTING//

@@ -82,7 +82,7 @@
 	icon_state = "dog"
 	covered_limbs = list("Head" = MATRIX_RED_BLUE, "Chest" = MATRIX_ALL, "Left Leg" = MATRIX_GREEN_BLUE, "Right Leg" = MATRIX_GREEN_BLUE, "Left Arm" = MATRIX_ALL, "Right Arm" = MATRIX_ALL)
 
-datum/sprite_accessory/mam_body_markings/shark/datashark // BLUEMOON CHANGE PORT from Citadel_Snowflake.dm file
+/datum/sprite_accessory/mam_body_markings/shark/datashark // BLUEMOON CHANGE PORT from Citadel_Snowflake.dm file
 	name = "DataShark"
 	icon_state = "datashark"
 	covered_limbs = list("Head" = MATRIX_RED_GREEN, "Chest" = MATRIX_GREEN, "Left Leg" = MATRIX_GREEN, "Right Leg" = MATRIX_GREEN, "Left Arm" = MATRIX_GREEN, "Right Arm" = MATRIX_GREEN)
@@ -241,6 +241,7 @@ datum/sprite_accessory/mam_body_markings/shark/datashark // BLUEMOON CHANGE PORT
 	name = "Xeno"
 	icon_state = "xeno"
 	icon = 'modular_citadel/icons/mob/markings_notmammals.dmi'
+	recommended_species = list(SPECIES_MAMMAL, SPECIES_MAMMAL_SYNTHETIC, SPECIES_XENOHYBRID, SPECIES_SLIME_HYBRID, SPECIES_POD_WEAK, SPECIES_UMAMMAL)
 	covered_limbs = list("Head" = MATRIX_BLUE, "Chest" = MATRIX_GREEN, "Left Leg" = MATRIX_GREEN, "Right Leg" = MATRIX_GREEN, "Left Arm" = MATRIX_GREEN, "Right Arm" = MATRIX_GREEN)
 
 // sticking old lizard markings here for now
@@ -271,7 +272,7 @@ datum/sprite_accessory/mam_body_markings/shark/datashark // BLUEMOON CHANGE PORT
 
 /datum/sprite_accessory/insect_fluff
 	icon = 'icons/mob/wings.dmi'
-	color_src = 0
+	color_src = WINGCOLOR
 	relevant_layers = list(BODY_FRONT_LAYER)
 	mutant_part_string = "insect_fluff"
 

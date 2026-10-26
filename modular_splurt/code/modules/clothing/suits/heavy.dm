@@ -15,18 +15,31 @@
 	body_parts_covered = CHEST|GROIN|LEGS|ARMS
 	allowed = list(/obj/item/flashlight, /obj/item/tank/internals/doubleoxygen, /obj/item/tank/internals/oxygen, /obj/item/tank/internals/emergency_oxygen, /obj/item/tank/internals/plasmaman, /obj/item/geiger_counter, /obj/item/tank/internals/emergency_nitrogen_ext)
 	slowdown = 0.6
-	armor = list("melee" = 5, "bullet" = 0, "laser" = 5,"energy" = 5, "bomb" = 0, "bio" = 100, "rad" = 100, "fire" = 40, "acid" = 100)
+	armor_type = /datum/armor/cbrn
 	strip_delay = 60
 	equip_delay_other = 60
 	flags_inv = HIDEJUMPSUIT
 	resistance_flags = ACID_PROOF
 	rad_flags = RAD_PROTECT_CONTENTS | RAD_NO_CONTAMINATE
 	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_ALL_TAURIC
+	brc_mitigation_bonus = 0  // BLUEMOON ADD
+
+/obj/item/clothing/suit/cbrn/equipped(mob/user, slot)  // BLUEMOON ADD
+	. = ..()
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation += brc_mitigation_bonus
+		brc_worn = TRUE
+
+/obj/item/clothing/suit/cbrn/dropped(mob/user)  // BLUEMOON ADD
+	. = ..()
+	if(brc_worn && isliving(user))
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
+		brc_worn = FALSE
 
 /obj/item/clothing/suit/cbrn/engineering
 	name = "engineering CBRN suit"
 	desc = "Chemical, Biological, Radiological and Nuclear. A suit design for harsh environmental conditions short of no atmosphere. This one has engineering colors and protects from fire."
-	armor = list("melee" = 5, "bullet" = 0, "laser" = 5,"energy" = 5, "bomb" = 0, "bio" = 100, "rad" = 100, "fire" = 100, "acid" = 100)
+	armor_type = /datum/armor/cbrn_engineering
 	icon_state = "cbrnsuiteng"
 	item_state = "cbrnsuiteng"
 	max_heat_protection_temperature = FIRE_SUIT_MAX_TEMP_PROTECT
@@ -36,7 +49,8 @@
 /obj/item/clothing/suit/cbrn/security
 	name = "security CBRN suit"
 	desc = "Chemical, Biological, Radiological and Nuclear. A suit design for harsh environmental conditions short of no atmosphere. This one has security colors and protects a little bit better."
-	armor = list("melee" = 25, "bullet" = 25, "laser" = 25, "energy" = 30, "bomb" = 0, "bio" = 100, "rad" = 100, "fire" = 40, "acid" = 100)
+	armor_type = /datum/armor/suit_security
+	brc_mitigation_bonus = 10  // BLUEMOON ADD
 	icon_state = "cbrnsuitsec"
 	item_state = "cbrnsuitsec"
 	slowdown = 0.3
@@ -54,13 +68,13 @@
 	desc = "Chemical, Biological, Radiological and Nuclear. A suit design for harsh environmental conditions short of no atmosphere. This one has cargo colors and slows the wearer less and defend a bit."
 	icon_state = "cbrnsuitcargo"
 	item_state = "cbrnsuitcargo"
-	armor = list("melee" = 5, "bullet" = 5, "laser" = 5,"energy" = 5, "bomb" = 10, "bio" = 100, "rad" = 100, "fire" = 100, "acid" = 100)
+	armor_type = /datum/armor/cargo
 	slowdown = 0.3
 
 /obj/item/clothing/suit/cbrn/science
 	name = "science CBRN suit"
 	desc = "Chemical, Biological, Radiological and Nuclear. A suit design for harsh environmental conditions short of no atmosphere. This one has science colors and has soft padding."
-	armor = list("melee" = 5, "bullet" = 0, "laser" = 5,"energy" = 5, "bomb" = 20, "bio" = 100, "rad" = 100, "fire" = 40, "acid" = 100)
+	armor_type = /datum/armor/science
 	icon_state = "cbrnsuitsci"
 	item_state = "cbrnsuitsci"
 	slowdown = 0.4
@@ -81,7 +95,8 @@
 	item_state = "moppsuit"
 	allowed = list(/obj/item/flashlight, /obj/item/gun/ballistic/revolver, /obj/item/gun/ballistic/automatic, /obj/item/gun/ballistic/automatic/pistol, /obj/item/gun/energy, /obj/item/gun/ballistic/shotgun,  /obj/item/tank/internals/doubleoxygen, /obj/item/tank/internals/oxygen, /obj/item/tank/internals/emergency_oxygen, /obj/item/tank/internals/plasmaman, /obj/item/geiger_counter)
 	slowdown = 0.2
-	armor = list("melee" = 35, "bullet" = 35, "laser" = 35,"energy" = 40, "bomb" = 25, "bio" = 100, "rad" = 100, "fire" = 40, "acid" = 100)
+	armor_type = /datum/armor/suit_mopp
+	brc_mitigation_bonus = 15  // BLUEMOON ADD
 	clothing_flags = STOPSPRESSUREDAMAGE | THICKMATERIAL
 	heat_protection = CHEST|GROIN|LEGS|ARMS
 	max_heat_protection_temperature = FIRE_SUIT_MIN_TEMP_PROTECT
@@ -97,7 +112,8 @@
 	name = "advance MOPP suit"
 	desc = "Mission Oriented Protective Posture. A suit design for harsh combat conditions short of no atmosphere. This is an advance version for Non-ERT Central Command Staff."
 	slowdown = 0 // This is suppose to be advance, hopefully not too OP
-	armor = list("melee" = 40, "bullet" = 60, "laser" = 40,"energy" = 40, "bomb" = 30, "bio" = 110, "rad" = 110, "fire" = 50, "acid" = 110) //Scale with standard MOPP suits as this effects all ERT suits
+	armor_type = /datum/armor/suit_advance //Scale with standard MOPP suits as this effects all ERT suits
+	brc_mitigation_bonus = 20  // BLUEMOON ADD
 
 /obj/item/clothing/suit/cbrn/mopp/advance/commander
 	name = "advance MOPP suit 'Commander'"

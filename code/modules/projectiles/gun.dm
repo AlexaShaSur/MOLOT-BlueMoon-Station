@@ -109,6 +109,8 @@
 	/// Just 'slightly' snowflakey way to modify projectile damage for projectiles fired from this gun.
 	var/projectile_damage_multiplier = 1
 
+	var/projectile_simple_mob_damage_multiplier = 1
+
 	/// directional recoil multiplier
 	var/dir_recoil_amp = 10
 
@@ -204,10 +206,15 @@
 	. = ..()
 	if(!no_pin_required)
 		if(pin)
-			. += "Внутри установлен \a [pin]."
-			. += "<span class='info'>Похоже, что [pin] может быть извлечён с помощью <b>инструментов</b>.</span>"
+			. += span_info("Внутри установлен \a <b>[pin]</b>.")
+			if(pin.permanent)
+				. += span_info("[pin] впаян в [src] намертво: его не извлечь ни инструментами, ни взломом.")
+			else if(pin.emag_removeable && !(obj_flags & EMAGGED))
+				. += span_info("Похоже, что [pin] невозможно извлечь, не взломав электронику оружия.")
+			else
+				. += span_info("Похоже, что [pin] может быть извлечён с помощью <b>инструментов</b>.")
 		else
-			. += "Внутри нет бойка-пина, из-за чего стрельба невозможна."
+			. += span_warning("<b>Внутри нет бойка-пина, из-за чего стрельба невозможна.</b>")
 
 	if(gun_light)
 		. += "Фонарик \a [gun_light] [can_flashlight ? "" : "намертво"] прицеплен."
@@ -366,8 +373,7 @@
 		playsound(loc, pick('modular_sand/sound/interactions/bang4.ogg',
 							'modular_sand/sound/interactions/bang5.ogg',
 							'modular_sand/sound/interactions/bang6.ogg'), 70, 1, -1)
-		if(!HAS_TRAIT(target, TRAIT_LEWD_JOB))
-			new /obj/effect/temp_visual/heart(target.loc)
+		target.try_play_interaction_effect()
 
 /obj/item/gun/CheckAttackCooldown(mob/user, atom/target, shooting = FALSE)
 	return user.CheckActionCooldown(shooting? ranged_attack_speed : attack_speed, clickdelay_from_next_action, clickdelay_mod_bypass, clickdelay_ignores_next_action)
@@ -381,7 +387,7 @@
 	if(flag) //It's adjacent, is the user, or is on the user's person
 		if(target in user.contents) //can't shoot stuff inside us.
 			return
-		if(!ismob(target) || user.a_intent == INTENT_HARM) //melee attack
+		if(!ismob(target) || (user.a_intent == INTENT_HARM && user.zone_selected != BODY_ZONE_PRECISE_MOUTH)) //melee attack
 			return
 		if(target == user)
 			if(!can_shoot_yourself)
@@ -429,8 +435,10 @@
 		if(weapon_weight == WEAPON_HEAVY && user.get_inactive_held_item())
 			to_chat(user, "<span class='userdanger'>Вам нужно обе руки для стрельбы из [src]!</span>")
 			return
-
-	user.DelayNextAction()
+	if(HAS_TRAIT(user, TRAIT_DOUBLE_TAP))
+		user.SetNextAction(CLICK_CD_RAPID)
+	else
+		user.DelayNextAction()
 
 	//DUAL (or more!) WIELDING
 	var/bonus_spread = 0
@@ -444,7 +452,7 @@
 			if(G == src || G.weapon_weight >= WEAPON_MEDIUM)
 				continue
 			else if(G.can_trigger_gun(user))
-				bonus_spread += 24 * G.weapon_weight * G.dualwield_spread_mult
+				bonus_spread += G.dual_wield_spread * G.dualwield_spread_mult
 				loop_counter++
 				var/stam_cost = G.getstamcost(user)
 				addtimer(CALLBACK(G, TYPE_PROC_REF(/obj/item/gun, process_fire), target, user, TRUE, params, null, bonus_spread, stam_cost), loop_counter)
@@ -486,6 +494,14 @@
 		to_chat(user, "<span class='warning'>Спусковой крючок [src] не поддаётся. У оружия нет бойка-пина для стрельбы!</span>")
 	return FALSE
 
+/obj/item/gun/emag_act(mob/user)
+	if(obj_flags & EMAGGED)
+		return
+	log_admin("[key_name(usr)] emagged [src] at [AREACOORD(src)]")
+	obj_flags |= EMAGGED
+	to_chat(user, span_notice("Взламываю защиту оружия [src]..."))
+	return TRUE
+
 /obj/item/gun/proc/recharge_newshot()
 	return
 
@@ -493,10 +509,14 @@
 	return busy_action || firing || ((last_fire + fire_delay) > world.time)
 
 /obj/item/gun/proc/process_fire(atom/target, mob/living/user, message = TRUE, params = null, zone_override = "", bonus_spread = 0, stam_cost = 0)
+	if(user && !CHECK_MOBILITY(user, MOBILITY_USE))
+		return FALSE
 	add_fingerprint(user)
 
 	if(on_cooldown())
 		return
+	if(user && HAS_TRAIT(user, TRAIT_HERETIC_LUNATIC))
+		bonus_spread += HERETIC_MOON_LUNATIC_SPREAD
 	firing = TRUE
 	. = do_fire(target, user, message, params, zone_override, bonus_spread, stam_cost)
 	firing = FALSE
@@ -550,7 +570,7 @@
 	return TRUE
 
 /obj/item/gun/proc/do_burst_shot(mob/living/user, atom/target, message = TRUE, params=null, zone_override = "", sprd = 0, randomized_gun_spread = 0, randomized_bonus_spread = 0, rand_spr = 0, iteration = 0, stam_cost = 0)
-	if(!user || !firing)
+	if(!user || !firing || !CHECK_MOBILITY(user, MOBILITY_USE))
 		firing = FALSE
 		return FALSE
 	if(!issilicon(user))
@@ -653,6 +673,8 @@
 		return remove_gun_attachment(user, I, bayonet, "unfix")
 
 	else if(pin && user.is_holding(src))
+		if(!pin.can_be_extracted(src, user))
+			return TRUE
 		user.visible_message(span_warning("[user] пытается извлечь [pin] из [src], используя [I]."),
 		span_notice("Вы пытаетесь убрать [pin] из [src]. (Это займёт время, [DisplayTimeText(FIRING_PIN_REMOVAL_DELAY)].)"), null, 3)
 		if(I.use_tool(src, user, FIRING_PIN_REMOVAL_DELAY, volume = 50))
@@ -670,6 +692,8 @@
 	if(!user.canUseTopic(src, BE_CLOSE, FALSE, NO_TK))
 		return
 	if(pin && user.is_holding(src))
+		if(!pin.can_be_extracted(src, user))
+			return TRUE
 		user.visible_message(span_warning("[user] пытается извлечь [pin] из [src], используя [I]."),
 		span_notice("Вы пытаетесь убрать [pin] из [src]. (Это займёт время, [DisplayTimeText(FIRING_PIN_REMOVAL_DELAY)].)"), null, 3)
 		if(I.use_tool(src, user, FIRING_PIN_REMOVAL_DELAY, 5, volume = 50))
@@ -687,6 +711,8 @@
 	if(!user.canUseTopic(src, BE_CLOSE, FALSE, NO_TK))
 		return
 	if(pin && user.is_holding(src))
+		if(!pin.can_be_extracted(src, user))
+			return TRUE
 		user.visible_message(span_warning("[user] пытается извлечь [pin] из [src], используя [I]."),
 		span_notice("Вы пытаетесь убрать [pin] из [src]. (Это займёт время, [DisplayTimeText(FIRING_PIN_REMOVAL_DELAY)].)"), null, 3)
 		if(I.use_tool(src, user, FIRING_PIN_REMOVAL_DELAY, volume = 50))
@@ -824,7 +850,7 @@
 		return FALSE
 	return ..()
 
-/obj/item/gun/proc/handle_suicide(mob/living/carbon/human/user, mob/living/carbon/human/target, params, bypass_timer)
+/obj/item/gun/proc/handle_suicide(mob/living/carbon/human/user, mob/living/carbon/human/target, params, bypass_timer, time_to_kill = 12 SECONDS)
 	if(!ishuman(user) || !ishuman(target))
 		return
 
@@ -840,7 +866,7 @@
 
 	busy_action = TRUE
 
-	if(!bypass_timer && (!do_mob(user, target, 120) || user.zone_selected != BODY_ZONE_PRECISE_MOUTH))
+	if(!bypass_timer && (!do_mob(user, target, time_to_kill) || user.zone_selected != BODY_ZONE_PRECISE_MOUTH))
 		if(user)
 			if(user == target)
 				user.visible_message(span_notice("[user] решил[user.ru_a()] не стрелять."))
@@ -857,6 +883,7 @@
 
 	if(chambered && chambered.BB)
 		chambered.BB.damage *= 10
+		. = TRUE
 
 	process_fire(target, user, TRUE, params, BODY_ZONE_HEAD, stam_cost = getstamcost(user))
 

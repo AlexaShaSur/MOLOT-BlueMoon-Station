@@ -4,6 +4,7 @@
 
 	silent = FALSE
 	losebreath = 0
+	breathing_loop.stop()
 
 	if(!gibbed && !HAS_TRAIT(src, TRAIT_DEATHCOMA))
 		emote("deathgasp")
@@ -17,7 +18,7 @@
 	if(SSticker.mode)
 		SSticker.mode.check_win() //Calls the rounds wincheck, mainly for wizard, malf, and changeling now
 
-/mob/living/carbon/gib(no_brain, no_organs, no_bodyparts, datum/explosion/was_explosion)
+/mob/living/carbon/gib(no_brain, no_organs, no_bodyparts, datum/explosion/was_explosion, drop_items = FALSE)
 	var/atom/Tsec = drop_location()
 	for(var/mob/M in src)
 		if(M in stomach_contents)

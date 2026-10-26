@@ -57,9 +57,9 @@
 			if(is_species(user, /datum/species/skeleton))
 				sound = 'modular_citadel/sound/voice/scream_skeleton.ogg'
 			if (is_species(user, /datum/species/fly) || is_species(user, /datum/species/insect))
-				sound = 'modular_citadel/sound/voice/scream_moth.ogg'
+				sound = 'sound/voice/scream/moth1.ogg'
 			if(is_species(user, /datum/species/mammal/vox))
-				sound = 'modular_bluemoon/kovac_shitcode/sound/species/voxscream.ogg'
+				sound = 'sound/voice/shriek1.ogg'
 			// BLUEMOON ADD START - xenohybrids_improvements - вариация крика для ксеногибридов (АДАМ, ПЕРЕПИШИ ГОВНОКОД СВЕРХУ, ПОЖАЛУЙСТА)
 			if(is_species(user, /datum/species/xeno))
 				sound = pick('sound/alien/Voice/hurt1.ogg', 'sound/alien/Voice/hurt2.ogg')
@@ -78,7 +78,7 @@
 	. = ..()
 
 /datum/emote/sound/human/snap
-	name = "Щелкнуть Пальцами"
+	name = "Щёлкнуть пальцами"
 	key = "snap"
 	key_third_person = "snaps"
 	message = "щёлкает пальцами."
@@ -89,10 +89,9 @@
 	sound = 'modular_citadel/sound/voice/snap.ogg'
 
 /datum/emote/sound/human/snap2
-	name = "Пару раз Щёлкнуть Пальцами"
+	name = "Щёлкнуть пальцами дважды"
 	key = "snap2"
 	key_third_person = "snaps2"
-	name = "snap twice"
 	message = "щёлкает пальцами дважды."
 	emote_type = EMOTE_AUDIBLE
 	muzzle_ignore = TRUE
@@ -101,10 +100,9 @@
 	sound = 'modular_citadel/sound/voice/snap2.ogg'
 
 /datum/emote/sound/human/snap3
-	name = "Трижды Щёлкнуть Пальцами"
+	name = "Щёлкнуть пальцами трижды"
 	key = "snap3"
 	key_third_person = "snaps thrice"
-	name = "snap thrice"
 	message = "щёлкает пальцами трижды."
 	emote_type = EMOTE_AUDIBLE
 	muzzle_ignore = TRUE
@@ -251,6 +249,7 @@
 	. = ..()
 
 /datum/emote/sound/human/clap1
+	echolocation_pulse = TRUE
 	name = "Единично хлопнуть"
 	key = "clap1"
 	key_third_person = "clap1s"

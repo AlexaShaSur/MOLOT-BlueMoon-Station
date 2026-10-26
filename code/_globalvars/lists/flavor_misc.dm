@@ -3,6 +3,8 @@
 GLOBAL_LIST_INIT(char_directory_tags, list("Pred", "Pred-Pref", "Prey", "Prey-Pref", "Switch", "Non-Vore", "Unset"))
 GLOBAL_LIST_INIT(char_directory_erptags, list("Top", "Top-Pref", "Bottom", "Bottom-Pref", "Submissive Top", "Dominant Bottom", "Switch", "No ERP", "Unset"))
 GLOBAL_LIST_INIT(char_directory_gendertags, list("Female", "Futa", "Male", "MtF", "FtM", "N/B", "Unset"))
+/// Initialized sprite accessory lists, registered by reference for whitelist cache warming.
+GLOBAL_LIST_EMPTY(sprite_accessory_lists)
 	//Hairstyles
 GLOBAL_LIST_EMPTY(hair_styles_list)			//stores /datum/sprite_accessory/hair indexed by name
 GLOBAL_LIST_EMPTY(hair_styles_male_list)		//stores only hair names
@@ -49,6 +51,7 @@ GLOBAL_LIST_EMPTY(caps_list)
 
 	//Bark bits
 GLOBAL_LIST_EMPTY(bark_list)
+GLOBAL_LIST_EMPTY(bark_datums)
 GLOBAL_LIST_EMPTY(bark_random_list)
 
 //a way to index the right bodypart list given the type of bodypart
@@ -204,7 +207,7 @@ GLOBAL_LIST_INIT(ai_core_display_screens, list(
 	"Anon",
 	"Cheese",
 	"Voiddonut",
-	"Darkmatrer",
+	"Darkmatter",
 	"Nadburn",
 	"Rainbowslime",
 	"Catamari",
@@ -212,30 +215,30 @@ GLOBAL_LIST_INIT(ai_core_display_screens, list(
 	))
 
 /proc/resolve_ai_icon(input, radial_preview = FALSE, client/C, dead = FALSE)
-    if(!input)
-        return "ai"
+	if(!input)
+		return "ai"
 
-    if(C)
-        for(var/datum/ai_donator_screen/donor_screen in GLOB.ai_donator_screens)
-            if(donor_screen.name == input && (C.ckey in donor_screen.ckey_whitelist))
-                if(dead && donor_screen.icon_state_dead)
-                    return donor_screen.icon_state_dead
-                return donor_screen.icon_state
+	if(C)
+		for(var/datum/ai_donator_screen/donor_screen in GLOB.ai_donator_screens)
+			if(donor_screen.name == input && donor_screen.is_allowed_for(C.key))
+				if(dead && donor_screen.icon_state_dead)
+					return donor_screen.icon_state_dead
+				return donor_screen.icon_state
 
-    if(!(input in GLOB.ai_core_display_screens))
-        return "ai"
+	if(!(input in GLOB.ai_core_display_screens))
+		return "ai"
 
-    if(radial_preview)
-        return "ai-[lowertext(input)]"
+	if(radial_preview)
+		return "ai-[lowertext(input)]"
 
-    if(input == "Random")
-        input = pick(GLOB.ai_core_display_screens - "Random")
-    if(input == "Portrait")
-        var/datum/portrait_picker/tgui = new(usr)
-        tgui.ui_interact(usr)
-        return "ai-portrait"
+	if(input == "Random")
+		input = pick(GLOB.ai_core_display_screens - "Random")
+	if(input == "Portrait")
+		var/datum/portrait_picker/tgui = new(usr)
+		tgui.ui_interact(usr)
+		return "ai-portrait"
 
-    return "ai-[lowertext(input)]"
+	return "ai-[lowertext(input)]"
 
 GLOBAL_LIST_INIT(security_depts_prefs, list(SEC_DEPT_RANDOM, SEC_DEPT_NONE, SEC_DEPT_ENGINEERING, SEC_DEPT_MEDICAL, SEC_DEPT_SCIENCE, SEC_DEPT_SUPPLY))
 
@@ -368,7 +371,11 @@ GLOBAL_LIST_INIT(wisdoms, world.file2list("strings/wisdoms.txt"))
 
 //LANGUAGE CHARACTER CUSTOMIZATION
 GLOBAL_LIST_INIT(speech_verbs, list("default", "says", "gibbers", "states", "chitters", "chimpers", "declares", "bellows", "buzzes" ,"beeps", "chirps", "clicks", "hisses" ,"poofs" , "puffs", "rattles", "mewls" ,"barks", "blorbles", "squeaks", "squawks", "flutters", "warbles", "caws", "gekkers", "clucks", "mumbles", "crackles", "rawrs", "merps", "roars", "rustles", "shrieks"))
-GLOBAL_LIST_INIT(roundstart_tongues, list("default","human tongue" = /obj/item/organ/tongue, "lizard tongue" = /obj/item/organ/tongue/lizard, "canine tongue" = /obj/item/organ/tongue/canine, "feline tongue" = /obj/item/organ/tongue/feline, "bird tongue" = /obj/item/organ/tongue/bird, "skeleton tongue" = /obj/item/organ/tongue/bone, "fly tongue" = /obj/item/organ/tongue/fly, "ipc tongue" = /obj/item/organ/tongue/robot/ipc, "xeno tongue" = /obj/item/organ/tongue/alien/hybrid))
+GLOBAL_LIST_INIT(speech_verbs_ru, list("Обычный", "говорит", "лепечет", "констатирует", "стрекочет", "обезьянит", "объявляет", "ревёт", "жужжит" ,"сигналит", "чирикает", "кликает", "шипит" ,"ухает" , "пыхтит", "гремит", "мяучит" ,"гавкает", "блорпает", "пищит", "взвизгивает", "трепещет", "поёт", "каркает", "тявкает", "кудахчет", "бормочет", "потрескивает", "рявкает", "мерпает", "рычит", "шелестит", "визжит"))
+GLOBAL_LIST_INIT(roundstart_tongues, list("default", "human tongue" = /obj/item/organ/tongue, "lizard tongue" = /obj/item/organ/tongue/lizard, "canine tongue" = /obj/item/organ/tongue/canine, "feline tongue" = /obj/item/organ/tongue/feline, "bird tongue" = /obj/item/organ/tongue/bird, "skeleton tongue" = /obj/item/organ/tongue/bone, "fly tongue" = /obj/item/organ/tongue/fly, "IPC tongue" = /obj/item/organ/tongue/robot/ipc, "xeno tongue" = /obj/item/organ/tongue/alien/hybrid))
+GLOBAL_LIST_INIT(roundstart_tongues_ru, list("Обычный", "Человеческий" = /obj/item/organ/tongue, "Ящерский" = /obj/item/organ/tongue/lizard, "Псовый" = /obj/item/organ/tongue/canine, "Кошачий" = /obj/item/organ/tongue/feline, "Птичий" = /obj/item/organ/tongue/bird, "Скелетный" = /obj/item/organ/tongue/bone, "Мушиный" = /obj/item/organ/tongue/fly, "КПБ/IPC" = /obj/item/organ/tongue/robot/ipc, "Ксеноморфный" = /obj/item/organ/tongue/alien/hybrid))
+GLOBAL_LIST_INIT(mob_laughs, list("Default", "Male", "Female", "Felinid", "Insect", "Vox", "Slime Cat", "Slime Male", "Slime Female"))
+GLOBAL_LIST_INIT(mob_laughs_ru, list("Обычный", "Мужской", "Женский", "Фелинидский", "Инсектоидный", "Воксовый", "Слаймокошачьий", "Слаймовый мужской", "Слаймовый женский"))
 
 //SPECIES BODYPART LISTS
 //locked parts are those that your picked species requires to have
@@ -376,12 +383,13 @@ GLOBAL_LIST_INIT(roundstart_tongues, list("default","human tongue" = /obj/item/o
 //parts not in unlocked, but in all, are thus locked
 GLOBAL_LIST_INIT(all_mutant_parts, list("tail_lizard" = "Tail", "mam_tail" = "Tail", "tail_human" = "Tail", "snout" = "Snout", "frills" = "Frills", "spines" = "Spines", "mam_body_markings" = "Species Markings" , "mam_ears" = "Ears", "ears" = "Ears", "mam_snouts" = "Snout", "legs" = "Legs", "deco_wings" = "Decorative Wings", "insect_wings" = "Insect Wings", "insect_fluff" = "Neck And Spine", "taur" = "Tauric Body", "insect_markings" = "Insect Markings", "wings" = "Wings", "arachnid_legs" = "Arachnid Legs", "arachnid_spinneret" = "Spinneret", "arachnid_mandibles" = "Mandibles", "xenohead" = "Caste Head", "xenotail" = "Tail", "xenodorsal" = "Dorsal Spines", "ipc_screen" = "Screen", "ipc_antenna" = "Antenna", "meat_type" = "Meat Type", "horns" = "Horns"))
 GLOBAL_LIST_INIT(unlocked_mutant_parts, list("horns", "insect_fluff"))
+GLOBAL_LIST_INIT(mismatched_toggle_parts, list("xenohead", "xenodorsal"))
 
 //parts in either of the above two lists that require a second option that allows them to be coloured
-GLOBAL_LIST_INIT(colored_mutant_parts, list("insect_wings" = "wings_color", "deco_wings" = "wings_color", "horns" = "horns_color"))
+GLOBAL_LIST_INIT(colored_mutant_parts, list("insect_wings" = "wings_color", "deco_wings" = "wings_color", "insect_fluff" = "insect_fluff_color", "insect_markings" = "insect_markings_color", "horns" = "horns_color"))
 
 //body ids that have greyscale sprites
-GLOBAL_LIST_INIT(greyscale_limb_types, list("human","moth","lizard","pod","plant","jelly","slime","golem","slimelumi","stargazer","mush","ethereal","snail","c_golem","b_golem","mammal","xeno","ipc","insect","synthliz","avian","sergal","aquatic", "vox", "shadekin", "nucleation", "teshari"))
+GLOBAL_LIST_INIT(greyscale_limb_types, list("human","moth","lizard","pod","plant","jelly","slime","golem","slimelumi","stargazer","mush","ethereal","snail","c_golem","b_golem","mammal","xeno","ipc","insect","synthliz","avian","sergal","sergal2","aquatic", "vox", "shadekin", "nucleation", "teshari"))
 
 //body ids that have prosthetic sprites
 GLOBAL_LIST_INIT(prosthetic_limb_types, list("xion","bishop","cybersolutions","grayson","hephaestus","nanotrasen","talon","veymed","morpheus")) //I don't know if i can module this to splurt

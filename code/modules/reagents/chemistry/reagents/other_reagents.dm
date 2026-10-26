@@ -89,6 +89,7 @@
 		B.blood_DNA["blendmode"] = data["bloodblend"]
 	if(B.reagents)
 		B.reagents.add_reagent(type, reac_volume)
+		B.cap_liquid_reagents() //BLUEMOON: puddle-created decals cap at LIQUID_DECAL_CAP
 	B.update_icon()
 
 /datum/reagent/blood/on_new(list/data)
@@ -290,7 +291,7 @@
 /datum/reagent/water
 	name = "Water"
 	description = "An ubiquitous chemical substance that is composed of hydrogen and oxygen."
-	color = "#AAAAAA77" // rgb: 170, 170, 170, 77 (alpha)
+	color = "#87D3F883" // rgb: 135, 211, 248, 131 (alpha)
 	taste_description = "water"
 	chemical_flags = REAGENT_ALL_PROCESS
 	overdose_threshold = 150 //Imagine drinking a gallon of water
@@ -316,7 +317,7 @@
 	if (!istype(T))
 		return
 	if(holder?.chem_temp > T0C + 100)
-		T.atmos_spawn_air("[GAS_H2O]=[reac_volume/molarity];TEMP=[holder.chem_temp]")
+		T.atmos_spawn_air("[GAS_H2O]=[reac_volume/(molarity*2)];TEMP=[holder.chem_temp]")
 	else
 		var/CT = cooling_temperature
 
@@ -461,6 +462,8 @@
 		data = list("misc" = 1)
 	data["misc"]++
 	var/datum/antagonist/heretic/heretic = IS_HERETIC(M)
+	if(data["misc"] >= 10 && M.remove_status_effect(STATUS_EFFECT_NECROPOLIS_CURSE))
+		to_chat(M, span_notice("Святая вода рассеяла проклятие и преследующие вас тени."))
 	if(!iscultist(M, FALSE, TRUE) && !is_servant_of_ratvar(M) && !heretic && (HAS_TRAIT(M, TRAIT_HALLOWED) || M.mind?.isholy))
 		return ..()
 	if(iscultist(M, FALSE, TRUE))
@@ -652,19 +655,36 @@
 	taste_description = "cherry" // by popular demand
 	boiling_point = 330
 	var/lube_kind = TURF_WET_LUBE ///What kind of slipperiness gets added to turfs.
+	var/min_turf_volume = 1
 
 /datum/reagent/lube/reaction_turf(turf/open/T, reac_volume)
 	..()
 	if (!istype(T))
 		return
-	if(reac_volume >= 1)
-		T.MakeSlippery(lube_kind, 15 SECONDS, min(reac_volume * 2 SECONDS, 120))
+	if(reac_volume >= min_turf_volume)
+		T.MakeSlippery(lube_kind, 30 SECONDS, min(reac_volume * 2 SECONDS, 120))
+
+/datum/reagent/lube/reaction_mob(mob/living/M, method = TOUCH, reac_volume, show_message = TRUE, touch_protection = 0, affected_bodypart)
+	..()
+	if(method != TOUCH && method != VAPOR)
+		return
+	if(reac_volume < min_turf_volume)
+		return
+	if(!ishuman(M))
+		return
+	var/mob/living/carbon/human/victim = M
+	if(victim.body_position != LYING_DOWN || victim.buckled || victim.stat == DEAD || !(victim.status_flags & CANKNOCKDOWN))
+		return
+	if(!istype(victim.loc, /turf/open))
+		return
+	victim.slip(80, null, SLIDE | GALOSHES_DONT_HELP | SLIP_WHEN_CRAWLING)
 
 ///Stronger kind of lube. Applies TURF_WET_SUPERLUBE.
 /datum/reagent/lube/superlube
 	name = "Super Duper Lube"
 	description = "This \[REDACTED\] has been outlawed after the incident on \[DATA EXPUNGED\]."
 	lube_kind = TURF_WET_SUPERLUBE
+	min_turf_volume = 0.25
 
 /datum/reagent/spraytan
 	name = "Spray Tan"
@@ -1213,6 +1233,7 @@
 			if(!GG)
 				GG = new/obj/effect/decal/cleanable/greenglow(T)
 			GG.reagents.add_reagent(/datum/reagent/radium, reac_volume)
+			GG.cap_liquid_reagents() //BLUEMOON: puddle-created decals cap at LIQUID_DECAL_CAP
 
 /datum/reagent/space_cleaner/sterilizine
 	name = "Sterilizine"
@@ -1308,6 +1329,7 @@
 			if(!GG)
 				GG = new/obj/effect/decal/cleanable/greenglow(T)
 			GG.reagents.add_reagent(/datum/reagent/uranium, reac_volume)
+			GG.cap_liquid_reagents() //BLUEMOON: puddle-created decals cap at LIQUID_DECAL_CAP
 
 //Mutagenic chem side-effects.
 /datum/reagent/uranium/on_hydroponics_apply(obj/item/seeds/myseed, datum/reagents/chems, obj/machinery/hydroponics/mytray, mob/user)
@@ -1422,23 +1444,27 @@
 				O.remove_atom_colour(WASHABLE_COLOUR_PRIORITY)
 			SEND_SIGNAL(O, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
 			O.clean_blood()
+			O.clear_fingerprints()
 			O.wash_cum() //sandstorm edit
 
 /datum/reagent/space_cleaner/reaction_turf(turf/T, reac_volume)
-	..()
-	if(reac_volume >= 1)
-		if(!preserves_decor)
-			T.remove_atom_colour(WASHABLE_COLOUR_PRIORITY)
-		SEND_SIGNAL(T, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
-		T.clean_blood()
-		T.wash_cum() //sandstorm edit
-		for(var/obj/effect/decal/cleanable/C in T)
-			if(preserves_decor && istype(C, /obj/effect/decal/cleanable/crayon))
-				continue
-			qdel(C)
+	. = ..()
+	if(!preserves_decor)
+		T.remove_atom_colour(WASHABLE_COLOUR_PRIORITY)
+	SEND_SIGNAL(T, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
+	T.clean_blood()
+	T.clear_fingerprints()
+	T.wash_cum() //sandstorm edit
+	for(var/obj/effect/decal/cleanable/C in T)
+		if(preserves_decor && istype(C, /obj/effect/decal/cleanable/crayon))
+			continue
+		qdel(C)
 
-		for(var/mob/living/simple_animal/slime/M in T)
-			M.adjustToxLoss(rand(5,10))
+	for(var/mob/living/simple_animal/slime/M in T)
+		M.adjustToxLoss(rand(5,10))
+
+	if(T.liquids && !T.liquids.immutable)
+		T.liquids.liquid_simple_delete_flat(max(2, reac_volume) * 0.5 * max(LIQUID_ANKLES_LEVEL_HEIGHT * ONE_LIQUIDS_HEIGHT, T.liquids.total_reagents * 0.5))
 
 // Мягкая пена аварийной очистки станции: ивент моет грязь и кровь, но не уносит
 // покраску баров и библиотек, которую экипаж наносил целый раунд.
@@ -1460,32 +1486,40 @@
 			for(var/obj/item/I in C.held_items)
 				SEND_SIGNAL(I, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
 				I.clean_blood()
+				I.clear_fingerprints()
 			if(C.wear_mask)
 				SEND_SIGNAL(C.wear_mask, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
 				if(C.wear_mask.clean_blood())
 					C.update_inv_wear_mask()
+				C.wear_mask.clear_fingerprints()
 			if(ishuman(M))
 				var/mob/living/carbon/human/H = C
 				if(H.head)
 					SEND_SIGNAL(H.head, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
 					if(H.head.clean_blood())
 						H.update_inv_head()
+					H.head.clear_fingerprints()
 				if(H.wear_suit)
 					SEND_SIGNAL(H.wear_suit, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
 					if(H.wear_suit.clean_blood())
 						H.update_inv_wear_suit()
+					H.wear_suit.clear_fingerprints()
 				else if(H.w_uniform)
 					SEND_SIGNAL(H.w_uniform, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
 					if(H.w_uniform.clean_blood())
 						H.update_inv_w_uniform()
+					H.w_uniform.clear_fingerprints()
 				if(H.shoes)
 					SEND_SIGNAL(H.shoes, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
 					if(H.shoes.clean_blood())
 						H.update_inv_shoes()
+					H.shoes.clear_fingerprints()
 				H.wash_cream()
 				H.wash_cum() //sandstorm edit
+				H.clear_fingerprints()
 			SEND_SIGNAL(M, COMSIG_COMPONENT_CLEAN_ACT, CLEAN_WEAK)
 			M.clean_blood()
+			M.clear_fingerprints()
 
 /datum/reagent/space_cleaner/ez_clean
 	name = "EZ Clean"
@@ -2879,7 +2913,8 @@
 	can_synth = FALSE
 	// you know i wouldn't
 	// boiling_point = T0C + 100
-	nutriment_factor = 0.5 * REAGENTS_METABOLISM
+	nutriment_factor = 1 * REAGENTS_METABOLISM
+	metabolization_rate = 2 * REAGENTS_METABOLISM
 	var/decal_path = /obj/effect/decal/cleanable/semen
 	var/list/desc_on_traits = list(
 		TRAIT_GFLUID_DETECT = span_love("Вы узнаете хорошо знакомый вкус свежей спермы~"),
@@ -2890,32 +2925,41 @@
 		)
 	)
 
-/datum/reagent/consumable/semen/reaction_turf(turf/location, reac_volume)
+/datum/reagent/consumable/semen/reaction_turf(turf/location, reac_volume, show_message, from_gas, from_liquid)
 	..()
+	// TODO: капли для всех жидкостей (отдельные объекты); убирание реагентов из holder'а (учитывай генерацию жидкости для разливания)
 	if(!istype(location))
 		return
 
 	if(istype(src, /datum/reagent/consumable/semen/femcum)) //let it be here
 		var/obj/effect/decal/cleanable/semen/femcum/F = (locate(/obj/effect/decal/cleanable/semen/femcum) in location) || new(location)
-		if(F.reagents?.add_reagent(type, volume, data))
+		if(F.reagents?.add_reagent(type, reac_volume, data))
+			if(from_liquid)
+				F.cap_liquid_reagents() //BLUEMOON: puddle-created decals cap at LIQUID_DECAL_CAP
 			F.update_icon()
-			return
+		return
 
-	var/obj/effect/decal/cleanable/semen/S = locate(/obj/effect/decal/cleanable/semen) in location
-	if(S && !istype(S, /obj/effect/decal/cleanable/semen/femcum))
-		if(S.reagents?.add_reagent(type, volume, data))
+	var/obj/effect/decal/cleanable/semen/S
+	for(S in location)
+		if(istype(S, /obj/effect/decal/cleanable/semen/femcum))
+			continue
+		if(S.reagents?.add_reagent(type, reac_volume, data))
+			if(from_liquid)
+				S.cap_liquid_reagents() //BLUEMOON: puddle-created decals cap at LIQUID_DECAL_CAP
 			S.update_icon()
 			return
 
 	var/obj/effect/decal/cleanable/semendrip/drip = (locate(/obj/effect/decal/cleanable/semendrip) in location) || new(location)
-	if(drip.reagents?.add_reagent(type, volume, data))
+	if(drip.reagents?.add_reagent(type, reac_volume, data))
+		if(from_liquid)
+			drip.cap_liquid_reagents() //BLUEMOON: puddle-created decals cap at LIQUID_DECAL_CAP
 		drip.update_icon()
-		if(drip.reagents.total_volume >= 10)
+		if(drip.reagents.total_volume >= LIQUID_DECAL_CAP)
 			S = new(location)
 			drip.reagents.trans_to(S, drip.reagents.total_volume)
+			S.transfer_blood_dna(drip.blood_DNA)
 			S.update_icon()
 			qdel(drip)
-		return
 
 /datum/reagent/consumable/semen/reaction_mob(mob/living/M, method, reac_volume, affected_bodypart) //splashing or ingesting
 	. = ..()
@@ -2928,7 +2972,7 @@
 				continue
 			if(trait == TRAIT_DUMB_CUM && !prob(15))
 				continue
-			
+
 			// Если лист = рандом
 			if(islist(phrase))
 				phrase = pick(phrase)
@@ -2989,6 +3033,17 @@
 		return
 	add_atom_colour(mix_color_from_reagents(reagents.reagent_list), FIXED_COLOUR_PRIORITY)
 
+// BLUEMOON ADD START: Cum decals are decorative stains, not a scoopable reagent farm.
+// Blocking the scoop prevents the infinite "scoop the decal -> pour -> new puddle + new
+// decal" loop that multiplied semen into a flood.
+/obj/effect/decal/cleanable/semen/attackby(obj/item/W, mob/user, params)
+	if(istype(W, /obj/item/reagent_containers/glass) || istype(W, /obj/item/reagent_containers/food/drinks))
+		. = 1 // Prevent the container from splashing onto / scooping the decal
+		to_chat(user, span_notice("Слишком тягуче, чтобы собрать в ёмкость."))
+		return
+	return ..()
+// BLUEMOON ADD END
+
 /datum/reagent/consumable/semen/femcum
 	name = "Female Ejaculate"
 	description = "Vaginal lubricant found in most mammals and other animals of similar nature. Where you found this is your own business."
@@ -2997,6 +3052,8 @@
 	glass_desc = "Cloudy, viscous."
 	taste_description = "something with a tang" // wew coders who haven't eaten out a girl.
 	color = "#FFFFFF"
+	nutriment_factor = 0.5 * REAGENTS_METABOLISM
+	metabolization_rate = 0.5 * REAGENTS_METABOLISM
 	decal_path = /obj/effect/decal/cleanable/semen/femcum
 	desc_on_traits = list(
 		TRAIT_GFLUID_DETECT = span_love("Вы узнаете хорошо знакомый вкус свежего сквирта~")
@@ -3018,6 +3075,7 @@
 	glass_name = "chalice of synthcum"
 	taste_description = "something with a silicone"
 	color = "#5cb2cc"
+	nutriment_factor = 0.1 * REAGENTS_METABOLISM
 	decal_path = /obj/effect/decal/cleanable/semen/siliconcum
 	desc_on_traits = list(
 		TRAIT_GFLUID_DETECT = span_love("Вы узнаете хорошо знакомый вкус свежей спермы~ Но отдает синтетикой..."),
@@ -3075,16 +3133,23 @@
 	taste_description = "Ag'hsj'saje'sh"
 //	chemical_flags = REAGENT_ALL_PROCESS (BLUEMOON REMOVAL - роботы не должны получать эффекты реагента)
 	color = "#1f8016"
+	var/last_effect_time = -1
 
 /datum/reagent/eldritch/on_mob_life(mob/living/carbon/M)
+	if(last_effect_time == world.time)
+		holder.remove_reagent(type, 1)
+		return TRUE
+	// Метка на обеих эссенциях исключает двойной эффект даже на последней единице одной из них.
+	for(var/datum/reagent/eldritch/essence in holder.reagent_list)
+		essence.last_effect_time = world.time
 	if(IS_HERETIC(M))
 		M.drowsyness = max(M.drowsyness-10, 0)
 		M.AdjustAllImmobility(-80, FALSE)
 		M.adjustStaminaLoss(-30, FALSE)
 		M.adjustToxLoss(-6, FALSE, TRUE)
 		M.adjustOxyLoss(-6, FALSE)
-		M.adjustBruteLoss(-6, FALSE)
-		M.adjustFireLoss(-6, FALSE)
+		M.adjustBruteLoss(-6, FALSE, only_organic = !(chemical_flags & REAGENT_ROBOTIC_PROCESS))
+		M.adjustFireLoss(-6, FALSE, only_organic = !(chemical_flags & REAGENT_ROBOTIC_PROCESS))
 		if(ishuman(M) && M.blood_volume < BLOOD_VOLUME_NORMAL)
 			M.adjust_integration_blood(6)
 	else

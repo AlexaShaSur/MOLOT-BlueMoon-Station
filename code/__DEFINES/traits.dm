@@ -123,6 +123,8 @@
 #define TRAIT_XENO_HOST			"xeno_host"	//Tracks whether we're gonna be a baby alien's mummy.
 #define TRAIT_STUNIMMUNE		"stun_immunity"
 #define TRAIT_TASED_RESISTANCE	"tased_resistance" //prevents you from suffering most of the effects of being tased
+#define TRAIT_BATON_RESISTANCE	"baton_resistance" //prevents you from suffering most of the effects of being batoned
+#define TRAIT_DISABLER_RESISTANCE "disabler_resistance" //prevents you from suffering stamina damage from disablers
 #define TRAIT_SLEEPIMMUNE		"sleep_immunity"
 #define TRAIT_PUSHIMMUNE		"push_immunity"
 #define TRAIT_SHOCKIMMUNE		"shock_immunity"
@@ -273,6 +275,7 @@
 #define TRAIT_FAST_PUMP				"fast_pump"
 #define TRAIT_NO_PROCESS_FOOD	"no-process-food" // You don't get benefits from nutriment, nor nutrition from reagent consumables
 #define TRAIT_NICE_SHOT			"nice_shot" //hnnnnnnnggggg..... you're pretty good...
+#define TRAIT_GUNFLIP			"gunflip" //дан термальными кобурами, позволяет крутить термальные пистолеты для зарядки
 #define TRAIT_NO_STAMINA_BUFFER_REGENERATION			"block_stamina_buffer_regen" /// Prevents stamina buffer regeneration
 #define TRAIT_NO_STAMINA_REGENERATION					"block_stamina_regen" /// Prevents stamina regeneration
 #define TRAIT_ARMOR_BROKEN		"armor_broken" //acts as if you are wearing no clothing when taking damage, does not affect non-clothing sources of protection
@@ -410,9 +413,12 @@
 #define OVERDOSE_TRAIT "overdose"
 #define CHAINSAW_FRENZY_TRAIT "chainsaw-frenzy"
 #define CHRONO_GUN_TRAIT "chrono-gun"
+#define THERMAL_HOLSTER_TRAIT "thermal-holster"
 #define REVERSE_BEAR_TRAP_TRAIT "reverse-bear-trap"
 #define GLUED_ITEM_TRAIT "glued-item"
 #define CURSED_MASK_TRAIT "cursed-mask"
+#define TRAIT_VOID_MASK_IMMUNE "void-mask-immune"
+#define VOID_MASK_TRAIT "void-mask"
 #define HIS_GRACE_TRAIT "his-grace"
 #define HAND_REPLACEMENT_TRAIT "magic-hand"
 #define HOT_POTATO_TRAIT "hot-potato"
@@ -442,6 +448,8 @@
 #define CORRUPTED_SYSTEM "corrupted-system"
 ///Turf trait for when a turf is transparent
 #define TURF_Z_TRANSPARENT_TRAIT "turf_z_transparent"
+/// Вис-ребёнок без своего loc живёт на этаже носителя, см. /atom/movable/proc/add_vis_on_floor()
+#define TRAIT_VIS_ON_CARRIER_FLOOR "vis_on_carrier_floor"
 /// This trait is added by the active directional block system.
 #define ACTIVE_BLOCK_TRAIT				"active_block"
 /// This trait is added by the parry system.
@@ -482,6 +490,8 @@
 Remember to update _globalvars/traits.dm if you're adding/removing/renaming traits.
 */
 
+#define TRAIT_BLOCK_SECHUD "block_sechud"
+#define TRAIT_BLOCK_MEDHUD "block_medhud"
 //mob traits
 /// Forces the user to stay unconscious.
 #define TRAIT_KNOCKEDOUT "knockedout"
@@ -491,6 +501,8 @@ Remember to update _globalvars/traits.dm if you're adding/removing/renaming trai
 #define TRAIT_UI_BLOCKED "uiblocked"
 /// Inability to pull things. Turned into a trait from [MOBILITY_PULL] to be able to track sources.
 #define TRAIT_PULL_BLOCKED "pullblocked"
+/// Никто не может схватить или потащить этого моба.
+#define TRAIT_UNPULLABLE "unpullable"
 /// Abstract condition that prevents movement if being pulled and might be resisted against. Handcuffs and straight jackets, basically.
 #define TRAIT_RESTRAINED "restrained"
 /// Reduces chance of breaking a grip
@@ -552,7 +564,6 @@ Remember to update _globalvars/traits.dm if you're adding/removing/renaming trai
 /// Makes you flashable from any direction
 #define TRAIT_FLASH_SENSITIVE "flash_sensitive"
 #define TRAIT_NAIVE "naive"
-#define TRAIT_GUNFLIP "gunflip"
 /// Increases chance of getting special traumas, makes them harder to cure
 #define TRAIT_SPECIAL_TRAUMA_BOOST "special_trauma_boost"
 #define TRAIT_BLOODCRAWL_EAT "bloodcrawl_eat"
@@ -560,6 +571,9 @@ Remember to update _globalvars/traits.dm if you're adding/removing/renaming trai
 #define TRAIT_GAMERGOD "gamer-god"
 /// makes your footsteps completely silent
 #define TRAIT_SILENT_FOOTSTEPS "silent_footsteps"
+/// Моб находится в состоянии прыжка (компонент /datum/component/jump).
+/// Минам, ловушкам и капканам не реагируют на прыжок; railing пропускает прыгающего.
+#define TRAIT_JUMPING "jumping"
 /// prevents the damage done by a brain tumor
 #define TRAIT_TUMOR_SUPPRESSED "brain_tumor_suppressed"
 /// overrides the update_fire proc to always add fire (for lava)
@@ -753,6 +767,12 @@ Remember to update _globalvars/traits.dm if you're adding/removing/renaming trai
 #define TRAIT_ALLOW_HERETIC_CASTING "allow_heretic_casting"
 /// Designates a heart as a living heart for a heretic.
 #define TRAIT_LIVING_HEART "living_heart"
+/// Ascended heretic: breaks cuffs fast and carries the shared ascension base.
+#define TRAIT_HERETIC_ASCENDED "heretic_ascended"
+/// Moon masquerade victim: guns fire with extra spread.
+#define TRAIT_HERETIC_LUNATIC "heretic_lunatic"
+/// Projectile already slowed by an ascended Sand heretic.
+#define TRAIT_HERETIC_SAND_SLOWED "heretic_sand_slowed"
 
 #define TRAIT_FAN_CLOWN "fan_clown"
 #define TRAIT_FAN_MIME "fan_mime"
@@ -858,7 +878,9 @@ Remember to update _globalvars/traits.dm if you're adding/removing/renaming trai
 #define HYPNOCHAIR_TRAIT "hypnochair"
 #define FLASHLIGHT_EYES "flashlight_eyes"
 #define IMPURE_OCULINE "impure_oculine"
-#define BLINDFOLD_TRAIT "blindfolded"
+#define TRAIT_BLINDFOLD "blindfolded"
+#define TRAIT_BLINDFOLD_HARD "blindfolded_hard"
+#define TRAIT_HEARING_DEPRIVED "hearing_deprived"
 #define TRAIT_SANTA "santa"
 #define SCRYING_ORB "scrying-orb"
 #define JUNGLE_FEVER_TRAIT "jungle_fever"

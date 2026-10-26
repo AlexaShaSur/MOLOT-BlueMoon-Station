@@ -17,7 +17,7 @@
 		SEND_SIGNAL(src, COMSIG_PELLET_CLOUD_INIT, target, user, fired_from, randomspread, spread, zone_override, params, distro)
 
 	user.DelayNextAction(considered_action = TRUE, immediate = FALSE)
-	user.newtonian_move(get_dir(target, user), drift_force = newtonian_force, controlled_cap = INERTIA_FORCE_RECOIL_CAP)
+	user.newtonian_move(get_dir(target, user))
 	update_icon()
 	return TRUE
 
@@ -40,6 +40,7 @@
 	if(isgun(fired_from))
 		var/obj/item/gun/G = fired_from
 		BB.damage *= G.projectile_damage_multiplier
+		BB.simple_mob_damage_multiplier = G.projectile_simple_mob_damage_multiplier
 		if(HAS_TRAIT(user, TRAIT_INSANE_AIM))
 			BB.ricochets_max = max(BB.ricochets_max, 10) //bouncy!
 			BB.ricochet_chance = max(BB.ricochet_chance, 100) //it wont decay so we can leave it at 100 for always bouncing

@@ -61,16 +61,12 @@ GLOBAL_LIST_INIT(bitflags, list(
 /// Early returns mob.face_atom()
 #define BLOCK_FACE_ATOM_1			(1<<13)
 
-#define HTML_USE_INITAL_ICON_1 (1<<20)
-/// Can players recolor this in-game via vendors (and maybe more if support is added)?
-#define IS_PLAYER_COLORABLE_1 (1<<21)
-#define KEEP_ON_ARENA_1 (1<<22)
 /// This atom is enrolled in SSair.atom_process via /datum/element/atmos_sensitive.
 /// Any-atom flag; do not move into the turf-only block below.
-#define ATMOS_IS_PROCESSING_1 (1<<23)
+#define ATMOS_IS_PROCESSING_1 (1<<21)
 
-/// Whether or not this atom is storing contents for a disassociated storage object
-#define HAS_DISASSOCIATED_STORAGE_1 (1<<24)
+/// Disables the right click context menu in MouseEntered()
+#define PREVENT_RIGHT_CLICK_CONTEXT_MENU_1 (1<<22)
 
 
 //turf-only flags
@@ -118,6 +114,8 @@ GLOBAL_LIST_INIT(bitflags, list(
 #define CULT_PERMITTED (1<<13)
 /// If cultists can use abilities in this area but the area is not on station.
 #define CULTMAGIC_BYPASS (1<<14)
+/// Запрещает передачу и приём голосовой радиосвязи внутри области.
+#define RADIO_BLACKOUT (1<<15)
 
 /*
 	These defines are used specifically with the atom/pass_flags bitmask

@@ -53,7 +53,7 @@
 
 /obj/item/clothing/shoes/jackboots/tall/Initialize()
 	. = ..()
-	AddComponent(/datum/component/squeak, list('modular_splurt/sound/effects/footstep/highheel1.ogg' = 1,'modular_splurt/sound/effects/footstep/highheel2.ogg' = 1), 75)
+	AddComponent(/datum/component/squeak, list('modular_splurt/sound/lewd/highheel1.ogg' = 1,'modular_splurt/sound/lewd/highheel2.ogg' = 1), 75)
 
 /obj/item/clothing/shoes/jackboots/tall_default
 	name = "tall jackboots"
@@ -82,13 +82,13 @@
 	clothing_flags = THICKMATERIAL
 	resistance_flags = ACID_PROOF | FIRE_PROOF
 	rad_flags = RAD_PROTECT_CONTENTS | RAD_NO_CONTAMINATE
-	armor = list("melee" = 5, "bullet" = 0, "laser" = 5,"energy" = 5, "bomb" = 0, "bio" = 100, "rad" = 100, "fire" = 40, "acid" = 100)
+	armor_type = /datum/armor/cbrn
 	is_edible = 0
 
 /obj/item/clothing/shoes/jackboots/cbrn/mopp
 	name = "MOPP boots"
 	desc = "Mission Oriented Protective Posture. Thick black boots design for working in hazardous combat environments."
-	armor = list("melee" = 10, "bullet" = 0, "laser" = 10,"energy" = 10, "bomb" = 10, "bio" = 100, "rad" = 100, "fire" = 40, "acid" = 100)
+	armor_type = /datum/armor/cbrn_mopp
 	clothing_flags = STOPSPRESSUREDAMAGE | THICKMATERIAL
 	max_heat_protection_temperature = FIRE_SUIT_MIN_TEMP_PROTECT
 	cold_protection = FEET
@@ -97,7 +97,7 @@
 /obj/item/clothing/shoes/jackboots/cbrn/mopp/advance
 	name = "advance MOPP boots"
 	desc = "Mission Oriented Protective Posture. Thick black boots design for working in hazardous combat environments. Used by CentCom Officer and ERT staff."
-	armor = list("melee" = 10, "bullet" = 0, "laser" = 10,"energy" = 10, "bomb" = 10, "bio" = 100, "rad" = 100, "fire" = 40, "acid" = 100)
+	armor_type = /datum/armor/cbrn_mopp
 	clothing_flags = NOSLIP | STOPSPRESSUREDAMAGE | THICKMATERIAL
 
 //research nods
@@ -131,4 +131,4 @@
 
 /obj/item/clothing/shoes/highheel_sandals/Initialize()
 	. = ..()
-	AddComponent(/datum/component/squeak, list('modular_splurt/sound/effects/footstep/highheel1.ogg' = 1,'modular_splurt/sound/effects/footstep/highheel2.ogg' = 1), 20)
+	AddComponent(/datum/component/squeak, list('modular_splurt/sound/lewd/highheel1.ogg' = 1,'modular_splurt/sound/lewd/highheel2.ogg' = 1), 20)

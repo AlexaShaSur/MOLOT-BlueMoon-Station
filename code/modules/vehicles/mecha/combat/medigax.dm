@@ -1,5 +1,5 @@
 /obj/vehicle/sealed/mecha/medical/medigax
-	desc = "Gygax с отключённым перегрузом приводов и гладкой белой окраской, для медицинского использования. Эти экзокостюмы разработаны и произведены Vey-Med. (&copy; Все права защищены)."
+	desc = "Gygax с гладкой белой окраской, для медицинского использования. Эти экзокостюмы разработаны и произведены Vey-Med. (&copy; Все права защищены)."
 	name = "\improper Medical Gygax"
 	icon_state = "medigax"
 	allow_diagonal_movement = TRUE
@@ -7,13 +7,20 @@
 	dir_in = 1 //Facing North.
 	max_integrity = 250
 	deflect_chance = 15
-	armor = list(MELEE = 25, BULLET = 20, LASER = 30, ENERGY = 15, BOMB = 0, BIO = 0, RAD = 0, FIRE = 100, ACID = 100)
+	armor_type = /datum/armor/gygax_reticence_and_medigax
 	max_temperature = 25000
 	wreckage = /obj/structure/mecha_wreckage/gygax
 	internal_damage_threshold = 35
 	normal_step_energy_drain = 6
+	bumpsmash = TRUE
+	force = 25
 	infra_luminosity = 6
 	internals_req_access = list(ACCESS_ROBOTICS, ACCESS_MEDICAL)
+
+/obj/vehicle/sealed/mecha/medical/medigax/can_bump_smash(atom/obstacle, mob/driver)
+	if(isobj(obstacle) || isturf(obstacle))
+		return driver?.a_intent == INTENT_HARM
+	return ..()
 
 /obj/vehicle/sealed/mecha/medical/medigax/moved_inside(mob/living/carbon/human/H)
 	. = ..()

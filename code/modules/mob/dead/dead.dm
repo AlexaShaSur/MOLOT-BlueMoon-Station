@@ -14,6 +14,9 @@ INITIALIZE_IMMEDIATE(/mob/dead)
 	flags_1 |= INITIALIZED_1
 	tag = "mob_[next_mob_id++]"
 	add_to_mob_list()
+	//Родитель пропущен, а гост, созданный на нижнем этаже, обязан встать на его плоскости, как любое движимое.
+	if(SSmapping.max_plane_offset)
+		SET_PLANE_IMPLICIT(src, PLANE_TO_TRUE(plane))
 
 	//дальний слух мёртвых ведёт dead-chat путь say() с префами, но потребители
 	//get_hearers_in_view (LOOC, его рунчат) находят слушателей только через грид,
@@ -44,12 +47,15 @@ INITIALIZE_IMMEDIATE(/mob/dead)
 	return
 
 /mob/dead/forceMove(atom/destination)
+	if(ANTAG_TRAINING_MOVE_GATED(src, destination) && !training_move_allowed(destination))
+		return FALSE
 	var/turf/old_turf = get_turf(src)
 	var/turf/new_turf = get_turf(destination)
-	if (old_turf?.z != new_turf?.z)
-		onTransitZ(old_turf?.z, new_turf?.z)
 	var/oldloc = loc
 	loc = destination
+	//onTransitZ после присвоения loc, как в doMove(): обработчики читают get_turf(src).
+	if (old_turf?.z != new_turf?.z)
+		onTransitZ(old_turf?.z, new_turf?.z)
 	Moved(oldloc, NONE, TRUE)
 
 /mob/dead/get_status_tab_items()
@@ -100,7 +106,11 @@ INITIALIZE_IMMEDIATE(/mob/dead)
 
 	var/client/hopper = client
 	to_chat(hopper, "<span class='notice'>Sending you to [pick].</span>")
-	new /atom/movable/screen/splash(null, src, hopper, FALSE)
+	//Заставка заводится с alpha 0 (visible = FALSE) и Fade() ей никто не зовёт,
+	//то есть удалять её было некому: каждый переход на другой сервер оставлял
+	//бессмертный экранный объект в client.screen.
+	var/atom/movable/screen/splash/hop_splash = new /atom/movable/screen/splash(null, src, hopper, FALSE)
+	QDEL_IN(hop_splash, 3 SECONDS)
 
 	mob_transforming = TRUE
 	sleep(2.9 SECONDS)	//let the animation play
@@ -120,14 +130,24 @@ INITIALIZE_IMMEDIATE(/mob/dead)
 		if (client)
 			if (new_z)
 				SSmobs.dead_players_by_zlevel[new_z] += src
-				// Ghosts get on-demand lighting init too: /mob/living/update_z does this for the living;
-				// without it a ghost teleporting to a not-yet-lit reserved/away z sits in darkness until a
-				// living player arrives or background init crawls there.
-				if(should_ondemand_init_zlevel(new_z))
-					INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(create_lighting_for_zlevel), new_z)
+				// Счётчик простоя обнуляется ВСЕГДА, а не только при подъёме: посещение уже
+				// поднятого уровня иначе не оставляет следа между сканами сноса. См.
+				// SSlighting.note_zlevel_visit().
+				for(var/visible_z in SSmapping.get_levels_visible_from(new_z))
+					SSlighting.note_zlevel_visit(visible_z)
+					request_ghost_lighting_init(visible_z)
 			registered_z = new_z
 		else
 			registered_z = null
+
+/// Заявка на отложенный подъём света под гостом (см. LIGHTING_GHOST_INIT_DEBOUNCE); общая для смены z
+/// и включения темноты, чтобы ключ уникальности таймера совпадал. Возвращает, взведена ли она.
+/mob/dead/proc/request_ghost_lighting_init(z_level)
+	if(!z_level || !ghost_holds_zlevel_lighting(src) || !should_ondemand_init_zlevel(z_level))
+		return FALSE
+	addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(ondemand_init_zlevel_for_ghost), z_level), \
+		LIGHTING_GHOST_INIT_DEBOUNCE, TIMER_UNIQUE|TIMER_OVERRIDE)
+	return TRUE
 
 /mob/dead/Login()
 	. = ..()

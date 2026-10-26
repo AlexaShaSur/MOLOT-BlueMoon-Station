@@ -596,21 +596,25 @@
 
 	// Вставленный МОД с разряженной ячейкой заряжается.
 	var/obj/item/mod/control/suit = allocate(/obj/item/mod/control)
+	var/obj/item/stock_parts/cell/cell = suit.get_cell()
 	suit.forceMove(unit)
 	unit.mod = suit
-	if(!suit.cell)
-		suit.cell = new /obj/item/stock_parts/cell(suit)
-	suit.cell.maxcharge = 1000
-	suit.cell.charge = 100
+	if(!cell)
+		// Базовый /obj/item/mod/control приходит без ячейки: ставим её тем же путём,
+		// что и attackby, иначе mod.get_cell() внутри SSU вернёт null и заряжать будет нечего.
+		cell = new /obj/item/stock_parts/cell()
+		suit.mod_parts[MOD_PART_CELL] = cell
+	cell.maxcharge = 1000
+	cell.charge = 100
 	unit.machine_wake()
 	TEST_ASSERT(!unit.machine_sleeping, "machine_wake() must resume the SSU")
-	var/charge_before = suit.cell.charge
+	var/charge_before = cell.charge
 	unit.process(2)
-	TEST_ASSERT(suit.cell.charge > charge_before, "an awake SSU must charge the docked MOD cell")
+	TEST_ASSERT(cell.charge > charge_before, "an awake SSU must charge the docked MOD cell")
 	TEST_ASSERT(!unit.machine_sleeping, "the SSU must keep processing while the cell is below max")
 
 	// Полная ячейка - снова сон.
-	suit.cell.charge = suit.cell.maxcharge
+	cell.charge = cell.maxcharge
 	unit.process(2)
 	TEST_ASSERT(unit.machine_sleeping, "an SSU with a full MOD cell must park itself")
 	unit.mod = null
@@ -673,3 +677,40 @@
 
 	qdel(runtime_cat)
 	TEST_ASSERT_NULL(experimentor.trackedRuntime.resolve(), "A qdeleted Runtime must not be retained by the experimentor")
+
+/obj/machinery/status_display/unit_test_light_counter
+	var/light_updates = 0
+
+/obj/machinery/status_display/unit_test_light_counter/set_light(l_range, l_power, l_color, l_height, l_cone_angle, l_cone_dir, l_on)
+	light_updates++
+	return ..()
+
+/// Таймер табло меняет текст без повторной установки света и восстанавливает подсветку после отключения.
+/datum/unit_test/status_display_backlight_gate/Run()
+	var/obj/machinery/status_display/unit_test_light_counter/display = allocate(/obj/machinery/status_display/unit_test_light_counter)
+	display.set_machine_stat(0)
+	display.current_mode = SD_MESSAGE
+	display.set_timer_messages("ETA", "4:59")
+	TEST_ASSERT_NOTNULL(display.light, "У включённого табло должен быть источник света")
+	var/initial_updates = display.light_updates
+	display.set_timer_messages("ETA", "4:58")
+	TEST_ASSERT_EQUAL(display.message2, "4:58", "Таймер должен обновлять текст")
+	TEST_ASSERT_EQUAL(display.light_updates, initial_updates, "Новый текст не должен заново устанавливать ту же подсветку")
+	display.set_machine_stat(NOPOWER)
+	display.update_appearance()
+	TEST_ASSERT_EQUAL(display.light_range, 0, "Без питания подсветка должна погаснуть")
+	var/updates_after_off = display.light_updates
+	display.update_appearance()
+	TEST_ASSERT_EQUAL(display.light_updates, updates_after_off, "Погашенное табло не должно повторно выключать свет")
+	display.set_machine_stat(0)
+	display.update_appearance()
+	TEST_ASSERT_EQUAL(display.light_range, STATUS_DISPLAY_LIGHT_RANGE, "Питание должно восстановить подсветку")
+	TEST_ASSERT_NOTNULL(display.light, "После восстановления питания нужен источник света")
+	display.set_timer_messages("", "")
+	TEST_ASSERT_EQUAL(display.light_range, 0, "Пустой экран должен погасить подсветку")
+	display.set_timer_messages("ETA", "4:57")
+	TEST_ASSERT_EQUAL(display.light_range, STATUS_DISPLAY_LIGHT_RANGE, "Новый текст должен снова включить подсветку")
+	display.set_light(2, 1, "#ff0000")
+	display.update_appearance()
+	TEST_ASSERT_EQUAL(display.light_color, LIGHT_COLOR_BLUE, "Обновление должно вернуть штатный цвет подсветки")
+	TEST_ASSERT_EQUAL(display.light_power, STATUS_DISPLAY_LIGHT_POWER, "Обновление должно вернуть штатную яркость")

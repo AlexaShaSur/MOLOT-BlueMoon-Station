@@ -356,6 +356,7 @@
 
 	//ровно то, что делает cryoMob: перенос без dropped()
 	suit.forceMove(package)
+	TEST_ASSERT_EQUAL(suit.loc, package, "МОД не остался в упаковке после переноса")
 	TEST_ASSERT_EQUAL(suit.wearer, wearer, "forceMove неожиданно позвал dropped() - сценарий крио не воспроизведён")
 
 	var/list/record = target_record(wearer, "носитель МОДа, ушедший в крио")
@@ -385,7 +386,7 @@
 /// ХардСпейс-бра: тот же паттерн, слот рубашки.
 /datum/unit_test/cryo_path_releases_wearer/proc/hardspace_bra()
 	var/turf/floor = run_loc_floor_bottom_left
-	var/obj/item/clothing/underwear/shirt/bra/bra_adjustable/hardspace_bra/bra = new(floor)
+	var/obj/item/clothing/underwear/shirt/adjustable/bra/hardspace_bra/bra = new(floor)
 	var/mob/living/carbon/human/wearer = new(floor)
 	var/obj/item/storage/box/package = new(floor)
 

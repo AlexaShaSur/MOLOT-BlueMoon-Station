@@ -17,6 +17,9 @@
 /obj/item/slaver/gizmo/attack(mob/living/M, mob/user)
 	if(!M)
 		return
+	if(M.targeted_by) // edge case при многократном или использование сразу 2-мя слейверами настакивалась анимация, оставляя персонажа с 50-той альфой
+		to_chat(user, span_warning("Над [M] совершают иные действия, что может нарушить работу устройства."))
+		return
 
 	var/datum/antagonist/slaver/S = locate() in user.mind.antag_datums
 	if(!S) // Is not a slaver antag.
@@ -277,6 +280,7 @@
 	max_equip = 7
 	operation_req_access = list(ACCESS_SLAVER)
 	internals_req_access = list(ACCESS_SLAVER)
+	ui_theme = "security"
 
 /obj/item/mecha_parts/mecha_equipment/weapon/energy/disabler/shotgun
 	projectile = /obj/item/projectile/beam/disabler/mecha
@@ -288,6 +292,7 @@
 
 /obj/vehicle/sealed/mecha/combat/gygax/dark/disable_loaded/Initialize(mapload)
 	. = ..()
+	install_titanfall_premium_parts()
 	var/obj/item/mecha_parts/mecha_equipment/ME = new /obj/item/mecha_parts/mecha_equipment/thrusters/ion(src)
 	ME.attach(src)
 	ME = new /obj/item/mecha_parts/mecha_equipment/tesla_energy_relay

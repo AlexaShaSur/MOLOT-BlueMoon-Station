@@ -3,8 +3,54 @@
 	glide_size = 8
 	SET_APPEARANCE_FLAGS(TILE_BOUND | PIXEL_SCALE)
 	var/last_move = null
-	var/last_move_time = 0
 	var/anchored = FALSE
+	// Ниже - переменные, которые раньше стояли на /atom и потому лежали в каждом из полутора
+	// миллионов турфов, где не значат ничего. Ни цены в вендомате, ни ИИ-контроллера у турфа
+	// быть не может; компилятор проверяет это за нас - обращение к ним через /atom-типизированную
+	// переменную теперь просто не собирается.
+	///Price of an item in a vending machine, overriding the base vending machine price. Define in terms of paycheck defines as opposed to raw numbers.
+	var/custom_price = 25
+	///Price of an item in a vending machine, overriding the premium vending machine price. Define in terms of paycheck defines as opposed to raw numbers.
+	var/custom_premium_price = 100
+	///AI controller that controls this atom. type on init, then turned into an instance during runtime
+	var/datum/ai_controller/ai_controller
+	///all of this atom's HUD (med/sec, etc) images. Associative list of the form: list(hud category = hud image or images for that category).
+	///most of the time hud category is associated with a single image, sometimes its associated with a list of images.
+	///not every hud in this list is actually used.
+	var/list/image/hud_list = null
+	///HUD images that this atom can provide.
+	var/list/hud_possible
+	/// Атом-худы, в которых атом числится значком
+	var/list/datum/atom_hud/hud_memberships
+	/// Группа z, по которой худы раздают значки атома (get_hud_z_group). null - ещё не считали
+	var/hud_z_group
+	///Proximity monitor associated with this atom
+	var/datum/proximity_monitor/proximity_monitor
+	/// Датумы связных кластеров, в которые входит этот атом. Стоят на движимом, а не на /atom:
+	/// членами кластера бывают только движимые (Refresh() перебирает contents турфа как
+	/// /atom/movable и слушает COMSIG_MOVABLE_MOVED), а слот на каждом турфе мира стоит мегабайты.
+	var/list/datum/merger/mergers
+	/// Доля материалов, которую атом отдаёт при переплавке. Стоит на движимом: у турфа
+	/// пользовательских материалов не бывает.
+	var/material_modifier = 1
+	//List of datums orbiting this atom
+	var/datum/component/orbiter/orbiters
+	///Reference to atom being orbited
+	var/atom/movable/orbit_target
+	var/datum/wires/wires = null
+	/// Цвет рунчата, заданный вручную. Пусто у всего, кроме тех немногих, кому цвет назначают
+	/// явно (модульная лазерная винтовка красит реплики по режиму): у остальных цвет выводится
+	/// из имени и лежит в общем кэше GLOB.runechat_color_names.
+	var/chat_color
+	/// Lazylist of all images (hopefully attached to us) to update when we change z levels
+	/// You will need to manage adding/removing from this yourself, but I'll do the updating for you
+	var/list/image/update_on_z
+	/// Lazylist of all overlays attached to us to update when we change z levels
+	/// You will need to manage adding/removing from this yourself, but I'll do the updating for you
+	/// Oh and note, if order of addition is important this WILL break that. so mind yourself
+	var/list/image/update_overlays_on_z
+	/// Плоскость и оверлеи остались от прошлого этажа: содержимое досчитывается, когда ляжет на турф.
+	var/plane_offset_stale = FALSE
 	/// Must /turf/Exit() consult this atom when something tries to leave its turf?
 	/// Only border structures can actually refuse an exit, by overriding CheckExit()
 	/// or Uncross(). Anything that gains such an override, or a component listening
@@ -22,34 +68,18 @@
 	/// Holds all languages this mob can speak and understand
 	VAR_PRIVATE/datum/language_holder/language_holder
 
-	var/verb_say = "says"
-	var/verb_ask = "asks"
-	var/verb_exclaim = "exclaims"
-	var/verb_whisper = "whispers"
-	var/verb_sing = "sings" // Skyrat edit
-	var/verb_yell = "yells"
+	var/verb_say = "говорит"
+	var/verb_ask = "спрашивает"
+	var/verb_exclaim = "восклицает"
+	var/verb_whisper = "шепчет"
+	var/verb_sing = "поёт" // Skyrat edit
+	var/verb_yell = "кричит"
 	var/speech_span
 	var/inertia_dir = 0
 	var/atom/inertia_last_loc
 	var/inertia_moving = 0
 	var/inertia_next_move = 0
 	var/inertia_move_delay = 5
-	/// Set while Space Drift 2.0 (smooth newtonian loop) is active
-	var/datum/drift_handler/drift_handler
-	/// Last time we used this atom as a push-off point (anti double-count same tick)
-	var/last_pushoff = 0
-	/// Last time drift actually moved this atom — prevents spamming inputs to bypass move delay (see /datum/drift_handler)
-	var/last_drift_time = 0
-	/// Scalar for impulse math (higher = harder to nudge)
-	var/inertia_force_weight = 1
-	/// Species / vehicle modifiers
-	var/inertia_move_multiplier = 1
-	/// How much drift one voluntary step in weightlessness adds. See [/atom/movable/proc/register_thrust_source]
-	var/self_thrust_force = INERTIA_THRUST_FORCE_DEFAULT
-	/// Ceiling that self-thrust may accelerate the drift to. External impulses (explosions, recoil) ignore it.
-	var/self_thrust_cap = INERTIA_THRUST_CAP_UNAIDED
-	/// Lazy assoc of thrust source -> list(force, cap). Null while nothing but bare limbs is pushing.
-	var/list/thrust_sources
 	/// Things we can pass through while moving. If any of this matches the thing we're trying to pass's [pass_flags_self], then we can pass through.
 	var/pass_flags = NONE
 	/// If false makes CanPass call CanPassThrough on this type instead of using default behaviour
@@ -58,9 +88,6 @@
 	var/atom/movable/moving_from_pull		//attempt to resume grab after moving instead of before.
 	///Holds information about any movement loops currently running/waiting to run on the movable. Lazy, will be null if nothing's going on
 	var/datum/movement_packet/move_packet
-	///contains every client mob corresponding to every client eye in this container. lazily updated by SSparallax and is sparse:
-	///only the last container of a client eye has this list assuming no movement since SSparallax's last fire
-	var/list/client_mobs_in_contents
 	/// String representing the spatial grid groups we want to be held in.
 	/// acts as a key to the list of spatial grid contents types we exist in via SSspatial_grid.spatial_grid_categories.
 	/// We do it like this to prevent people trying to mutate them and to save memory on holding the lists ourselves
@@ -85,10 +112,8 @@
 	var/datum/component/orbiter/orbiting
 	/// Used for space ztransit stuff
 	var/can_be_z_moved = TRUE
-	///If we were without gravity and another animation happened, the bouncing will stop, and we need to restart it in next life().
-	var/floating_need_update = FALSE
-
-	var/zfalling = FALSE
+	/// Причина текущего перемещения по вертикали, CURRENTLY_Z_* из movement.dm; большее значение перебивает меньшее.
+	var/currently_z_moving = FALSE
 
 	/// Either FALSE, [EMISSIVE_BLOCK_GENERIC], or [EMISSIVE_BLOCK_UNIQUE]
 	var/blocks_emissive = FALSE
@@ -120,13 +145,32 @@
 
 /atom/movable/Initialize(mapload)
 	. = ..()
+	// Созданное на нижнем этаже стопки обязано сразу встать на смещённые плоскости.
+	// От истинной плоскости: компонент из ComponentInitialize() мог уже переставить атом на этаж (stationloving).
+	if(SSmapping.max_plane_offset)
+		SET_PLANE_IMPLICIT(src, PLANE_TO_TRUE(plane))
+	if(length(GLOB.antag_training_z))
+		var/turf/spot = get_turf(src)
+		if(spot && GLOB.antag_training_z[spot.z])
+			register_training_atom()
 	switch(blocks_emissive)
 		if(EMISSIVE_BLOCK_GENERIC)
 			var/mutable_appearance/gen_emissive_blocker = mutable_appearance(icon, icon_state, plane = EMISSIVE_PLANE, alpha = src.alpha)
+			//На чужой плоскости блокер рисуется чёрным силуэтом предмета.
+			SET_PLANE_EXPLICIT(gen_emissive_blocker, EMISSIVE_PLANE, src)
 			gen_emissive_blocker.color = GLOB.em_block_color
 			gen_emissive_blocker.dir = dir
 			gen_emissive_blocker.appearance_flags |= appearance_flags
 			add_overlay(list(gen_emissive_blocker))
+			// Этот же блокер кладёт update_overlays(); без записи в managed_overlays
+			// первый update_appearance() добавит вторую копию вместо замены.
+			var/blocker_appearance = gen_emissive_blocker.appearance
+			if(isnull(managed_overlays))
+				managed_overlays = blocker_appearance
+			else if(islist(managed_overlays))
+				managed_overlays += blocker_appearance
+			else
+				managed_overlays = list(managed_overlays, blocker_appearance)
 		if(EMISSIVE_BLOCK_UNIQUE)
 			render_target = ref(src)
 			em_block = new(src, render_target)
@@ -148,15 +192,27 @@
 
 
 /atom/movable/Destroy(force)
+	if(training_origin)
+		var/datum/antag_training_arena/origin = training_origin.resolve()
+		if(origin)
+			origin.created_atoms -= weak_reference
+		training_origin = null
 	//вычищаем свои ссылки из ячеек грида; записи в important_recursive_contents
 	//вложенных locs вычистит Exited при moveToNullspace ниже
 	if(spatial_grid_key)
 		SSspatial_grid.force_remove_from_grid(src)
 
+	if(alternate_appearances)
+		var/list/aa_snapshot = alternate_appearances
+		alternate_appearances = null
+		for(var/K in aa_snapshot)
+			var/datum/atom_hud/alternate_appearance/AA = aa_snapshot[K]
+			AA.remove_from_hud(src)
+
 	QDEL_NULL(proximity_monitor)
+	orbiters = null // The component is attached to us normaly and will be deleted elsewhere
 	QDEL_NULL(language_holder)
 	QDEL_NULL(em_block)
-	thrust_sources = null
 	// Break hidden render pipeline references (render_target/render_source can keep movables harddeling).
 	render_target = null
 	render_source = null
@@ -175,7 +231,6 @@
 
 	invisibility = INVISIBILITY_ABSTRACT
 
-	QDEL_NULL(drift_handler)
 	if(inertia_dir)
 		inertia_dir = 0
 		inertia_last_loc = null
@@ -192,6 +247,9 @@
 		orbiting = null
 
 	QDEL_NULL(move_packet)
+
+	if(length(GLOB.transformation_animation_objects) && (src in GLOB.transformation_animation_objects))
+		drop_transformation_animation()
 
 	. = ..()
 
@@ -213,30 +271,126 @@
 /atom/movable/proc/update_emissive_block()
 	if(blocks_emissive != EMISSIVE_BLOCK_GENERIC)
 		return
-	else if (blocks_emissive == EMISSIVE_BLOCK_GENERIC)
-		var/mutable_appearance/gen_emissive_blocker = mutable_appearance(icon, icon_state, plane = EMISSIVE_PLANE, alpha = src.alpha)
-		gen_emissive_blocker.color = GLOB.em_block_color
-		gen_emissive_blocker.dir = dir
-		gen_emissive_blocker.appearance_flags |= appearance_flags
-		return gen_emissive_blocker
-	else if(blocks_emissive == EMISSIVE_BLOCK_UNIQUE)
-		if(!em_block)
-			render_target = ref(src)
-			em_block = new(src, render_target)
-		return em_block
+	var/mutable_appearance/gen_emissive_blocker = mutable_appearance(icon, icon_state, plane = EMISSIVE_PLANE, alpha = src.alpha)
+	SET_PLANE_EXPLICIT(gen_emissive_blocker, EMISSIVE_PLANE, src)
+	gen_emissive_blocker.color = GLOB.em_block_color
+	gen_emissive_blocker.dir = dir
+	gen_emissive_blocker.appearance_flags |= appearance_flags
+	return gen_emissive_blocker
 
-/atom/movable/proc/can_zFall(turf/source, levels = 1, turf/target, direction)
-	if(!direction)
-		direction = DOWN
-	if(!source)
-		source = get_turf(src)
-		if(!source)
-			return FALSE
+/// Двигает атом и всё, что едет с ним, на соседний по z турф. Достаточно передать либо target, либо dir.
+/// moving_movs - готовая группа переезда; zFall() собирает её один раз на всё падение.
+/atom/movable/proc/zMove(dir, turf/target, z_move_flags = ZMOVE_FLIGHT_FLAGS, list/moving_movs)
 	if(!target)
-		target = get_step_multiz(source, direction)
+		target = can_z_move(dir, get_turf(src), null, z_move_flags)
 		if(!target)
+			set_currently_z_moving(FALSE, TRUE)
 			return FALSE
-	return !(movement_type & FLYING) && has_gravity(source) && !throwing
+
+	if(!moving_movs)
+		moving_movs = get_z_move_affected(z_move_flags)
+
+	for(var/atom/movable/movable as anything in moving_movs)
+		if(QDELETED(movable))
+			continue
+		// Пишем поле напрямую: /mob/set_currently_z_moving перенаправляет запись на buckle-цель,
+		// а forceMove() отстёгивает - флаг встал бы на одном атоме, а снялся с другого.
+		movable.currently_z_moving = currently_z_moving || CURRENTLY_Z_MOVING_GENERIC
+		movable.forceMove(target)
+		movable.currently_z_moving = FALSE
+	// forceMove() во время z-переезда пристёгивание не трогает: сиденье, оставшееся на старом этаже, отстёгиваем здесь.
+	for(var/atom/movable/moved_mov as anything in moving_movs)
+		if(QDELETED(moved_mov) || !isliving(moved_mov))
+			continue
+		var/mob/living/moved_mob = moved_mov
+		if(moved_mob.buckled && moved_mob.buckled.loc != moved_mob.loc)
+			moved_mob.buckled.unbuckle_mob(moved_mob, force = TRUE)
+	// Захваты рвём после переезда всей группы, иначе конга-линия распадётся на первом участнике.
+	if(z_move_flags & ZMOVE_CHECK_PULLS)
+		for(var/atom/movable/moved_mov as anything in moving_movs)
+			if(QDELETED(moved_mov))
+				continue
+			if(z_move_flags & ZMOVE_CHECK_PULLEDBY && moved_mov.pulledby && (moved_mov.z != moved_mov.pulledby.z || get_dist(moved_mov, moved_mov.pulledby) > 1))
+				moved_mov.pulledby.stop_pulling()
+			if(z_move_flags & ZMOVE_CHECK_PULLING)
+				moved_mov.check_pulling()
+	return TRUE
+
+/atom/movable/proc/get_z_move_affected(z_move_flags)
+	. = list(src)
+	if(buckled_mobs)
+		. |= buckled_mobs
+	if(!(z_move_flags & ZMOVE_INCLUDE_PULLED))
+		return
+	var/list/chain_heads = list()
+	if(pulling)
+		chain_heads += pulling
+	for(var/mob/living/buckled as anything in buckled_mobs)
+		if(buckled.pulling)
+			chain_heads += buckled.pulling
+	// Обход цепочки захватов итеративный и с отметками: взаимный pulling достижим
+	// обычным путём, и рекурсия на нём зацикливается.
+	var/list/chain_seen = list()
+	for(var/atom/movable/chain_head as anything in chain_heads)
+		var/atom/movable/next_link = chain_head
+		while(next_link && !chain_seen[next_link])
+			chain_seen[next_link] = TRUE
+			. |= next_link
+			if(next_link.buckled_mobs)
+				. |= next_link.buckled_mobs
+			if(isliving(next_link))
+				var/mob/living/link_mob = next_link
+				var/atom/movable/seat = link_mob.buckled
+				// Незакреплённое сиденье едет вместе с пассажиром, от прикрученного его отстегнёт zMove().
+				if(seat && !seat.anchored)
+					. |= seat
+					if(seat.buckled_mobs)
+						. |= seat.buckled_mobs
+			next_link = next_link.pulling
+
+/atom/movable/proc/set_currently_z_moving(new_z_moving_value, forced = FALSE)
+	if(forced)
+		currently_z_moving = new_z_moving_value
+		return TRUE
+	var/old_z_moving_value = currently_z_moving
+	currently_z_moving = max(currently_z_moving, new_z_moving_value)
+	return currently_z_moving > old_z_moving_value
+
+/// Возвращает годный для перемещения соседний по вертикали турф. Заякоренность проверяет zPassOut() турфа, а не этот прок.
+/atom/movable/proc/can_z_move(direction, turf/start, turf/destination, z_move_flags = ZMOVE_FLIGHT_FLAGS, mob/living/rider)
+	SHOULD_CALL_PARENT(TRUE)
+	if(!start)
+		start = get_turf(src)
+		if(!start)
+			return FALSE
+	if(!direction)
+		if(!destination)
+			return FALSE
+		direction = get_dir_multiz(start, destination)
+	if(direction != UP && direction != DOWN)
+		return FALSE
+	if(!destination)
+		destination = get_step_multiz(start, direction)
+		if(!destination)
+			if(z_move_flags & ZMOVE_FEEDBACK)
+				to_chat(rider || src, "<span class='warning'>В той стороне ничего нет!</span>")
+			return FALSE
+	if(SEND_SIGNAL(src, COMSIG_CAN_Z_MOVE, start, destination) & COMPONENT_CANT_Z_MOVE)
+		return FALSE
+	if(z_move_flags & ZMOVE_FALL_CHECKS && (throwing || (movement_type & (FLYING|FLOATING)) || !has_gravity(start) || HAS_TRAIT(src, TRAIT_JUMPING)))
+		return FALSE
+	if(z_move_flags & ZMOVE_CAN_FLY_CHECKS && !(movement_type & (FLYING|FLOATING)) && has_gravity(start))
+		if(z_move_flags & ZMOVE_FEEDBACK)
+			if(rider)
+				to_chat(rider, "<span class='warning'>[src] не умеет летать.</span>")
+			else
+				to_chat(src, "<span class='warning'>Вы не умеете летать.</span>")
+		return FALSE
+	if(!(z_move_flags & ZMOVE_IGNORE_OBSTACLES) && !(start.zPassOut(src, direction, destination) && destination.zPassIn(src, direction, start)))
+		if(z_move_flags & ZMOVE_FEEDBACK)
+			to_chat(rider || src, "<span class='warning'>Туда не пройти!</span>")
+		return FALSE
+	return destination //used by some child types checks and zMove()
 
 /atom/movable/update_overlays()
 	var/list/overlays = ..()
@@ -246,35 +400,16 @@
 		overlays.Insert(1, emissive_block)
 	return overlays
 
-/atom/movable/proc/onZImpact(turf/T, levels)
-	var/atom/highest = T
-	for(var/i in T.contents)
-		var/atom/A = i
-		if(!A.density)
-			continue
-		if(isobj(A) || ismob(A))
-			if(A.layer > highest.layer)
-				highest = A
-	INVOKE_ASYNC(src, PROC_REF(SpinAnimation), 5, 2)
-	throw_impact(highest)
+/// Приземление после падения по z. impact_flags - ZIMPACT_* из signals.dm.
+/atom/movable/proc/onZImpact(turf/impacted_turf, levels, impact_flags = NONE)
+	SHOULD_CALL_PARENT(TRUE)
+	if(!(impact_flags & ZIMPACT_NO_MESSAGE))
+		visible_message("<span class='danger'>[src] врезается в [impacted_turf]!</span>", \
+						"<span class='userdanger'>Вы врезаетесь в [impacted_turf]!</span>")
+	if(!(impact_flags & ZIMPACT_NO_SPIN))
+		INVOKE_ASYNC(src, PROC_REF(SpinAnimation), 5, 2)
+	SEND_SIGNAL(src, COMSIG_ATOM_ON_Z_IMPACT, impacted_turf, levels)
 	return TRUE
-
-//For physical constraints to travelling up/down.
-/atom/movable/proc/can_zTravel(turf/destination, direction)
-	var/turf/T = get_turf(src)
-	if(!T)
-		return FALSE
-	if(!direction)
-		if(!destination)
-			return FALSE
-		direction = get_dir(T, destination)
-	if(direction != UP && direction != DOWN)
-		return FALSE
-	if(!destination)
-		destination = get_step_multiz(src, direction)
-		if(!destination)
-			return FALSE
-	return T.zPassOut(src, direction, destination) && destination.zPassIn(src, direction, T)
 
 /atom/movable/vv_edit_var(var_name, var_value, massedit)
 	var/static/list/banned_edits = list("step_x" = TRUE, "step_y" = TRUE, "step_size" = TRUE, "bounds" = TRUE)
@@ -285,6 +420,15 @@
 		return FALSE
 
 	switch(var_name)
+		// Конус света стоит на движимом, а не на /atom, поэтому и правится он здесь.
+		if(NAMEOF(src, light_cone_angle))
+			set_light(l_cone_angle = var_value)
+			datum_flags |= DF_VAR_EDITED
+			return TRUE
+		if(NAMEOF(src, light_cone_dir))
+			set_light(l_cone_dir = var_value)
+			datum_flags |= DF_VAR_EDITED
+			return TRUE
 		if(NAMEOF(src, x))
 			var/turf/T = locate(var_value, y, z)
 			if(T)
@@ -370,11 +514,7 @@
 	pulling.set_pulledby(null)
 	var/mob/living/ex_pulled = pulling
 	setGrabState(GRAB_PASSIVE)
-	// Отпущенный в невесомости уносит наш вектор, а не тормозит до своего потолка тяги.
-	// Иначе разжатая рука читается как рывок: буксир идёт на крейсерской, буксируемый
-	// мгновенно проседает до скорости голого толчка.
 	pulling = null
-	hand_off_drift(ex_pulled)
 	if(isliving(ex_pulled))
 		var/mob/living/L = ex_pulled
 		L.update_mobility()// mob gets up if it was lyng down in a chokehold
@@ -400,7 +540,7 @@
 	if(A == loc && pulling.density)
 		return FALSE
 	var/move_dir = get_dir(pulling.loc, A)
-	if(!Process_Spacemove(move_dir, FALSE))
+	if(!Process_Spacemove(move_dir))
 		return FALSE
 	pulling.Move(get_step(pulling.loc, move_dir), move_dir, glide_size)
 	return TRUE
@@ -600,7 +740,7 @@
 /atom/movable/proc/on_enter_storage(datum/component/storage/concrete/S)
 	// SEND_SIGNAL(src, COMSIG_STORAGE_ENTERED, master_storage)
 
-/atom/movable/proc/get_spacemove_backup(moving_direction = 0, continuous_move = FALSE, include_floors = FALSE)
+/atom/movable/proc/get_spacemove_backup()
 	var/atom/movable/dense_object_backup
 	for(var/A in orange(1, get_turf(src)))
 		if(isarea(A))
@@ -624,17 +764,17 @@
 	return
 
 
-/atom/movable/proc/do_attack_animation(atom/A, visual_effect_icon, obj/item/used_item, no_effect, fov_effects = TRUE)
+/atom/movable/proc/do_attack_animation(atom/attacked_atom, visual_effect_icon, obj/item/used_item, no_effect, fov_effect = TRUE, item_animation_override = null)
 	if(!no_effect && (visual_effect_icon || used_item))
-		do_item_attack_animation(A, visual_effect_icon, used_item)
+		do_item_attack_animation(attacked_atom, visual_effect_icon, used_item, animation_type = item_animation_override)
 
-	if(A == src)
+	if(attacked_atom == src)
 		return //don't do an animation if attacking self
 	var/pixel_x_diff = 0
 	var/pixel_y_diff = 0
 	var/turn_dir = 1
 
-	var/direction = get_dir(src, A)
+	var/direction = get_dir(src, attacked_atom)
 	if(direction & NORTH)
 		pixel_y_diff = 8
 		turn_dir = prob(50) ? -1 : 1
@@ -647,51 +787,29 @@
 	else if(direction & WEST)
 		pixel_x_diff = -8
 		turn_dir = -1
-	if(fov_effects)
-		play_fov_effect(A, 5, "attack")
+	if(fov_effect)
+		play_fov_effect(attacked_atom, 5, "attack")
 
 	var/matrix/initial_transform = matrix(transform)
 	var/matrix/rotated_transform = transform.Turn(15 * turn_dir)
-	animate(src, pixel_x = pixel_x + pixel_x_diff, pixel_y = pixel_y + pixel_y_diff, transform=rotated_transform, time = 1, easing=BACK_EASING|EASE_IN)
-	animate(pixel_x = pixel_x - pixel_x_diff, pixel_y = pixel_y - pixel_y_diff, transform=initial_transform, time = 2, easing=SINE_EASING)
+	animate(src, pixel_x = pixel_x + pixel_x_diff, pixel_y = pixel_y + pixel_y_diff, transform=rotated_transform, time = 1, easing=BACK_EASING|EASE_IN, flags = ANIMATION_PARALLEL)
+	animate(pixel_x = pixel_x - pixel_x_diff, pixel_y = pixel_y - pixel_y_diff, transform=initial_transform, time = 2, easing=SINE_EASING, flags = ANIMATION_PARALLEL)
 
-/atom/movable/proc/do_item_attack_animation(atom/A, visual_effect_icon, obj/item/used_item)
-	var/image/I
-	if(visual_effect_icon)
-		I = image('icons/effects/effects.dmi', A, visual_effect_icon, A.layer + 0.1)
-	else if(used_item)
-		I = image(icon = used_item, loc = A, layer = A.layer + 0.1)
-		I.plane = GAME_PLANE
-
-		// Scale the icon.
-		I.transform *= 0.4
-		// The icon should not rotate.
-		I.appearance_flags = APPEARANCE_UI_IGNORE_ALPHA
-
-		// Set the direction of the icon animation.
-		var/direction = get_dir(src, A)
-		if(direction & NORTH)
-			I.pixel_y = -12
-		else if(direction & SOUTH)
-			I.pixel_y = 12
-
-		if(direction & EAST)
-			I.pixel_x = -14
-		else if(direction & WEST)
-			I.pixel_x = 14
-
-		if(!direction) // Attacked self?!
-			I.pixel_z = 16
-
-	if(!I)
+/atom/movable/proc/do_item_attack_animation(atom/attacked_atom, visual_effect_icon, obj/item/used_item, animation_type)
+	if(!visual_effect_icon)
+		if(used_item)
+			used_item.animate_attack(src, attacked_atom, animation_type)
 		return
 
-	flick_overlay(I, GLOB.clients, 10)
-
-	// And animate the attack!
-	animate(I, alpha = 175, transform = matrix() * 0.75, pixel_x = 0, pixel_y = 0, pixel_z = 0, time = 3)
-	animate(time = 1)
-	animate(alpha = 0, time = 3, easing = CIRCULAR_EASING|EASE_OUT)
+	var/image/attack_image = image(icon = 'icons/effects/effects.dmi', icon_state = visual_effect_icon)
+	attack_image.plane = attacked_atom.plane + 1
+	attack_image.transform *= 0.4
+	attack_image.appearance_flags = APPEARANCE_UI
+	var/atom/movable/flick_visual/attack = attacked_atom.flick_overlay_view(attack_image, 1 SECONDS)
+	var/matrix/copy_transform = new(transform)
+	animate(attack, alpha = 175, transform = copy_transform.Scale(0.75), time = 0.3 SECONDS)
+	animate(time = 0.1 SECONDS)
+	animate(alpha = 0, time = 0.3 SECONDS, easing = CIRCULAR_EASING|EASE_OUT)
 
 /// Common proc used by painting tools like spraycans and palettes that can access the entire 24 bits color space.
 /obj/item/proc/pick_painting_tool_color(mob/user, default_color)
@@ -735,7 +853,6 @@
 	else if (!on && (movement_type & FLOATING))
 		animate(src, pixel_z = initial(pixel_y), time = 10)
 		setMovetype(movement_type & ~FLOATING)
-	floating_need_update = FALSE // assume it's done
 
 /* 	Language procs
 *	Unless you are doing something very specific, these are the ones you want to use.
@@ -745,6 +862,9 @@
 /atom/movable/proc/get_language_holder(get_minds = TRUE)
 	RETURN_TYPE(/datum/language_holder)
 	if(QDELING(src))
+		// Destroy() can still hand its holder on (a bot ejecting its pAI moves the mind languages).
+		if(language_holder)
+			return language_holder
 		CRASH("get_language_holder() called on a QDELing atom, \
 			this will try to re-instantiate the language holder that's about to be deleted, which is bad.")
 
@@ -778,7 +898,11 @@
 
 /// Removes a language from the blocked language list.
 /atom/movable/proc/remove_blocked_language(language, source = LANGUAGE_ATOM)
-	return get_language_holder().remove_blocked_language(language, source)
+	if(QDELING(src))
+		return
+	if(!language_holder)
+		return
+	return language_holder.remove_blocked_language(language, source)
 
 /// Checks if atom has the language. If spoken is true, only checks if atom can speak the language.
 /atom/movable/proc/has_language(language, flags_to_check)
@@ -890,7 +1014,7 @@
 	// обязан спрятать маску до снимка, иначе призрак подбора мигает дублем света.
 	SEND_SIGNAL(src, COMSIG_ITEM_BEFORE_PICKUP_ANIMATION)
 	var/image/I = image(icon = src, loc = loc, layer = layer + 0.1)
-	I.plane = GAME_PLANE
+	SET_PLANE_EXPLICIT(I, GAME_PLANE, src)
 	I.transform *= 0.75
 	I.appearance_flags = APPEARANCE_UI_IGNORE_ALPHA
 	var/turf/T = get_turf(src)
@@ -910,12 +1034,12 @@
 		to_x -= 32
 	if(!direction)
 		to_y += 16
-	flick_overlay(I, GLOB.clients, 6)
+	var/atom/movable/flick_visual/visual = T.flick_overlay_view(I, 0.6 SECONDS)
 	var/matrix/M = new
 	M.Turn(pick(-30, 30))
-	animate(I, alpha = 175, pixel_x = to_x, pixel_y = to_y, time = 3, transform = M, easing = CUBIC_EASING)
-	sleep(1)
-	animate(I, alpha = 0, transform = matrix(), time = 1, flags = ANIMATION_PARALLEL)
+	animate(visual, alpha = 175, pixel_x = to_x, pixel_y = to_y, time = 0.3 SECONDS, transform = M, easing = CUBIC_EASING)
+	sleep(0.1 SECONDS)
+	animate(visual, alpha = 0, transform = matrix(), time = 0.1 SECONDS, flags = ANIMATION_PARALLEL)
 
 /**
  * Called when a movable changes z-levels.
@@ -926,34 +1050,46 @@
  * * same_z_layer - If their old and new z levels are on the same level of plane offsets or not
  * * notify_contents - Whether or not to notify the movable's contents that their z-level has changed. NOTE, IF YOU SET THIS, YOU NEED TO MANUALLY SET PLANE OF THE CONTENTS LATER
  */
-/atom/movable/proc/on_changed_z_level(turf/old_turf, turf/new_turf, same_z_layer, notify_contents = TRUE)
-	SHOULD_CALL_PARENT(TRUE)
-	SEND_SIGNAL(src, COMSIG_MOVABLE_Z_CHANGED, old_turf, new_turf, same_z_layer)
-
-	// If our turfs are on different z "layers", recalc our planes
-	if(!same_z_layer && !QDELETED(src))
-		SET_PLANE(src, PLANE_TO_TRUE(src.plane), new_turf)
-		// a TON of overlays use planes, and thus require offsets
-		// so we do this. sucks to suck
-		update_appearance()
-
-		if(update_on_z)
-			// I so much wish this could be somewhere else. alas, no.
-			for(var/image/update in update_on_z)
-				SET_PLANE(update, PLANE_TO_TRUE(update.plane), new_turf)
-		if(update_overlays_on_z)
-			// This EVEN more so
-			cut_overlay(update_overlays_on_z)
-			// This even more so
-			for(var/mutable_appearance/update in update_overlays_on_z)
-				SET_PLANE(update, PLANE_TO_TRUE(update.plane), new_turf)
-			add_overlay(update_overlays_on_z)
-
-	if(!notify_contents)
+/// Переставляет себя на плоскости нового этажа стопки. По содержимому не спускается: его обходит onTransitZ().
+/atom/movable/proc/update_plane_offset(old_z, new_z)
+	var/new_offset = new_z ? GET_Z_PLANE_OFFSET(new_z) : 0
+	if(!plane_offset_stale && (old_z ? GET_Z_PLANE_OFFSET(old_z) : 0) == new_offset)
 		return
+	if(plane_offset_stale)
+		plane_offset_stale = FALSE
+	set_plane_offset(new_offset)
 
-	for (var/atom/movable/content as anything in src) // Notify contents of Z-transition.
-		content.on_changed_z_level(old_turf, new_turf, same_z_layer)
+/// Ставит атом, его оверлеи этажа и вис-детей с TRAIT_VIS_ON_CARRIER_FLOOR на плоскости этажа new_offset.
+/atom/movable/proc/set_plane_offset(new_offset)
+	SET_PLANE_W_SCALAR(src, PLANE_TO_TRUE(plane), new_offset)
+
+	update_appearance()
+	if(glow_overlay || exposure_overlay)
+		update_bloom()
+
+	if(update_on_z)
+		for(var/image/update as anything in update_on_z)
+			SET_PLANE_W_SCALAR(update, PLANE_TO_TRUE(update.plane), new_offset)
+	if(update_overlays_on_z)
+		cut_overlay(update_overlays_on_z)
+		for(var/mutable_appearance/update as anything in update_overlays_on_z)
+			SET_PLANE_W_SCALAR(update, PLANE_TO_TRUE(update.plane), new_offset)
+		add_overlay(update_overlays_on_z)
+	for(var/atom/movable/vis_child in vis_contents)
+		if(HAS_TRAIT(vis_child, TRAIT_VIS_ON_CARRIER_FLOOR))
+			vis_child.set_plane_offset(new_offset)
+
+/// Показывает вис-ребёнка без своего loc на этаже носителя; при смене этажа носителя он переезжает следом.
+/atom/movable/proc/add_vis_on_floor(atom/movable/child)
+	ADD_TRAIT(child, TRAIT_VIS_ON_CARRIER_FLOOR, INNATE_TRAIT)
+	vis_contents += child
+	if(SSmapping.max_plane_offset)
+		child.set_plane_offset(GET_TURF_PLANE_OFFSET(src))
+
+/// Оверлей с явной плоскостью, который переезжает на этаж вместе с атомом без пересборки в update_overlays().
+/atom/movable/proc/add_floor_overlay(mutable_appearance/overlay)
+	LAZYADD(update_overlays_on_z, overlay)
+	add_overlay(overlay)
 
 /**
 * A wrapper for setDir that should only be able to fail by living mobs.

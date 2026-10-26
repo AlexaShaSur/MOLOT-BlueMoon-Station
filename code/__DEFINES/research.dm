@@ -18,10 +18,21 @@
 
 #define TECHWEB_POINT_TYPE_DEFAULT TECHWEB_POINT_TYPE_GENERIC
 
+/// Очки за ядро данных списанного спутника (событие Derelict Satellite).
+#define SATELLITE_DATA_CORE_POINTS 3000
+
 //defined here so people don't forget to change this!
 #define TECHWEB_POINT_TYPE_LIST_ASSOCIATIVE_NAMES list(\
 	TECHWEB_POINT_TYPE_GENERIC = "General Research"\
 	)
+
+//Сети исследований: станционная (по ID), фракционные (по ID) и автономные (персональная сеть каждой машины)
+#define RND_NETWORK_STATION "science"		//Глобальная станционная сеть (SSresearch.science_tech)
+#define RND_NETWORK_AUTO ""					//Нестанционная машина — персональная изолированная сеть; станционная — science_tech (дефолт)
+//BLUEMOON ADD: фракционные ID-сети исследований
+#define RND_NETWORK_SYNDICATE "syndicate"	//Сеть исследований Синдиката
+#define RND_NETWORK_TARKON "Tarkoff"		//Сеть исследований Таркова
+#define RND_NETWORK_INTEQ "inteq"			//Сеть исследований InteQ
 
 #define LARGEST_BOMB				"bomb"
 

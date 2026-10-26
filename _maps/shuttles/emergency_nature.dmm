@@ -496,7 +496,7 @@
 /area/shuttle/escape)
 "sF" = (
 /obj/effect/turf_decal/trimline/blue/filled/line,
-/obj/item/storage/backpack/duffelbag/med/surgery{
+/obj/item/storage/backpack/duffelbag/med/surgery/upgraded{
 	pixel_y = 5
 	},
 /obj/structure/rack,
@@ -668,6 +668,15 @@
 	req_access_txt = "63; 42"
 	},
 /turf/open/floor/mineral/plastitanium/red/brig,
+/area/shuttle/escape)
+"zO" = (
+/obj/machinery/light/floor,
+/obj/structure/flora/ausbushes/sparsegrass,
+/obj/effect/fun_balloon/sentience/emergency_shuttle{
+	effect_range = 10;
+	group_name = "horrible monkeys"
+	},
+/turf/open/floor/grass/grass0,
 /area/shuttle/escape)
 "Ai" = (
 /obj/effect/turf_decal/weather/dirt{
@@ -1680,7 +1689,7 @@ Xm
 Vv
 Fp
 qD
-zs
+zO
 XK
 XK
 PP

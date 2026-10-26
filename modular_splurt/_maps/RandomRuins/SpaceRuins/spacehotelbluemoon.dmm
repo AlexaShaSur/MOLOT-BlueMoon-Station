@@ -294,9 +294,7 @@
 /obj/structure/rack,
 /obj/effect/turf_decal/bot/yellow,
 /obj/item/melee/classic_baton/telescopic,
-/obj/machinery/door/window/brigdoor/security/cell/westleft{
-	req_access = list("205")
-	},
+/obj/item/melee/classic_baton/telescopic,
 /turf/open/floor/plasteel/textured/large,
 /area/ruin/space/has_grav/bluemoon/hotel/workroom)
 "bx" = (
@@ -407,6 +405,8 @@
 	},
 /obj/item/gun/ballistic/automatic/mk60/vector,
 /obj/item/gun/ballistic/automatic/mk60/vector,
+/obj/item/gun/ballistic/automatic/mk60/vector,
+/obj/item/gun/ballistic/automatic/mk60/vector,
 /turf/open/floor/plasteel/textured/large,
 /area/ruin/space/has_grav/bluemoon/hotel/workroom)
 "ce" = (
@@ -435,7 +435,7 @@
 /area/ruin/space/has_grav/bluemoon/hotel/security)
 "ci" = (
 /obj/structure/chair/pew,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "cm" = (
 /obj/structure/closet/secure_closet/medical2{
@@ -531,7 +531,7 @@
 	dir = 1
 	},
 /obj/machinery/light/floor,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "cG" = (
 /obj/structure/table/glass,
@@ -589,7 +589,7 @@
 /area/ruin/space/has_grav/bluemoon/hotel/bar)
 "cQ" = (
 /obj/structure/chair/pew/left,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "cS" = (
 /obj/machinery/button/door{
@@ -613,7 +613,7 @@
 	dir = 2;
 	pixel_y = 24
 	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "cV" = (
 /obj/structure/disposalpipe/segment,
@@ -625,9 +625,6 @@
 /turf/open/floor/carpet/black,
 /area/ruin/space/has_grav/bluemoon/hotel/bar)
 "cW" = (
-/obj/machinery/pool/filter{
-	pixel_y = -17
-	},
 /turf/closed/wall,
 /area/ruin/space/has_grav/bluemoon/hotel/guestroom)
 "cX" = (
@@ -704,7 +701,7 @@
 /obj/structure/chair/pew/right{
 	dir = 1
 	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "dy" = (
 /obj/effect/decal/cleanable/dirt,
@@ -1251,7 +1248,7 @@
 /obj/structure/chair/stool/bar{
 	dir = 1
 	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "gk" = (
 /obj/structure/table/glass,
@@ -1274,7 +1271,6 @@
 /turf/open/floor/carpet/black,
 /area/ruin/space/has_grav/bluemoon/hotel/bar)
 "gn" = (
-/obj/machinery/pool/controller,
 /obj/structure/cable{
 	icon_state = "4-8"
 	},
@@ -1405,7 +1401,7 @@
 	dir = 10
 	},
 /obj/structure/pool/ladder,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/guestroom{
 	valid_to_shower = 1;
 	name = "Hotel Guest Shower";
@@ -2829,6 +2825,8 @@
 /obj/structure/window/reinforced{
 	dir = 4
 	},
+/obj/item/ammo_box/magazine/e45/e45_drum/taser,
+/obj/item/ammo_box/magazine/e45/e45_drum/taser,
 /turf/open/floor/plasteel/textured/large,
 /area/ruin/space/has_grav/bluemoon/hotel/workroom)
 "oU" = (
@@ -2878,7 +2876,8 @@
 	dir = 4
 	},
 /obj/machinery/computer/rdconsole/production{
-	dir = 2
+	dir = 2;
+	network_id = "science"
 	},
 /turf/open/floor/plasteel,
 /area/ruin/space/has_grav/bluemoon/hotel/power)
@@ -3159,7 +3158,7 @@
 /obj/effect/turf_decal/trimline/brown/filled/line{
 	dir = 5
 	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/guestroom{
 	valid_to_shower = 1;
 	name = "Hotel Guest Shower";
@@ -3609,7 +3608,7 @@
 	dir = 9
 	},
 /obj/structure/pool/ladder,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/guestroom{
 	valid_to_shower = 1;
 	name = "Hotel Guest Shower";
@@ -3799,9 +3798,6 @@
 /turf/open/floor/plasteel/dark,
 /area/ruin/space/has_grav/bluemoon/hotel/security)
 "uc" = (
-/obj/machinery/pool/filter{
-	pixel_y = -17
-	},
 /obj/structure/cable{
 	icon_state = "4-8"
 	},
@@ -4055,9 +4051,6 @@
 	},
 /turf/open/floor/plasteel,
 /area/ruin/space/has_grav/bluemoon/hotel/security)
-"vh" = (
-/turf/closed/wall,
-/area/ruin/space/has_grav/bluemoon/hotel/guestroom)
 "vj" = (
 /obj/structure/cable{
 	icon_state = "1-2"
@@ -4994,6 +4987,8 @@
 	},
 /obj/item/clothing/gloves/tackler/combat,
 /obj/item/clothing/gloves/tackler/combat,
+/obj/item/clothing/gloves/tackler/combat,
+/obj/item/clothing/gloves/tackler/combat,
 /turf/open/floor/plasteel/textured/large,
 /area/ruin/space/has_grav/bluemoon/hotel/workroom)
 "AK" = (
@@ -5442,7 +5437,9 @@
 /obj/effect/turf_decal/tile/yellow/half{
 	dir = 1
 	},
-/obj/machinery/rnd/production/protolathe/department/service,
+/obj/machinery/rnd/production/protolathe/department/service{
+	network_id = "science"
+	},
 /turf/open/floor/plasteel,
 /area/ruin/space/has_grav/bluemoon/hotel/power)
 "Do" = (
@@ -6529,7 +6526,7 @@
 /turf/open/floor/plasteel/textured/large,
 /area/ruin/space/has_grav/bluemoon/hotel/workroom)
 "Jd" = (
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "Jh" = (
 /obj/structure/bed/dogbed{
@@ -6620,7 +6617,9 @@
 /obj/effect/turf_decal/tile/yellow/half{
 	dir = 1
 	},
-/obj/machinery/rnd/production/circuit_imprinter/department/science,
+/obj/machinery/rnd/production/circuit_imprinter/department/science{
+	network_id = "science"
+	},
 /turf/open/floor/plasteel,
 /area/ruin/space/has_grav/bluemoon/hotel/power)
 "JM" = (
@@ -6709,7 +6708,6 @@
 /turf/open/floor/plasteel,
 /area/ruin/space/has_grav/bluemoon/hotel/custodial)
 "Kn" = (
-/obj/machinery/pool/controller,
 /turf/open/floor/plasteel/showroomfloor,
 /area/ruin/space/has_grav/bluemoon/hotel/guestroom{
 	valid_to_shower = 1;
@@ -7150,7 +7148,7 @@
 /obj/structure/chair/pew/left{
 	dir = 1
 	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "MC" = (
 /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden/layer4{
@@ -7163,13 +7161,6 @@
 /area/ruin/space/has_grav/bluemoon/hotel/pool{
 	valid_to_shower = 1;
 	name = "Hotel Pool Shower";
-	icon_state = "shower"
-	})
-"MF" = (
-/turf/open/floor/plasteel/showroomfloor,
-/area/ruin/space/has_grav/bluemoon/hotel/guestroom{
-	valid_to_shower = 1;
-	name = "Hotel Guest Shower";
 	icon_state = "shower"
 	})
 "MG" = (
@@ -7486,7 +7477,7 @@
 /area/ruin/space/has_grav/bluemoon/hotel/power)
 "Od" = (
 /obj/machinery/light,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "Of" = (
 /obj/structure/bed/double,
@@ -7637,7 +7628,7 @@
 /obj/structure/chair/pew{
 	dir = 1
 	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "Pe" = (
 /turf/closed/wall,
@@ -8183,7 +8174,7 @@
 /obj/effect/turf_decal/trimline/brown/filled/line{
 	dir = 10
 	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/guestroom{
 	valid_to_shower = 1;
 	name = "Hotel Guest Shower";
@@ -8282,7 +8273,7 @@
 /area/ruin/space/has_grav/bluemoon/hotel/bar)
 "SO" = (
 /obj/machinery/light/floor,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "SP" = (
 /obj/machinery/atmospherics/pipe/manifold/supply/hidden/layer2{
@@ -8417,11 +8408,7 @@
 /obj/effect/turf_decal/trimline/brown/filled/line{
 	dir = 6
 	},
-/obj/machinery/pool/drain{
-	pixel_x = -17;
-	pixel_y = 17
-	},
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/guestroom{
 	valid_to_shower = 1;
 	name = "Hotel Guest Shower";
@@ -8818,7 +8805,7 @@
 /area/ruin/space/has_grav/bluemoon/hotel/guestroom)
 "VQ" = (
 /obj/structure/chair/pew/right,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/bluemoon/hotel/pool)
 "VT" = (
 /obj/structure/disposalpipe/segment{
@@ -10257,11 +10244,11 @@ Dl
 Dl
 Dl
 Dl
-vh
+cW
 uy
 uy
 uy
-vh
+cW
 Bo
 Bo
 Bo
@@ -10331,7 +10318,7 @@ uy
 Jv
 JW
 Rj
-vh
+cW
 PM
 is
 Bo
@@ -10401,7 +10388,7 @@ uy
 Jv
 PI
 io
-vh
+cW
 NE
 OO
 Bo
@@ -10471,9 +10458,9 @@ uy
 Jv
 DN
 eU
-vh
+cW
 HP
-vh
+cW
 Bo
 jm
 wr
@@ -10533,11 +10520,11 @@ Dl
 pY
 Dl
 Dl
-vh
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
+cW
 wG
 Sg
 qM
@@ -10603,11 +10590,11 @@ Dl
 pY
 Dl
 Dl
-vh
+cW
 fZ
 is
-vh
-vh
+cW
+cW
 bW
 Nc
 Sg
@@ -10673,15 +10660,15 @@ Dl
 pY
 eE
 eE
-vh
+cW
 lH
 Pe
-vh
-vh
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
+cW
+cW
 pH
 QY
 Bo
@@ -10743,17 +10730,17 @@ Dl
 pY
 Dl
 Dl
-vh
+cW
 HP
-vh
+cW
 RM
 nK
-vh
+cW
 Zz
 dt
-vh
+cW
 rt
-vh
+cW
 Bo
 yR
 nb
@@ -10813,12 +10800,12 @@ pY
 Dl
 Dl
 Dl
-vh
+cW
 cX
 Ui
 kr
 Pl
-vh
+cW
 Gr
 Gr
 Gr
@@ -10953,12 +10940,12 @@ pY
 Dl
 Dl
 Dl
-vh
+cW
 xR
 HB
 kr
 cZ
-vh
+cW
 MJ
 Gr
 Gr
@@ -11023,20 +11010,20 @@ pY
 eE
 eE
 eE
-vh
-vh
-vh
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
+cW
+cW
+cW
 oC
 oC
 oC
 oC
-vh
+cW
 oC
-vh
+cW
 BP
 De
 Zx
@@ -12441,12 +12428,12 @@ ao
 ao
 QD
 De
-vh
-vh
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
+cW
+cW
 De
 De
 Pi
@@ -12515,7 +12502,7 @@ Ae
 yb
 JO
 oA
-vh
+cW
 vy
 De
 Qx
@@ -12655,7 +12642,7 @@ Ic
 kf
 lZ
 JY
-vh
+cW
 xd
 De
 ui
@@ -12702,31 +12689,31 @@ Dl
 pY
 eE
 eE
-vh
-vh
-vh
-vh
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
+cW
+cW
+cW
+cW
 oC
 oC
 oC
 oC
-vh
+cW
 oC
 De
 BP
 De
 zZ
 De
-vh
+cW
 FF
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
 De
 De
 Pi
@@ -12772,14 +12759,14 @@ Dl
 pY
 Dl
 Dl
-vh
+cW
 tw
-vh
+cW
 Ss
 hw
 Iz
 fH
-vh
+cW
 vD
 tN
 Gr
@@ -12842,7 +12829,7 @@ Dl
 pY
 Dl
 Dl
-vh
+cW
 gE
 IT
 VP
@@ -12912,14 +12899,14 @@ Dl
 pY
 eE
 eE
-vh
+cW
 Jn
-vh
+cW
 Ss
 BN
 Ss
 Vt
-vh
+cW
 Gr
 ac
 uH
@@ -12982,42 +12969,42 @@ Dl
 Dl
 pY
 Dl
-vh
-vh
-vh
+cW
+cW
+cW
 Ss
 HE
 ut
 IW
-vh
-vh
+cW
+cW
 jB
-vh
-vh
-vh
-vh
-vh
-vh
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
+cW
+cW
+cW
+cW
+cW
+cW
 xW
 uH
 DC
 Gr
 Ra
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
 ib
-vh
-vh
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
+cW
+cW
 Dz
 Ji
 Ji
@@ -13059,33 +13046,33 @@ Kc
 en
 qP
 dh
-vh
+cW
 Ra
 ac
 sX
-vh
+cW
 Zm
 Gr
 zN
 tY
-vh
+cW
 sH
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
 Nt
-vh
-vh
-vh
+cW
+cW
+cW
 TX
 ek
 sj
 fY
-vh
+cW
 WF
 UI
-vh
+cW
 DZ
 ID
 Jp
@@ -13129,7 +13116,7 @@ Kc
 Kc
 Fi
 yq
-vh
+cW
 Gr
 ac
 Gr
@@ -13138,24 +13125,24 @@ EM
 Gr
 Gr
 ar
-vh
+cW
 sH
-vh
+cW
 wk
 PE
 PE
 Ma
 iY
 PE
-vh
+cW
 FJ
 fi
 At
 DD
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
 Li
 BB
 wg
@@ -13199,7 +13186,7 @@ Kc
 Kc
 Kc
 Nk
-vh
+cW
 og
 Il
 Sw
@@ -13208,24 +13195,24 @@ sh
 Sw
 Sw
 Qw
-vh
+cW
 sH
-vh
+cW
 mW
 PE
 XT
 hy
 Wk
 PE
-vh
-vh
-vh
+cW
+cW
+cW
 ib
-vh
-vh
+cW
+cW
 gS
 IU
-vh
+cW
 Ba
 fD
 LX
@@ -13264,12 +13251,12 @@ Dl
 pY
 eE
 eE
-vh
+cW
 Vn
 Vn
 Vn
 Vn
-vh
+cW
 Hd
 fn
 vj
@@ -13278,21 +13265,21 @@ vj
 vj
 vj
 UQ
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
 Sd
 jM
 Xk
 Pn
 Xs
-vh
+cW
 mI
 EH
 Me
 ew
-vh
+cW
 uj
 as
 sx
@@ -13339,7 +13326,7 @@ Dl
 Dl
 Dl
 Dl
-vh
+cW
 dK
 Lr
 tN
@@ -13348,25 +13335,25 @@ rv
 Sr
 Zz
 DC
-vh
+cW
 Gn
 dA
-vh
+cW
 PE
 XT
 oi
 Wk
 PE
-vh
+cW
 Ls
 PO
 Wc
 LC
-vh
+cW
 FG
 uk
-vh
-vh
+cW
+cW
 lw
 ts
 Ji
@@ -13409,16 +13396,16 @@ Dl
 Dl
 Dl
 Dl
-vh
+cW
 UB
 UB
 UB
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
 nU
-vh
+cW
 FG
 Wu
 IT
@@ -13427,16 +13414,16 @@ PE
 Hc
 PE
 PE
-vh
+cW
 LO
 Iw
 Ff
 Om
-vh
+cW
 LH
 CS
 zu
-vh
+cW
 qo
 ts
 Ji
@@ -13483,30 +13470,30 @@ eE
 Dl
 Dl
 Dl
-vh
+cW
 fR
 uv
-MF
+Kn
 HX
-vh
+cW
 oP
 fK
-vh
+cW
 PE
 PE
 Hc
 PE
 PE
-vh
+cW
 Qz
 Qz
 Qz
-vh
+cW
 cW
 sW
 hh
-vh
-vh
+cW
+cW
 LV
 qZ
 Ji
@@ -13553,30 +13540,30 @@ eE
 Dl
 Dl
 Dl
-vh
+cW
 AK
 gB
 Ow
 Yn
-vh
-vh
-vh
-vh
+cW
+cW
+cW
+cW
 fl
 on
 Hc
 Gp
 fl
-vh
+cW
 eE
 Dl
 eE
 Dl
-vh
+cW
 qs
 TA
 Kn
-vh
+cW
 lP
 lP
 Ji
@@ -13623,30 +13610,30 @@ eE
 Dl
 Dl
 Dl
-vh
+cW
 yK
 Tm
 BY
 Co
-vh
+cW
 Dl
 Dl
-vh
-vh
+cW
+cW
 hB
 jG
 hR
-vh
-vh
+cW
+cW
 eE
 Dl
 eE
 Dl
-vh
+cW
 lP
 Hw
-vh
-vh
+cW
+cW
 Dl
 Dl
 Dl
@@ -13693,12 +13680,12 @@ eE
 Dl
 Dl
 Dl
-vh
-vh
+cW
+cW
 gn
 sW
 RX
-vh
+cW
 Dl
 Dl
 Dl
@@ -13764,11 +13751,11 @@ Dl
 Dl
 Dl
 Dl
-vh
+cW
 uc
 qs
 TA
-vh
+cW
 Dl
 Dl
 Dl
@@ -13834,11 +13821,11 @@ Dl
 Dl
 Dl
 Dl
-vh
+cW
 lE
 Uy
 qO
-vh
+cW
 Dl
 Dl
 Dl

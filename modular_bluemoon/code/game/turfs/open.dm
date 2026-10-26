@@ -4,9 +4,8 @@
 	name = "floor"
 	desc = "Достаточно крепкий."
 	icon = 'modular_bluemoon/icons/turf/lifeweb_no_smooth_floors.dmi'
-	icon_state = "coding_by_sanecman"
 	baseturfs = /turf/open/indestructible/lfwb
-	tiled_dirt = FALSE
+	turf_flags = TURF_FLAGS_DEFAULT
 
 /turf/open/indestructible/lfwb/no_smooth
 	baseturfs = /turf/open/indestructible/lfwb/no_smooth

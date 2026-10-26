@@ -59,7 +59,7 @@
 
 /datum/design/mag_acr5
 	name = "ACR-5 Rifle Magazine (5.8mm)"
-	desc = "A standart 26 shot magazine for 5.8 mm ACR-5m30 rifle, loaded."
+	desc = "A standart 26 shot magazine for 5.8 mm ACR-5m26 rifle, loaded."
 	id = "mag_acr5"
 	build_type = PROTOLATHE
 	materials = list(/datum/material/iron = 20000, /datum/material/titanium = 500)
@@ -70,7 +70,7 @@
 
 /datum/design/mag_acr5/empty
 	name = "ACR-5 Rifle Magazine (Empty)"
-	desc = "A standart 26 shot magazine for 5.8 mm ACR-5m30 rifle."
+	desc = "A standart 26 shot magazine for 5.8 mm ACR-5m26 rifle."
 	id = "mag_acr5_empty"
 	materials = list(/datum/material/iron = 6500)
 	build_path = /obj/item/ammo_box/magazine/acr5m30/empty
@@ -258,6 +258,16 @@
 	materials = list(/datum/material/iron = 35000, /datum/material/uranium = 1650)
 	build_path = /obj/item/ammo_box/magazine/e45/e45_drum/laser
 
+
+/datum/design/m10mm_large/rubber
+	name = "enlarged pistol magazine (10mm rubber)"
+	desc = "An extra ammo gun magazine. Loaded with rounds which punch guts out of target."
+	id = "enlarged_rubber"
+	materials = list(/datum/material/iron = 5000, /datum/material/glass=1500)
+	build_path = /obj/item/ammo_box/magazine/m10mm_large/rubber
+	departmental_flags = DEPARTMENTAL_FLAG_SECURITY
+	min_security_level = SEC_LEVEL_BLUE
+
 /////////////////////////////
 //Enforcer MK59-MK62 design//
 /////////////////////////////
@@ -303,6 +313,17 @@
 	build_type = PROTOLATHE
 	materials = list(/datum/material/iron = 7500, /datum/material/silver = 3500, /datum/material/titanium = 2000 )
 	build_path = /obj/item/weaponcrafting/gunkit/vector
+	category = list("Weapons")
+	departmental_flags = DEPARTMENTAL_FLAG_SECURITY
+	min_security_level = SEC_LEVEL_AMBER
+
+/datum/design/jager
+	name = "\improper jager Shotgun conversion kit"
+	desc = "A set of spare parts for converting a combat shotgun into the jager mag-fed shotgun. Can be used only on empty gun"
+	id = "jager"
+	build_type = PROTOLATHE
+	materials = list(/datum/material/iron = 7500, /datum/material/silver = 3500, /datum/material/titanium = 2000 )
+	build_path = /obj/item/weaponcrafting/gunkit/jager
 	category = list("Weapons")
 	departmental_flags = DEPARTMENTAL_FLAG_SECURITY
 	min_security_level = SEC_LEVEL_AMBER

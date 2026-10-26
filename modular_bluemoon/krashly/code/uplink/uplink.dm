@@ -12,10 +12,11 @@
 	w_class = WEIGHT_CLASS_SMALL
 
 	var/uplink_flag = UPLINK_TRAITORS
+	var/uplink_component = /datum/component/uplink/inteq
 
 /obj/item/inteq/uplink/Initialize(mapload, owner, tc_amount = 30)
 	. = ..()
-	AddComponent(/datum/component/uplink/inteq, owner, FALSE, TRUE, uplink_flag, tc_amount)
+	AddComponent(uplink_component, owner, FALSE, TRUE, uplink_flag, tc_amount)
 
 /obj/item/inteq/uplink/AltClick(mob/user)
 	. = ..()
@@ -83,7 +84,7 @@
 	AddComponent(/datum/component/uplink/syndicate/pact, owner, FALSE, TRUE, uplink_flag, tc_amount, syndicate)
 
 /datum/component/uplink/syndicate/pact
-	name = "Pact Uplink"
+	name = "PACT Uplink"
 
 /datum/component/uplink/syndicate/pact/ui_data(mob/user)
 	. = ..()

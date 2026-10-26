@@ -11,6 +11,8 @@
 	beauty = -100
 	persistent = TRUE
 	var/fixed_color = FALSE
+	/// Старая кровь карты и пятна, загруженные из прошлого раунда.
+	var/dried = FALSE
 
 /obj/effect/decal/cleanable/blood/replace_decal(obj/effect/decal/cleanable/blood/C)
 	if(C.fixed_color)
@@ -51,11 +53,13 @@
 	name = "dried blood"
 	desc = "Looks like it's been here a while. Eew"
 	bloodiness = 0
+	dried = TRUE
 
 /obj/effect/decal/cleanable/blood/old
 	name = "dried blood"
 	desc = "Looks like it's been here a while. Eew."
 	bloodiness = 0
+	dried = TRUE
 
 /obj/effect/decal/cleanable/blood/old/Initialize(mapload, list/datum/disease/diseases)
 	. = ..()
@@ -212,12 +216,29 @@
 			var/obj/item/clothing/shoes/S = shoe
 			. += "some <B>[initial(S.name)]</B> [icon2html(initial(S.icon), user)]"
 
-/obj/effect/decal/cleanable/blood/footprints/replace_decal(obj/effect/decal/cleanable/C)
+/obj/effect/decal/cleanable/blood/footprints/replace_decal(obj/effect/decal/cleanable/blood/footprints/C)
 	if(blood_state != C.blood_state) //We only replace footprints of the same type as us
 		return
 	if(color != C.color)
 		return
-	return ..()
+	// Родитель сейчас удалит старую декаль, поэтому её направления забираем себе.
+	if(istype(C))
+		entered_dirs |= C.entered_dirs
+		exited_dirs |= C.exited_dirs
+		shoe_types |= C.shoe_types
+	. = ..()
+	update_icon()
+
+/// Переносит направления и типы обуви на выжившую декаль: одинаковые следы схлопнул бы replace_decal.
+/obj/effect/decal/cleanable/blood/footprints/absorb_cleanable(obj/effect/decal/cleanable/absorbed, full_merge = FALSE)
+	var/obj/effect/decal/cleanable/blood/footprints/other = absorbed
+	if(istype(other) && !QDELETED(other) && other != src)
+		entered_dirs |= other.entered_dirs
+		exited_dirs |= other.exited_dirs
+		shoe_types |= other.shoe_types
+	. = ..()
+	if(!QDELETED(src))
+		update_icon()
 
 /obj/effect/decal/cleanable/blood/footprints/can_bloodcrawl_in()
 	if((blood_state != BLOOD_STATE_OIL) && (blood_state != BLOOD_STATE_NOT_BLOODY))

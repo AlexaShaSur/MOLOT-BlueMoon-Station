@@ -35,6 +35,8 @@
 	return ..()
 
 /atom/movable/screen/movable/action_button/proc/can_use(mob/user)
+	if(!user)
+		return FALSE
 	if(isobserver(user))
 		var/mob/dead/observer/dead_mob = user
 		if(dead_mob.observetarget) // Observers can only click on action buttons if they're not observing something
@@ -48,24 +50,50 @@
 	return TRUE
 
 /atom/movable/screen/movable/action_button/Click(location,control,params)
-	if (!can_use(usr))
+	var/mob/user = usr
+	if(QDELETED(src))
 		return
-
+	if(!can_use(user))
+		return
 	var/list/modifiers = params2list(params)
+	if(LAZYACCESS(modifiers, CTRL_CLICK))
+		var/datum/hud/our_hud = user.hud_used
+		if(!our_hud)
+			return
+		if(src.location == SCRN_OBJ_IN_PALETTE)
+			our_hud.position_action(src, SCRN_OBJ_IN_LIST)
+		else
+			our_hud.position_action(src, SCRN_OBJ_IN_PALETTE)
+		save_position()
+		return TRUE
 	if(LAZYACCESS(modifiers, SHIFT_CLICK))
-		var/datum/hud/our_hud = usr.hud_used
+		var/datum/hud/our_hud = user.hud_used
+		if(!our_hud)
+			return
 		our_hud.position_action(src, SCRN_OBJ_DEFAULT)
 		return TRUE
 	if(LAZYACCESS(modifiers, ALT_CLICK))
-		begin_creating_bind(usr)
+		begin_creating_bind(user)
 		return TRUE
-	var/mob/clicker = usr
-	if(!clicker.CheckActionCooldown())
+	if(!user.CheckActionCooldown())
 		return
-	clicker.DelayNextAction(1)
+	user.DelayNextAction(1)
 	if(!linked_action)
 		return
-	linked_action.Trigger()
+	var/trigger_flags = NONE
+	if(LAZYACCESS(modifiers, RIGHT_CLICK))
+		TOGGLE_BITFIELD(trigger_flags, TRIGGER_RIGHT_CLICK)
+
+	// SFX
+	if(user.client)
+		if(CHECK_BITFIELD(user.client.prefs.sound_toggles, SOUND_BUTTONS))
+			SEND_SOUND(user, sound(get_sfx(SFX_REMOTE_ACTION) || get_sfx(SFX_TERMINAL_TYPE), volume = 60))
+		transform = turn(matrix() * 0.9, pick(-8, 8))
+		alpha = 200
+		animate(src, transform = matrix(), time = 0.4 SECONDS, alpha = 255)
+
+	linked_action.Trigger(trigger_flags)
+
 	return TRUE
 
 /atom/movable/screen/movable/action_button/proc/begin_creating_bind(mob/user)
@@ -82,6 +110,8 @@
 // Very much byond logic, but I want nice behavior, so we fake it with drag
 /atom/movable/screen/movable/action_button/MouseDrag(atom/over_object, atom/src_location, atom/over_location, src_control, over_control, params)
 	. = ..()
+	if(QDELETED(src))
+		return
 	if(!can_use(usr))
 		return
 	if(IS_WEAKREF_OF(over_object, last_hovored_ref))
@@ -106,7 +136,11 @@
 /atom/movable/screen/movable/action_button/MouseEntered(location, control, params)
 	. = ..()
 	if(!QDELETED(src))
-		openToolTip(usr, src, params, title = name, content = desc, theme = actiontooltipstyle)
+		var/extra_desc = desc || ""
+		var/ctrl_hint = (src.location == SCRN_OBJ_IN_PALETTE) ? "<br><b>Ctrl-click</b> to restore to hotbar" : "<br><b>Ctrl-click</b> to hide in Show Buttons"
+		extra_desc = "[extra_desc][ctrl_hint]"
+		var/tooltip = linked_action ? linked_action.format_tooltip(usr, extra_desc) : extra_desc
+		openToolTip(usr, src, params, title = name, content = tooltip, theme = actiontooltipstyle)
 
 /atom/movable/screen/movable/action_button/MouseExited(location, control, params)
 	closeToolTip(usr)
@@ -114,31 +148,34 @@
 
 /atom/movable/screen/movable/action_button/MouseDrop(atom/over_object, mob/user, src_location, over_location, params)
 	last_hovored_ref = null
+	if(QDELETED(src))
+		return
 	if(!can_use(usr))
 		return
-	var/datum/hud/our_hud = usr.hud_used
+	var/datum/hud/active_hud = usr?.hud_used
+	if(!active_hud)
+		return
 	if(over_object == src)
-		our_hud.hide_landings()
+		active_hud.hide_landings()
 		return
 	if(istype(over_object, /atom/movable/screen/action_landing))
 		var/atom/movable/screen/action_landing/reserve = over_object
 		reserve.hit_by(src)
-		our_hud.hide_landings()
+		active_hud.hide_landings()
 		save_position()
 		return
-
-	our_hud.hide_landings()
+	active_hud.hide_landings()
 	if(istype(over_object, /atom/movable/screen/button_palette) || istype(over_object, /atom/movable/screen/palette_scroll))
-		our_hud.position_action(src, SCRN_OBJ_IN_PALETTE)
+		active_hud.position_action(src, SCRN_OBJ_IN_PALETTE)
 		save_position()
 		return
 	if(istype(over_object, /atom/movable/screen/movable/action_button))
 		var/atom/movable/screen/movable/action_button/button = over_object
-		our_hud.position_action_relative(src, button)
+		active_hud.position_action_relative(src, button)
 		save_position()
 		return
 	. = ..()
-	our_hud.position_action(src, screen_loc)
+	active_hud.position_action(src, screen_loc)
 	save_position()
 
 /atom/movable/screen/movable/action_button/proc/save_position()
@@ -155,7 +192,10 @@
 			position_info = SCRN_OBJ_IN_PALETTE
 
 	user.client.prefs.action_buttons_screen_locs["[name]_[id]"] = position_info
-	user.client.prefs.queue_save_pref(1 SECONDS, TRUE)
+	// На диск уходит санированная КОПИЯ: потолки числа записей и длины строк иначе
+	// действовали только на чтении, и файл рос без ограничений. Живой список не трогаем -
+	// по нему кнопки ищут позиции в этом раунде.
+	user.client.prefs.save_single_pref("action_buttons_screen_locs", sanitize_action_button_positions(user.client.prefs.action_buttons_screen_locs))
 
 /atom/movable/screen/movable/action_button/proc/load_position()
 	var/mob/user = our_hud?.mymob
@@ -170,6 +210,8 @@
 
 	if(!position_info)
 		position_info = SCRN_OBJ_DEFAULT
+	if(!user.hud_used)
+		return
 	user.hud_used.position_action(src, position_info)
 
 /atom/movable/screen/movable/action_button/proc/dump_save()
@@ -177,7 +219,7 @@
 	if(!user?.client)
 		return
 	user.client.prefs.action_buttons_screen_locs -= "[name]_[id]"
-	user.client.prefs.queue_save_pref(1 SECONDS, TRUE)
+	user.client.prefs.save_single_pref("action_buttons_screen_locs", sanitize_action_button_positions(user.client.prefs.action_buttons_screen_locs))
 
 /**
  * This is a silly proc used in hud code code to determine what icon and icon state we should be using
@@ -219,7 +261,7 @@
 	for(var/datum/action/action as anything in actions)
 		var/atom/movable/screen/movable/action_button/button = action.viewers[hud_used]
 		action.UpdateButtons()
-		if(reload_screen)
+		if(reload_screen && button)
 			client.screen += button
 
 	if(reload_screen)
@@ -228,7 +270,7 @@
 	hud_used.palette_actions.refresh_actions()
 
 /atom/movable/screen/button_palette
-	desc = "<b>Drag</b> buttons to move them<br><b>Shift-click</b> any button to reset it<br><b>Alt-click</b> this to reset all buttons"
+	desc = "<b>Drag</b> buttons to move them<br><b>Shift-click</b> any button to reset it<br><b>Ctrl-click</b> button to hide/show in palette<br><b>Alt-click</b> this to reset all buttons"
 	icon = 'icons/hud/64x16_actions.dmi'
 	icon_state = "screen_gen_palette"
 	screen_loc = ui_action_palette

@@ -20,6 +20,72 @@
 	if(stat != DEAD)
 		become_ai_targetable()
 
+/// Called by subtypes at the end of their own Initialize().
+/mob/living/proc/init_unconscious_appearance()
+	return
+
+/mob/living/proc/add_generic_humanoid_static_appearance()
+	var/image/static_image = image('icons/effects/effects.dmi', src, "static")
+	static_image.override = TRUE
+	static_image.name = "unknown humanoid"
+	var/datum/atom_hud/alternate_appearance/basic/unconscious_obscurity/AA = add_alt_appearance(/datum/atom_hud/alternate_appearance/basic/unconscious_obscurity, "[REF(src)]_unconscious", static_image, NONE)
+	if(AA)
+		for(var/mob/living/viewer as anything in GLOB.mob_living_list)
+			if(viewer.stat == UNCONSCIOUS && viewer != src)
+				AA.add_hud_to(viewer)
+
+/mob/living/proc/update_unconscious_visibility(old_stat, new_stat)
+	if(new_stat == UNCONSCIOUS && old_stat != UNCONSCIOUS)
+		ADD_TRAIT(src, TRAIT_BLOCK_SECHUD, "unconscious_obscurity")
+		ADD_TRAIT(src, TRAIT_BLOCK_MEDHUD, "unconscious_obscurity")
+		ADD_TRAIT(src, TRAIT_PROSOPAGNOSIA, "unconscious_obscurity")
+		if(client)
+			var/list/images_to_remove = list()
+			for(var/datum/atom_hud/H as anything in GLOB.all_huds)
+				if(H.hudusers[src] && (istype(H, /datum/atom_hud/data/human/security) || istype(H, /datum/atom_hud/data/human/medical) || istype(H, /datum/atom_hud/data/diagnostic)))
+					H.collect_hud_images_for(src, images_to_remove, check_visibility = FALSE, z_group = HUD_Z_GROUP_ANY)
+			if(length(images_to_remove))
+				client.images -= images_to_remove
+		for(var/datum/atom_hud/alternate_appearance/basic/unconscious_obscurity/AA in GLOB.active_alternate_appearances)
+			if(AA.target == src)
+				continue
+			AA.add_hud_to(src)
+	else if(old_stat == UNCONSCIOUS && new_stat != UNCONSCIOUS)
+		REMOVE_TRAIT(src, TRAIT_BLOCK_SECHUD, "unconscious_obscurity")
+		REMOVE_TRAIT(src, TRAIT_BLOCK_MEDHUD, "unconscious_obscurity")
+		REMOVE_TRAIT(src, TRAIT_PROSOPAGNOSIA, "unconscious_obscurity")
+		for(var/datum/atom_hud/alternate_appearance/basic/unconscious_obscurity/AA in GLOB.active_alternate_appearances)
+			AA.remove_hud_from(src, TRUE)
+		if(client)
+			for(var/datum/atom_hud/H in GLOB.all_huds)
+				if(H.hudusers[src])
+					H.push_all_atoms_to_user(src)
+					continue
+				var/needs_hud = FALSE
+				if(istype(H, /datum/atom_hud/data/human/security))
+					if(HAS_TRAIT(src, TRAIT_SECURITY_HUD))
+						needs_hud = TRUE
+					else if(ishuman(src))
+						var/mob/living/carbon/human/HU = src
+						if(istype(HU.glasses, /obj/item/clothing/glasses/hud/security))
+							needs_hud = TRUE
+				else if(istype(H, /datum/atom_hud/data/human/medical))
+					if(HAS_TRAIT(src, TRAIT_MEDICAL_HUD))
+						needs_hud = TRUE
+					else if(ishuman(src))
+						var/mob/living/carbon/human/HU2 = src
+						if(istype(HU2.glasses, /obj/item/clothing/glasses/hud/health))
+							needs_hud = TRUE
+				else if(istype(H, /datum/atom_hud/data/diagnostic))
+					if(HAS_TRAIT(src, TRAIT_DIAGNOSTIC_HUD))
+						needs_hud = TRUE
+					else if(ishuman(src))
+						var/mob/living/carbon/human/HU3 = src
+						if(istype(HU3.glasses, /obj/item/clothing/glasses/hud/diagnostic))
+							needs_hud = TRUE
+				if(needs_hud)
+					H.add_hud_to(src)
+
 /mob/living/prepare_huds()
 	..()
 	prepare_data_huds()
@@ -47,11 +113,7 @@
 	end_parry_sequence()
 	stop_active_blocking()
 	if(LAZYLEN(status_effects))
-		// Снимок обязателен: и qdel(S), и be_replaced() делают
-		// LAZYREMOVE(owner.status_effects, src), то есть правят список прямо в обходе
-		// по нему - индекс проматывается и каждый второй эффект пропускается.
-		// Пропущенный остаётся с owner на этом мобе, а моб остаётся с ним в
-		// status_effects: цикл ссылок, который BYOND не соберёт никогда
+		// qdel() и be_replaced() вычёркивают эффект из status_effects - обходим копию
 		for(var/datum/status_effect/S as anything in status_effects.Copy())
 			if(S.on_remove_on_mob_delete) //the status effect calls on_remove when its mob is deleted
 				qdel(S)
@@ -64,36 +126,39 @@
 	QDEL_LIST_ASSOC_VAL(ability_actions)
 	QDEL_LIST(abilities)
 	QDEL_LIST(implants)
-	// Квирки держат владельца жёстко: quirk_holder плюс запись в SSquirks.quirk_objects.
-	// Снимались они только при явном снятии квирка и при переносе на другого моба, поэтому
-	// удаление тела (админская пересадка, госткафе, возврат в лобби) оставляло висеть и
-	// квирк, и моба - это был самый массовый класс харддела прод-раунда.
+	QDEL_NULL(vorePanel)
 	QDEL_LIST(roundstart_quirks)
-	// Тот же случай: /datum/surgery держит и target, и operated_bodypart, а снимался
-	// только при отрыве конечности. Один незакрытый датум операции = труп плюс его грудь.
 	QDEL_LIST(surgeries)
-	remove_from_all_data_huds()
-	cleanse_trait_datums()
+	// Из data-худов моба уже вынул их обработчик COMSIG_PARENT_QDELETING
 	QDEL_NULL(ai_controller)
 	GLOB.mob_living_list -= src
 	GLOB.ssd_mob_list -= src
-	//лейтджойнером может быть не только человек (ИИ, борг) - выписываем здесь,
-	//а не в human/Destroy, иначе список вечно держит удалённого моба
+	// Лейтджойнером бывает и ИИ, и борг - поэтому здесь, а не в human/Destroy
 	GLOB.latejoiners -= src
 	SSmobs.currentrun -= src
 	QDEL_LIST(diseases)
 	return ..()
 
-/mob/living/onZImpact(turf/T, levels)
-	if(!isgroundlessturf(T))
-		ZImpactDamage(T, levels)
+/mob/living/onZImpact(turf/impacted_turf, levels, impact_flags = NONE)
+	if(!isgroundlessturf(impacted_turf))
+		impact_flags |= ZImpactDamage(impacted_turf, levels)
 	return ..()
 
-/mob/living/proc/ZImpactDamage(turf/T, levels)
-	visible_message("<span class='danger'>[src] crashes into [T] with a sickening noise!</span>", \
-					"<span class='userdanger'>You crash into [T] with a sickening noise!</span>")
+/// Урон от падения. Возвращает флаги ZIMPACT_*: ими onZImpact() решает, показывать ли сообщение и крутить ли моба.
+/mob/living/proc/ZImpactDamage(turf/impacted_turf, levels)
+	SHOULD_CALL_PARENT(TRUE)
+	. = SEND_SIGNAL(src, COMSIG_LIVING_Z_IMPACT, levels, impacted_turf)
+	if(. & ZIMPACT_CANCEL_DAMAGE)
+		return .
+	//LIQUIDS ADD - landing in liquids softens the fall
+	if(impacted_turf.liquids && impacted_turf.liquids.liquid_state >= LIQUID_STATE_WAIST)
+		Knockdown(2 SECONDS)
+		return . | ZIMPACT_NO_MESSAGE | ZIMPACT_NO_SPIN
+	visible_message("<span class='danger'>[src] врезается в [impacted_turf] с тошнотворным звуком!</span>", \
+					"<span class='userdanger'>Вы врезаетесь в [impacted_turf] с тошнотворным звуком!</span>")
 	adjustBruteLoss((levels * 5) ** 1.5)
 	DefaultCombatKnockdown(levels * 50)
+	return . | ZIMPACT_NO_MESSAGE
 
 
 /mob/living/proc/OpenCraftingMenu()
@@ -131,10 +196,7 @@
 	if(now_pushing)
 		return TRUE
 
-	//Two AI mobs of the same faction must not shove or swap through each other.
-	//The push made a mob-blocked step "succeed", hiding it from the movement
-	//layer's is_mob_only_blocked_step queue and leaving two shooters endlessly
-	//trading the same tile. A cleanly failed step lets that queue handle them.
+	//Allied AI mobs neither shove nor swap: a cleanly failed step goes to the is_mob_only_blocked_step queue
 	if(ai_controller && !client && isliving(M))
 		var/mob/living/allied_ai = M
 		if(allied_ai.ai_controller && !allied_ai.client && faction_check_mob(allied_ai))
@@ -208,7 +270,7 @@
 		return TRUE
 	// BLUEMOON ADDITION END
 
-	if(!M.buckled && !M.has_buckled_mobs())
+	if(!M.buckled && !M.has_buckled_mobs() && !HAS_TRAIT(M, TRAIT_NOMOBSWAP) && !HAS_TRAIT(src, TRAIT_NOMOBSWAP))
 		var/mob_swap = FALSE
 		var/too_strong = (M.move_resist > move_force) //can't swap with immovable objects unless they help us
 		if(!they_can_move) //we have to physically move them
@@ -258,7 +320,7 @@
 		return TRUE
 	if(isliving(M))
 		var/mob/living/L = M
-		if(HAS_TRAIT(L, TRAIT_PUSHIMMUNE))
+		if(HAS_TRAIT(L, TRAIT_PUSHIMMUNE) || HAS_TRAIT(L, TRAIT_NOMOBSWAP))
 			return TRUE
 	if(M.a_intent != INTENT_HELP)
 		//If they're a human, and they're not in help intent, block pushing
@@ -304,13 +366,7 @@
 	now_pushing = TRUE
 	SEND_SIGNAL(src, COMSIG_LIVING_PUSHING_MOVABLE, AM)
 	var/dir_to_target = get_dir(src, AM)
-
-	// If there's no dir_to_target then the player is on the same turf as the atom they're trying to push.
-	// This can happen when a player is stood on the same turf as a directional window. All attempts to push
-	// the window will fail as get_dir will return FALSE and the player will be unable to move the window when
-	// it should be pushable.
-	// In this scenario, we will use the facing direction of the /mob/living attempting to push the atom as
-	// a fallback.
+	// Same turf, e.g. a directional window on our tile: push the way we face
 	if(!dir_to_target)
 		dir_to_target = dir
 
@@ -375,9 +431,13 @@
 /mob/living/start_pulling(atom/movable/AM, state, force = pull_force, supress_message = FALSE)
 	if(!AM || !src)
 		return FALSE
+	// ASSERT(ismovable(AM), "[src] attempted to pull [AM ? "[AM], a nonmovable atom" : "a null object"]")
 	if(!(AM.can_be_pulled(src, state, force)))
 		return FALSE
-	if(throwing || incapacitated())
+	if(throwing || !(mobility_flags & MOBILITY_PULL))
+		return FALSE
+	var/mob/living/prospective_target = AM // BLUEMOON ADD - щит/стойка блокирует перетаскивание
+	if(isliving(prospective_target) && prospective_target.can_block_grab_attempt(src))
 		return FALSE
 
 	AM.add_fingerprint(src)
@@ -386,10 +446,10 @@
 	if(pulling)
 		// Are we trying to pull something we are already pulling? Then just stop here, no need to continue.
 		if(AM == pulling)
-			return
+			return FALSE
 		stop_pulling()
 
-	DelayNextAction(CLICK_CD_GRABBING)
+	changeNext_move(CLICK_CD_GRABBING)
 
 	if(AM.pulledby)
 		if(!supress_message)
@@ -457,27 +517,30 @@
 			offset = GRAB_PIXEL_SHIFT_NECK
 		if(GRAB_KILL)
 			offset = GRAB_PIXEL_SHIFT_NECK
-	var/target_dir = get_dir(M, src)
-	M.setDir(target_dir)
-	var/target_x
-	var/target_y
-	if(target_dir & NORTH)
-		target_y += offset
-	if(target_dir & SOUTH)
-		target_y -= offset
-	if(target_dir & EAST)
-		target_x += offset
-	if(target_dir & WEST)
-		target_x -= offset
+	M.setDir(get_dir(M, src))
+	var/dir_filter = M.dir
+	if(ISDIAGONALDIR(dir_filter))
+		dir_filter = EWCOMPONENT(dir_filter)
+	var/target_x = 0
+	var/target_y = 0
+	switch(dir_filter)
+		if(NORTH)
+			target_y += offset
+		if(SOUTH)
+			target_y -= offset
+		if(EAST)
+			if(offset && M.lying == 270)
+				M.lying = 90
+				M.update_transform(FALSE) //force a transformation update, otherwise it'll take a few ticks for update_mobility() to do so
+				M.lying_prev = M.lying
+			target_x += offset
+		if(WEST)
+			if(offset && M.lying == 90)
+				M.lying = 270
+				M.update_transform(FALSE)
+				M.lying_prev = M.lying
+			target_x -= offset
 	if(target_x || target_y)
-		if(0 < target_x && M.lying == 270)
-			M.lying = 90
-			M.update_transform(FALSE) //force a transformation update, otherwise it'll take a few ticks for update_mobility() to do so
-			M.lying_prev = M.lying
-		if(0 > target_x && M.lying == 90)
-			M.lying = 270
-			M.update_transform(FALSE)
-			M.lying_prev = M.lying
 		animate(M, pixel_x = target_x, pixel_y = target_y, time = 3, flags = ANIMATION_PARALLEL)
 
 /mob/living/proc/reset_pull_offsets(mob/living/M, override)
@@ -603,8 +666,9 @@
 		to_chat(src, "<span class='notice'>You are already sleeping.</span>")
 		return
 	else
-		if(alert(src, "You sure you want to sleep for a while?", "Sleep", "Yes", "No") == "Yes")
+		if(tgui_alert(src, "Вы уверены, что хотите немного поспать?", "Сон", list("Да", "Нет")) == "Да" && !QDELETED(src))
 			SetSleeping(400) //Short nap
+			voluntary_sleep_until = world.time + 400
 
 /mob/proc/get_contents()
 
@@ -703,7 +767,7 @@
 		clear_fullscreen("brute")
 
 //Proc used to resuscitate a mob, for full_heal see fully_heal()
-/mob/living/proc/revive(full_heal = FALSE, admin_revive = FALSE, excess_healing = 0)
+/mob/living/proc/revive(full_heal = FALSE, admin_revive = FALSE, excess_healing = 0, post_revive_effects = FALSE)
 	SEND_SIGNAL(src, COMSIG_LIVING_REVIVE, full_heal, admin_revive)
 	if(excess_healing)
 		adjustOxyLoss(-excess_healing, updating_health = FALSE)
@@ -724,6 +788,10 @@
 		update_sight()
 		clear_alert("not_enough_oxy")
 		reload_fullscreen()
+		if(post_revive_effects) // Эффект вспышки, спутанности и помутнённого зрения после возвращения с того света
+			adjust_blurriness(20)
+			Dizzy(20)
+			flash_act(override_blindness_check = 1, override_protection = 1, visual = 1, duration = rand(12, 15))
 		. = TRUE
 		if(excess_healing)
 			INVOKE_ASYNC(src, PROC_REF(emote), "gasp")
@@ -766,7 +834,7 @@
 	cure_blind()
 	cure_husk()
 	hallucination = 0
-	heal_overall_damage(INFINITY, INFINITY, INFINITY, FALSE, FALSE, TRUE) //heal brute and burn dmg on both organic and robotic limbs, and update health right away.
+	heal_overall_damage(INFINITY, INFINITY, INFINITY, FALSE, FALSE, TRUE, forced = admin_revive) //heal brute and burn dmg on both organic and robotic limbs, and update health right away.
 	ExtinguishMob()
 	fire_stacks = 0
 	confused = 0
@@ -791,9 +859,9 @@
 
 /mob/living/Crossed(atom/movable/AM)
 	. = ..()
-	for(var/i in get_equipped_items())
-		var/obj/item/item = i
-		SEND_SIGNAL(item, COMSIG_ITEM_WEARERCROSSED, AM)
+	for(var/obj/item/worn in contents)
+		if((worn.item_flags & IN_INVENTORY) && !(worn in held_items))
+			SEND_SIGNAL(worn, COMSIG_ITEM_WEARERCROSSED, AM)
 
 /mob/living/proc/makeTrail(turf/target_turf, turf/start, direction)
 	if(!has_gravity() || !isturf(start) || !blood_volume)
@@ -1019,7 +1087,7 @@
 			else
 				throw_alert("gravity", /atom/movable/screen/alert/highgravity)
 	else
-		update_flight_alert()
+		throw_alert("gravity", /atom/movable/screen/alert/weightless)
 	if(!override && !is_flying())
 		float(!has_gravity)
 
@@ -1131,9 +1199,10 @@
 
 /// Helper proc that causes the mob to do a jittering animation by jitter_amount.
 /mob/living/proc/do_jitter_animation(jitter_amount = 100)
-	var/amplitude = min(4, (jitter_amount / 100) + 1)
+	// Целая амплитуда: каждая новая пара pixel_w/pixel_z - запись в таблице аппирансов у каждого зрителя до конца сессии
+	var/amplitude = round(min(4, (jitter_amount / 100) + 1))
 	var/pixel_w_diff = rand(-amplitude, amplitude)
-	var/pixel_z_diff = rand(-amplitude / 3, amplitude / 3)
+	var/pixel_z_diff = rand(-round(amplitude / 3), round(amplitude / 3))
 	animate(src, pixel_w = pixel_w_diff, pixel_z = pixel_z_diff , time = 0.2 SECONDS, loop = 6, flags = ANIMATION_RELATIVE|ANIMATION_PARALLEL)
 	animate(pixel_w = -pixel_w_diff , pixel_z = -pixel_z_diff , time = 0.2 SECONDS, flags = ANIMATION_RELATIVE)
 
@@ -1197,7 +1266,7 @@
 		if(!silent)
 			to_chat(src, "<span class='warning'>Вы слишком далеко!</span>")
 		return FALSE
-	if(!no_dextery)
+	if(!no_dextery && !IsAdvancedToolUser()) // BLUEMOON EDIT - раньше проверка была инвертирована и отсекала вообще всех без флага NO_DEXTERY
 		if(!silent)
 			to_chat(src, "<span class='warning'>У тебя не хватит ловкости, чтобы сделать это!</span>")
 		return FALSE
@@ -1279,6 +1348,7 @@
 	apply_effect((amount*RAD_MOB_COEFFICIENT)/max(1, (radiation**2)*RAD_OVERDOSE_REDUCTION), EFFECT_IRRADIATE, blocked)
 
 /mob/living/anti_magic_check(magic = TRUE, holy = FALSE, chargecost = 1, self = FALSE)
+	// Старые вызовы сохраняют порядок аргументов; новые используют check_magic_resistance.
 	. = ..()
 	if(.)
 		return
@@ -1361,7 +1431,7 @@
 	..()
 
 /mob/living/can_be_pulled()
-	return ..() && !(buckled && buckled.buckle_prevents_pull)
+	return ..() && !(buckled && buckled.buckle_prevents_pull) && !HAS_TRAIT(src, TRAIT_UNPULLABLE)
 
 /mob/living/proc/AddAbility(obj/effect/proc_holder/A)
 	abilities.Add(A)
@@ -1381,7 +1451,9 @@
 		L[++L.len] = list("[A.panel]",A.get_panel_text(),A.name,"[REF(A)]")
 	return L
 
-/mob/living/lingcheck()
+/mob/living/lingcheck(mob/speaker)
+	if(speaker && speaker.training_origin != training_origin)
+		return LINGHIVE_NONE
 	if(mind)
 		var/datum/antagonist/changeling/changeling = mind.has_antag_datum(/datum/antagonist/changeling)
 		if(changeling)
@@ -1532,7 +1604,10 @@
 		setFireLoss(round(fire_loss - fire_healing, DAMAGE_PRECISION), updating_health=TRUE, forced=TRUE)
 		healing_amount = max(0, healing_amount - fire_healing)
 
-	revive(FALSE, FALSE, excess_healing=max(healing_amount, 0)) // and any excess healing is passed along
+	if(revive(FALSE, FALSE, excess_healing=max(healing_amount, 0)))
+		grab_ghost()
+		mind?.forget_death(DEATH_FORGETFULNESS_REASON_STRANGE_REAGENT)
+		mind?.revival_handle_memory("strange reagent")
 
 /**
  * Called to give mob buff to surg. operations
@@ -1597,10 +1672,7 @@
 	return PAIN_NO
 
 /mob/living/has_pain(obj/item/bodypart/limb)
-	// Труп боли не чувствует. Гейт стоит именно здесь, потому что через has_pain()
-	// проходят все реакции тела на лечение (костный гель, вправление вывиха, наложение
-	// раны): без него мёртвому телу капал стамина-урон и уходили болевые эмоуты с
-	// сообщениями "вы чувствуете боль" - в чат уже отыгравшему смерть игроку.
+	// Через has_pain() идут все болевые реакции тела на лечение - трупу они не положены
 	if(stat == DEAD)
 		return PAIN_NO
 	if(HAS_TRAIT(src, TRAIT_ROBOTIC_ORGANISM) || HAS_TRAIT(src, TRAIT_PAINKILLER))

@@ -49,7 +49,7 @@
 /obj/machinery/duct,
 /obj/effect/decal/cleanable/dirt,
 /obj/effect/decal/cleanable/dirt,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/MimicResrch)
 "dD" = (
 /obj/structure/lattice/catwalk,
@@ -157,7 +157,7 @@
 /area/ruin/space/has_grav/MimicResrch)
 "it" = (
 /obj/machinery/shower/directional/east,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/MimicResrch)
 "iv" = (
 /obj/effect/turf_decal/siding/wood{
@@ -226,7 +226,7 @@
 /area/ruin/space/has_grav/MimicResrch)
 "lo" = (
 /obj/machinery/duct,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/MimicResrch)
 "lz" = (
 /obj/effect/turf_decal/tile/purple/anticorner/contrasted,
@@ -770,7 +770,7 @@
 "FX" = (
 /obj/structure/sink/directional,
 /obj/effect/decal/cleanable/dirt,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/MimicResrch)
 "Gc" = (
 /obj/structure/chair/office,
@@ -824,7 +824,7 @@
 	},
 /obj/effect/decal/cleanable/dirt,
 /obj/effect/decal/cleanable/cobweb/cobweb2,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/MimicResrch)
 "HO" = (
 /obj/structure/table/reinforced,
@@ -851,17 +851,13 @@
 "Is" = (
 /obj/machinery/duct,
 /obj/machinery/light/small/directional/north,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/MimicResrch)
 "Iw" = (
 /obj/effect/decal/cleanable/dirt,
 /obj/effect/turf_decal/tile/purple/opposingcorners,
 /turf/open/floor/bluespace,
 /area/ruin/space/has_grav/MimicResrch)
-"IC" = (
-/obj/effect/spawner/structure/window/plastitanium,
-/turf/open/floor/plating,
-/area/space)
 "IH" = (
 /obj/machinery/power/supermatter_crystal/shard,
 /obj/structure/closet/crate/radiation,
@@ -882,7 +878,7 @@
 /area/ruin/space/has_grav/MimicResrch)
 "JN" = (
 /obj/effect/decal/cleanable/dirt,
-/turf/open/pool,
+/turf/open/pool/water,
 /area/ruin/space/has_grav/MimicResrch)
 "Kc" = (
 /obj/machinery/door/airlock/maintenance{
@@ -1206,9 +1202,6 @@
 /obj/machinery/door/airlock/wood/glass,
 /turf/open/floor/plating,
 /area/ruin/space/has_grav/MimicResrch)
-"ZJ" = (
-/turf/open/space/basic,
-/area/space)
 "ZM" = (
 /turf/closed/mineral/snowmountain/cavern,
 /area/space)
@@ -1394,9 +1387,9 @@ ZM
 ZM
 xE
 xE
-ZJ
-ZJ
-ZJ
+ZM
+ZM
+ZM
 xE
 xE
 xE
@@ -1415,9 +1408,9 @@ ZM
 ZM
 xS
 ZM
-ZJ
-ZJ
-ZJ
+ZM
+ZM
+ZM
 xE
 xE
 xE
@@ -1433,9 +1426,9 @@ xE
 xE
 xE
 xE
-ZJ
-ZJ
-ZJ
+ZM
+ZM
+ZM
 xE
 xE
 xE
@@ -1453,8 +1446,8 @@ ZM
 ZM
 xS
 ZM
-ZJ
-ZJ
+ZM
+ZM
 xE
 xE
 xE
@@ -1472,7 +1465,7 @@ xE
 xE
 xE
 xE
-ZJ
+ZM
 xE
 xE
 xE
@@ -1491,17 +1484,17 @@ ZM
 ZM
 xS
 ZM
-ZJ
+ZM
 xE
 xE
 xE
 xE
 ya
-IC
-IC
-IC
-IC
-IC
+yp
+yp
+yp
+yp
+yp
 ya
 ya
 ya

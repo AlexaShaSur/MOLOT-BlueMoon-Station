@@ -24,8 +24,13 @@
 	atmos_requirements = list("min_oxy" = 5, "max_oxy" = 0, "min_tox" = 0, "max_tox" = 1, "min_co2" = 0, "max_co2" = 5, "min_n2" = 0, "max_n2" = 0)
 	unsuitable_atmos_damage = 15
 	speak_emote = list("yarrs")
-	loot = list(/obj/effect/mob_spawn/human/corpse/pirate,
-			/obj/item/melee/transforming/energy/sword/pirate)
+	random_loot = list(
+		/obj/item/clothing/shoes/combat/swat/knife = 15,
+		/obj/item/melee/transforming/energy/sword/pirate = 5,
+		/obj/item/broken/pirate_sword = 40,
+		/obj/item/clothing/under/syndicate = 15,
+		null = 25
+	)
 	del_on_death = 1
 	faction = list("pirate")
 
@@ -120,6 +125,13 @@
 	speak_emote = list("yarrs")
 	del_on_death = 1
 	faction = list("pirate")
+	random_loot = list(
+		/obj/item/clothing/shoes/combat/swat/knife = 15,
+		/obj/item/melee/transforming/energy/sword/pirate = 5,
+		/obj/item/broken/pirate_sword = 40,
+		/obj/item/clothing/under/syndicate = 15,
+		null = 25
+	)
 
 /mob/living/simple_animal/hostile/pirate/contrabandist/ranger1
 	name = "A gun Contrabandist"
@@ -132,6 +144,7 @@
 	rapid_fire_delay = 4
 	retreat_distance = 3
 	minimum_distance = 2
+	ranged_cooldown_time = 40
 	casingtype = /obj/item/ammo_casing/c45/lethal
 
 /mob/living/simple_animal/hostile/pirate/contrabandist/ranger2
@@ -145,6 +158,7 @@
 	rapid_fire_delay = 7
 	retreat_distance = 2
 	minimum_distance = 1
+	ranged_cooldown_time = 65
 	casingtype = /obj/item/ammo_casing/shotgun/buckshot
 
 /mob/living/simple_animal/hostile/pirate/contrabandist/ranger3
@@ -158,6 +172,7 @@
 	rapid_fire_delay = 8
 	retreat_distance = 3
 	minimum_distance = 2
+	ranged_cooldown_time = 35
 	casingtype = /obj/item/ammo_casing/c45/lethal
 
 /mob/living/simple_animal/hostile/pirate/contrabandist/ranger4
@@ -168,10 +183,17 @@
 	projectilesound = 'sound/weapons/Gunshot2.ogg'
 	ranged = 12
 	rapid = 1
-	rapid_fire_delay = 12
+	ranged_cooldown_time = 75
 	retreat_distance = 3
 	minimum_distance = 6
 	casingtype = /obj/item/ammo_casing/a308
+	random_loot = list(
+		/obj/item/clothing/shoes/combat/swat/knife = 15,
+		/obj/item/clothing/under/syndicate = 15,
+		/obj/item/gun/ballistic/automatic/m1garand = 5,
+		/obj/item/broken/m1garand = 30,
+		null = 35
+	)
 
 /mob/living/simple_animal/hostile/pirate/contrabandist/leader
 	name = "Contrabandist leader"
@@ -199,7 +221,8 @@
 	projectilesound = 'sound/weapons/rifleshot.ogg'
 	ranged = 7
 	rapid = 9
-	rapid_fire_delay = 5
+	rapid_fire_delay = 10
+	ranged_cooldown_time = 80
 	retreat_distance = 2
 	minimum_distance = 2
 	casingtype = /obj/item/ammo_casing/a762
@@ -208,3 +231,10 @@
 	speak_emote = list("yarrs")
 	del_on_death = 1
 	faction = list("pirate")
+	random_loot = list(
+		/obj/item/clothing/shoes/combat/swat/knife = 15,
+		/obj/item/clothing/under/syndicate = 15,
+		/obj/item/gun/ballistic/automatic/ak47/homemade = 5,
+		/obj/item/broken/homemadeak = 30,
+		null = 35
+	)

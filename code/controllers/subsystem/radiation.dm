@@ -4,6 +4,8 @@ PROCESSING_SUBSYSTEM_DEF(radiation)
 	wait = 1 SECONDS
 
 	var/list/warned_atoms = list()
+	/// Живые волны: в processing лежат и компоненты заражения, поэтому кап считает волны отдельно.
+	var/active_waves = 0
 
 /datum/controller/subsystem/processing/radiation/proc/warn(datum/component/radioactive/contamination)
 	if(!contamination || QDELETED(contamination))
@@ -14,5 +16,5 @@ PROCESSING_SUBSYSTEM_DEF(radiation)
 	warned_atoms[ref] = TRUE
 	var/atom/master = contamination.parent
 	SSblackbox.record_feedback("tally", "contaminated", 1, master.type)
-	var/msg = "has become contaminated with enough radiation to contaminate other objects. || Source: [contamination.source] || Strength: [contamination.strength]"
+	var/msg = "has become contaminated with enough radiation to contaminate other objects. || Source: [contamination.source_name] || Strength: [contamination.strength]"
 	master.investigate_log(msg, INVESTIGATE_RADIATION)

@@ -162,9 +162,9 @@
 		. += "[t_on] носит на своих ушах [ears.get_examine_string(user)]."
 	if(ears_extra && !(ITEM_SLOT_EARS_RIGHT in obscured))
 		. += "[t_on] носит на своих ушах [ears_extra.get_examine_string(user)]."
-	//wearing two ear items makes you look like an idiot
-	if((istype(ears, /obj/item/radio/headset) && !(ITEM_SLOT_EARS_LEFT in obscured)) && (istype(ears_extra, /obj/item/radio/headset) && !(ITEM_SLOT_EARS_RIGHT in obscured)))
-		. += "<span class='warning'>[t_on] выглядит очень глупо ввиду того, что на [t_ego] голове находятся \an [ears.name] и \an [ears_extra.name] одновременно.</span>"
+	// //wearing two ear items makes you look like an idiot
+	// if((istype(ears, /obj/item/radio/headset) && !(ITEM_SLOT_EARS_LEFT in obscured)) && (istype(ears_extra, /obj/item/radio/headset) && !(ITEM_SLOT_EARS_RIGHT in obscured)))
+	// 	. += "<span class='warning'>[t_on] выглядит очень глупо ввиду того, что на [t_ego] голове находятся \an [ears.name] и \an [ears_extra.name] одновременно.</span>"
 
 	//ID
 	if(wear_id && !(wear_id.item_flags & EXAMINE_SKIP))
@@ -185,7 +185,8 @@
 				. += dicc.get_examine_string(user)
 				if((src == user || HAS_TRAIT(user, TRAIT_GFLUID_DETECT)) && ((dicc?.genital_flags & GENITAL_FUID_PRODUCTION) || ((dicc?.linked_organ?.genital_flags & GENITAL_FUID_PRODUCTION) && !dicc?.linked_organ?.is_exposed())))
 					var/datum/reagent/cummies = find_reagent_object_from_type(dicc?.get_fluid_id())
-					. += "Вы чувствуете, как от [t_ego] тела пахнет <b>'<span style='color:[cummies.color]';>[cummies.name]</span>'</b>..."
+					if(cummies)
+						. += "Вы чувствуете, как от [t_ego] тела пахнет <b>'<span style='color:[cummies.color]';>[cummies.name]</span>'</b>..."
 	if(user.client?.prefs.cit_toggles & VORE_EXAMINE)
 		var/cursed_stuff = attempt_vr(src,"examine_bellies",args) //vore Code
 		if(cursed_stuff)
@@ -285,10 +286,15 @@ BLUEMOON - mechanical_erp_verbs_examine - REMOVAL END*/
 			// BLUEMOON ADD END
 		missing -= BP.body_zone
 		for(var/obj/item/I in BP.embedded_objects)
+			var/datum/component/embedded/embed = get_embedded_component(src, I, BP)
 			if(I.isEmbedHarmless())
-				msg += "<B>Из [t_ego] [BP.name] торчит [icon2html(I, user)] [I]!</B>\n"
+				msg += "<B>Из [t_ego] [BP.name] торчит [icon2html(I, user)] [I]!</B>"
 			else
-				msg += "<B>У н[t_ego] застрял [icon2html(I, user)] [I] в [BP.name]!</B>\n"
+				msg += "<B>У н[t_ego] застрял [icon2html(I, user)] [I] в [BP.name]!</B>"
+			// BLUEMOON ADD - любой стоящий рядом может вытащить застрявший предмет прямо из осмотра
+			if(embed?.can_be_ripped_by(user))
+				msg += " <a href='?src=[REF(src)];embedded_object=[REF(I)];embedded_limb=[REF(BP)]' class='warning'>[I.isEmbedHarmless() ? "Вы можете снять [I]!" : "Вы можете вырвать [I]!"]</a>"
+			msg += "\n"
 		for(var/i in BP.wounds)
 			var/datum/wound/iter_wound = i
 			msg += "[iter_wound.get_examine_description(user)]\n"
@@ -527,12 +533,13 @@ BLUEMOON - mechanical_erp_verbs_examine - REMOVAL END*/
 			if (HAS_TRAIT(src, TRAIT_DEAF))
 				msg += "[t_on] не реагирует на шум.\n"
 			var/datum/component/mood/mood = src.GetComponent(/datum/component/mood)
-			if(mood.sanity <= SANITY_DISTURBED)
-				msg += "[t_on] выглядит расстроено.\n"
-				SEND_SIGNAL(user, COMSIG_ADD_MOOD_EVENT, "empath", /datum/mood_event/sad_empath, src)
-			if(mood.shown_mood >= 6) //So roundstart people aren't all "happy" and that antags don't show their true happiness.
-				msg += "[t_on] выглядит счастливо.\n"
-				SEND_SIGNAL(user, COMSIG_ADD_MOOD_EVENT, "empathH", /datum/mood_event/happy_empath, src)
+			if(mood)
+				if(mood.sanity <= SANITY_DISTURBED)
+					msg += "[t_on] выглядит расстроено.\n"
+					SEND_SIGNAL(user, COMSIG_ADD_MOOD_EVENT, "empath", /datum/mood_event/sad_empath, src)
+				if(mood.shown_mood >= 6) //So roundstart people aren't all "happy" and that antags don't show their true happiness.
+					msg += "[t_on] выглядит счастливо.\n"
+					SEND_SIGNAL(user, COMSIG_ADD_MOOD_EVENT, "empathH", /datum/mood_event/happy_empath, src)
 
 		switch(stat)
 			if(UNCONSCIOUS)
@@ -580,7 +587,7 @@ BLUEMOON - mechanical_erp_verbs_examine - REMOVAL END*/
 		if(istype(H.glasses, /obj/item/clothing/glasses/hud) || CIH)
 			var/perpname = get_face_name(get_id_name(""))
 			if(perpname)
-				var/datum/data/record/R = GLOB.data_core.general_by_name[perpname]
+				var/datum/data/record/R = antag_training_station_record(GLOB.data_core.general_by_name, perpname, src)
 				if(R)
 					var/rank_tooltip = ""
 					if(R.fields["real_rank"] && R.fields["rank"] != R.fields["real_rank"])
@@ -599,7 +606,7 @@ BLUEMOON - mechanical_erp_verbs_examine - REMOVAL END*/
 						. += "<a href='?src=[REF(src)];hud=m;p_stat=1'>\[[health_r]\]</a>"
 						health_r = R.fields["m_stat"]
 						. += "<a href='?src=[REF(src)];hud=m;m_stat=1'>\[[health_r]\]</a>"
-					R = GLOB.data_core.medical_by_name[perpname]
+					R = antag_training_station_record(GLOB.data_core.medical_by_name, perpname, src)
 					if(R)
 						. += "<a href='?src=[REF(src)];hud=m;evaluation=1'>\[Medical evaluation\]</a>"
 					traitstring = get_trait_string(FALSE, TRUE)
@@ -613,7 +620,7 @@ BLUEMOON - mechanical_erp_verbs_examine - REMOVAL END*/
 					//|| !user.canmove || user.restrained()) Fluff: Sechuds have eye-tracking technology and sets 'arrest' to people that the wearer looks and blinks at.
 						var/criminal = "None"
 
-						R = GLOB.data_core.security_by_name[perpname]
+						R = antag_training_station_record(GLOB.data_core.security_by_name, perpname, src)
 						if(R)
 							criminal = R.fields["criminal"]
 

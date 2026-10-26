@@ -10,11 +10,12 @@
 	slowdown = 1
 	actions_types = list(/datum/action/item_action/toggle_mister)
 	max_integrity = 200
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 0, RAD = 0, FIRE = 100, ACID = 30)
+	armor_type = /datum/armor/fireproof_tools_and_weapons
 	resistance_flags = FIRE_PROOF
 
 	var/obj/item/noz
 	var/volume = 500
+	var/in_modsuit = FALSE
 
 /obj/item/watertank/Initialize(mapload)
 	. = ..()
@@ -25,7 +26,7 @@
 	toggle_mister(user)
 
 /obj/item/watertank/item_action_slot_check(slot, mob/user, datum/action/A)
-	if(slot == user.getBackSlot())
+	if(slot == user.getBackSlot() || in_modsuit)
 		return TRUE
 
 /obj/item/watertank/proc/toggle_mister(mob/living/user)
@@ -58,7 +59,7 @@
 
 /obj/item/watertank/equipped(mob/user, slot)
 	..()
-	if(slot != ITEM_SLOT_BACK)
+	if(slot != ITEM_SLOT_BACK && !in_modsuit)
 		remove_noz()
 
 /obj/item/watertank/proc/remove_noz()
@@ -241,7 +242,7 @@
 
 
 /obj/item/extinguisher/mini/nozzle/doMove(atom/destination)
-	if(!tank)
+	if(!tank || tank.in_modsuit)
 		return ..()
 	if(destination && (destination != tank.loc || !ismob(destination)))
 		if(loc != tank && tank.loc)

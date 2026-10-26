@@ -11,7 +11,7 @@
 		if(A.attachable)
 			return TRUE
 
-/atom/proc/attempt_wire_interaction(mob/user)
+/atom/movable/proc/attempt_wire_interaction(mob/user)
 	if(!wires)
 		return WIRE_INTERACTION_FAIL
 	if(!user.CanReach(src))
@@ -42,7 +42,8 @@
 		CRASH("Wire holder is not of the expected type!")
 
 	src.holder = holder
-	if(randomize)
+	// Собранное на полигоне не учит раскладке проводов раунда.
+	if(randomize || in_antag_training())
 		randomize()
 	else
 		if(!GLOB.wire_color_directory[holder_type])
@@ -51,6 +52,14 @@
 			GLOB.wire_name_directory[holder_type] = proper_name
 		else
 			colors = GLOB.wire_color_directory[holder_type]
+
+/datum/wires/proc/in_antag_training()
+	if(!length(GLOB.antag_training_arenas))
+		return FALSE
+	var/atom/movable/movable_holder = holder
+	if(istype(movable_holder) && movable_holder.training_origin)
+		return TRUE
+	return istype(get_area(holder), /area/antag_training)
 
 /datum/wires/Destroy()
 	holder = null

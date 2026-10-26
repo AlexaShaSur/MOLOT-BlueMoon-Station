@@ -55,13 +55,9 @@
 	layer = NECK_LAYER
 	plane = FLOAT_PLANE
 
-	if (islist(cloth.armor) || isnull(cloth.armor)) 										// This proc can run before /obj/Initialize has run for cloth and src,
-		cloth.armor = getArmor(arglist(cloth.armor))	// we have to check that the armor list has been transformed into a datum before we try to call a proc on it
-																					// This is safe to do as /obj/Initialize only handles setting up the datum if actually needed.
-	if (islist(armor) || isnull(armor))
-		armor = getArmor(arglist(armor))
-
-	cloth.armor = cloth.armor.attachArmor(armor)
+	cloth.initialize_armor()
+	initialize_armor()
+	cloth.normal_set_armor(cloth.armor.attachArmor(armor))
 
 	if(isliving(user))
 		on_uniform_equip(cloth, user)
@@ -73,7 +69,7 @@
 		TakeComponent(detached_pockets)
 
 	if(cloth.armor && armor)
-		cloth.armor = cloth.armor.detachArmor(armor)
+		cloth.normal_set_armor(cloth.armor.detachArmor(armor))
 	//SANDSTORM EDIT
 	current_uniform = null
 	//SANDSTORM EDIT END
@@ -335,6 +331,60 @@
 	item_state = "sleevecrop"
 	minimize_when_attached = FALSE
 
+/obj/item/clothing/accessory/hippads
+	name = "adjustable hip pads"
+	desc = "Регулируемые накладки на бёдра, которые можно набить ватой, увеличивая их размер."
+	icon = 'modular_bluemoon/icons/mob/clothing/hip_pads.dmi'
+	mob_overlay_icon = 'modular_bluemoon/icons/mob/clothing/hip_pads.dmi'
+	icon_state = "hips"
+	item_state = ""
+	body_parts_covered = NONE
+	alternate_worn_layer = GENITALS_EXPOSED_LAYER
+	mutantrace_variation = STYLE_DIGITIGRADE|STYLE_NO_ANTHRO_ICON
+	var/polychromic = TRUE
+	var/hipsize = 1
+
+/obj/item/clothing/accessory/hippads/ComponentInitialize()
+	. = ..()
+	if(polychromic)
+		AddElement(/datum/element/polychromic, list("#ffffff"), 1)
+
+/obj/item/clothing/accessory/hippads/attackby(obj/item/A, mob/user, params, show_msg = TRUE)
+	if(!istype(A, /obj/item/stack/sheet/cotton))
+		return FALSE
+	if(hipsize >= 8)
+		to_chat(user, "<span class='notice'>\the [src] уже полностью набиты ватой!</span>")
+		return FALSE
+	var/obj/item/stack/sheet/cotton/cotton = A
+	to_chat(user, "<span class='notice'>Вы набиваете [cotton] внутрь \the [src]!</span>")
+	cotton.use(1)
+	hipsize++
+	update_icon()
+	return TRUE
+
+/obj/item/clothing/accessory/hippads/AltClick(mob/user)
+	if(hipsize <= 1)
+		to_chat(user, "<span class='notice'>Внутри \the [src] больше нет ваты!</span>")
+		return
+	var/obj/item/stack/sheet/cotton/cotton = new /obj/item/stack/sheet/cotton
+	cotton.amount = 1
+	user.put_in_hands(cotton)
+	hipsize--
+	update_icon()
+	to_chat(user, "<span class='notice'>Вы достаёте кусок ваты из \the [src].</span>")
+
+/obj/item/clothing/accessory/hippads/update_icon_state()
+	. = ..()
+	icon_state = "[initial(icon_state)]_[hipsize || 0]"
+
+/obj/item/storage/box/hippads
+	name = "adjustable hip pads box"
+	desc = "Регулируемые накладки на бёдра, которые можно набить ватой, увеличивая их размер. В комплект входят сами накладки и дополнительная вата."
+
+/obj/item/storage/box/hippads/PopulateContents()
+	new /obj/item/clothing/accessory/hippads(src)
+	new /obj/item/stack/sheet/cotton/ten(src)
+
 //////////
 //Medals//
 //////////
@@ -479,7 +529,7 @@
 /obj/item/clothing/accessory/medal/gold/captain/family
 	name = "old medal of captaincy"
 	desc = "A rustic badge pure gold, has been through hell and back by the looks, the syndcate have been after these by the looks of it for generations..."
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 0, RAD = 0, FIRE = 0, ACID = 10) //Pure gold
+	armor_type = /datum/armor/family
 	custom_materials = list(/datum/material/gold=2000)
 	icon_state = "gold_c"
 
@@ -493,7 +543,7 @@
 	desc = "An eccentric medal made of plasma."
 	icon_state = "plasma"
 	medaltype = "medal-plasma"
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 0, RAD = 0, FIRE = -10, ACID = 0) //It's made of plasma. Of course it's flammable.
+	armor_type = /datum/armor/accessorie_plasma
 	custom_materials = list(/datum/material/plasma=1000)
 
 /obj/item/clothing/accessory/medal/plasma/temperature_expose(datum/gas_mixture/air, exposed_temperature, exposed_volume)
@@ -506,6 +556,12 @@
 	name = "nobel sciences award"
 	desc = "A plasma medal which represents significant contributions to the field of science or engineering."
 	icon_state = "plasma_b"
+
+/obj/item/clothing/accessory/medal/pawlicker
+	name = "Paw medal"
+	desc = "За любовь к лапам"
+	icon_state = "paw"
+	medaltype = "medal"
 
 ////////////
 //Armbands//
@@ -615,7 +671,7 @@
 	name = "bone talisman"
 	desc = "A hunter's talisman, some say the old gods smile on those who wear it."
 	icon_state = "talisman"
-	armor = list(MELEE = 5, BULLET = 5, LASER = 0, ENERGY = 0, BOMB = 10, BIO = 20, RAD = 5, FIRE = 0, ACID = 25)
+	armor_type = /datum/armor/skullcodpiece_and_talisman
 	restricted_accessory = TRUE // BLUEMOON EDIT - изменение аксессуаров
 
 /obj/item/clothing/accessory/skullcodpiece
@@ -623,7 +679,7 @@
 	desc = "A skull shaped ornament, intended to protect the important things in life."
 	icon_state = "skull"
 	above_suit = TRUE
-	armor = list(MELEE = 5, BULLET = 5, LASER = 0, ENERGY = 0, BOMB = 10, BIO = 20, RAD = 5, FIRE = 0, ACID = 25)
+	armor_type = /datum/armor/skullcodpiece_and_talisman
 	restricted_accessory = TRUE // BLUEMOON EDIT - изменение аксессуаров
 
 /obj/item/clothing/accessory/skullcodpiece/fake
@@ -631,7 +687,7 @@
 	desc = "A plastic ornament, intended to protect the important things in life. It's not very good at it."
 	icon_state = "skull"
 	above_suit = TRUE
-	armor = list(MELEE = 0, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 0, BIO = 0, RAD = 0, FIRE = 0, ACID = 0)
+	armor_type = /datum/armor/none
 	restricted_accessory = TRUE // BLUEMOON EDIT - изменение аксессуаров
 
 /////////////////////
@@ -642,7 +698,7 @@
 	name = "protective padding"
 	desc = "A soft padding meant to cushion the wearer from melee harm."
 	icon_state = "padding"
-	armor = list(MELEE = 10, BULLET = 0, LASER = 0, ENERGY = 0, BOMB = 5, BIO = 0, RAD = 0, FIRE = -20, ACID = 45) // BLUEMOON CHANGE нёрф защиты в два раза
+	armor_type = /datum/armor/padding // BLUEMOON CHANGE нёрф защиты в два раза
 	flags_inv = HIDEACCESSORY //hidden from indiscrete mob examines.
 	restricted_accessory = TRUE // BLUEMOON EDIT - изменение аксессуаров
 
@@ -650,7 +706,7 @@
 	name = "kevlar padding"
 	desc = "A layered kevlar padding meant to cushion the wearer from ballistic harm."
 	icon_state = "padding"
-	armor = list(MELEE = 0, BULLET = 10, LASER = 0, ENERGY = 0, BOMB = 10, BIO = 0, RAD = 0, FIRE = 0, ACID = 25) // BLUEMOON CHANGE нёрф защиты в два раза
+	armor_type = /datum/armor/kevlar // BLUEMOON CHANGE нёрф защиты в два раза
 	flags_inv = HIDEACCESSORY
 	restricted_accessory = TRUE // BLUEMOON EDIT - изменение аксессуаров
 
@@ -658,7 +714,7 @@
 	name = "ablative padding"
 	desc = "A thin ultra-refractory composite padding meant to cushion the wearer from energy lasers harm."
 	icon_state = "plastics"
-	armor = list(MELEE = 5, BULLET = 0, LASER = 10, ENERGY = 10, BOMB = 0, BIO = 0, RAD = 0, FIRE = 20, ACID = -40) // BLUEMOON CHANGE нёрф защиты в два раза
+	armor_type = /datum/armor/plastics // BLUEMOON CHANGE нёрф защиты в два раза
 	flags_inv = HIDEACCESSORY
 	restricted_accessory = TRUE // BLUEMOON EDIT - изменение аксессуаров
 

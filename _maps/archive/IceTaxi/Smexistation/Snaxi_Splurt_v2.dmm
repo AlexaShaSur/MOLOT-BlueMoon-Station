@@ -9170,9 +9170,6 @@
 /turf/open/floor/plasteel/white,
 /area/commons/dorms)
 "cYA" = (
-/obj/machinery/pool/filter{
-	pixel_y = -18
-	},
 /obj/structure/cable/yellow{
 	icon_state = "1-4"
 	},
@@ -13758,7 +13755,6 @@
 /turf/open/floor/engine,
 /area/engineering/atmospherics_engine)
 "exJ" = (
-/obj/machinery/pool/controller,
 /obj/machinery/atmospherics/pipe/simple/scrubbers/hidden/layer4{
 	dir = 5
 	},
@@ -14659,9 +14655,6 @@
 	icon_state = "2-8"
 	},
 /obj/machinery/power/apc/auto_name/north,
-/obj/structure/cable{
-	icon_state = "2-8"
-	},
 /obj/structure/cable{
 	icon_state = "0-2"
 	},
@@ -21506,9 +21499,6 @@
 /turf/open/floor/plating,
 /area/maintenance/aft)
 "hlR" = (
-/obj/machinery/pool/filter{
-	pixel_y = 24
-	},
 /turf/open/pool,
 /area/commons/fitness/pool)
 "hlW" = (
@@ -23570,7 +23560,6 @@
 /turf/open/floor/wood,
 /area/command/blueshieldoffice)
 "hWT" = (
-/obj/machinery/pool/drain,
 /turf/open/pool,
 /area/commons/fitness/pool)
 "hXi" = (
@@ -27086,7 +27075,7 @@
 	},
 /area/maintenance/department/security)
 "jiR" = (
-/obj/machinery/mineral/equipment_vendor,
+/obj/machinery/equipment_vendor,
 /obj/effect/turf_decal/tile/purple,
 /obj/effect/turf_decal/tile/purple{
 	dir = 4
@@ -27450,9 +27439,6 @@
 	dir = 4
 	},
 /obj/structure/fans/tiny,
-/obj/structure/cable/yellow{
-	icon_state = "4-8"
-	},
 /turf/open/floor/plasteel/dark,
 /area/construction)
 "jqP" = (
@@ -36272,9 +36258,6 @@
 /obj/structure/cable{
 	icon_state = "4-8"
 	},
-/obj/structure/cable{
-	icon_state = "4-8"
-	},
 /turf/open/floor/plating,
 /area/maintenance/bar)
 "miJ" = (
@@ -37968,9 +37951,6 @@
 /turf/open/floor/plasteel,
 /area/mine/eva)
 "mNA" = (
-/obj/structure/cable{
-	icon_state = "4-8"
-	},
 /obj/structure/cable{
 	icon_state = "4-8"
 	},
@@ -53188,7 +53168,7 @@
 /turf/open/floor/plasteel,
 /area/hallway/secondary/entry)
 "rVv" = (
-/obj/machinery/mineral/equipment_vendor,
+/obj/machinery/equipment_vendor,
 /obj/effect/turf_decal/tile/brown{
 	dir = 1
 	},
@@ -54528,9 +54508,6 @@
 /turf/open/floor/plasteel,
 /area/engineering/atmos)
 "svw" = (
-/obj/structure/cable{
-	icon_state = "4-8"
-	},
 /obj/structure/cable{
 	icon_state = "4-8"
 	},
@@ -58956,7 +58933,7 @@
 /turf/open/floor/plasteel,
 /area/science/robotics/mechbay)
 "tSl" = (
-/obj/machinery/mineral/equipment_vendor,
+/obj/machinery/equipment_vendor,
 /turf/open/floor/plasteel,
 /area/mine/production)
 "tSs" = (
@@ -61364,7 +61341,7 @@
 /turf/open/floor/plasteel,
 /area/hallway/secondary/entry)
 "uIc" = (
-/obj/machinery/mineral/equipment_vendor,
+/obj/machinery/equipment_vendor,
 /obj/structure/disposalpipe/segment{
 	dir = 4
 	},
@@ -66455,7 +66432,6 @@
 /turf/open/floor/engine/vacuum,
 /area/maintenance/disposal/incinerator)
 "wvl" = (
-/obj/machinery/pool/drain,
 /obj/item/fuel_rod/material,
 /turf/open/pool,
 /area/engineering/main/reactor_core)
@@ -67417,7 +67393,6 @@
 /turf/open/floor/plasteel,
 /area/hallway/primary/central)
 "wNw" = (
-/obj/machinery/pool/controller,
 /obj/structure/cable/yellow{
 	icon_state = "4-8"
 	},
@@ -71793,9 +71768,6 @@
 	dir = 4
 	},
 /obj/structure/fans/tiny,
-/obj/structure/cable/yellow{
-	icon_state = "4-8"
-	},
 /turf/open/floor/plasteel/dark,
 /area/construction)
 

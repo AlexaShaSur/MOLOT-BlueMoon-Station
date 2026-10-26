@@ -10,7 +10,7 @@
 	level = 1		// underfloor
 	layer = WIRE_TERMINAL_LAYER
 	max_integrity = 500
-	armor = list(MELEE = 70, BULLET = 70, LASER = 70, ENERGY = 70, BOMB = 0, BIO = 0, RAD = 0, FIRE = 80, ACID = 80)
+	armor_type = /datum/armor/navbeacon
 
 	var/open = FALSE		// true if cover is open
 	var/locked = TRUE		// true if controls are locked
@@ -29,7 +29,7 @@
 	glob_lists_register(init=TRUE)
 
 	var/turf/T = loc
-	hide(T.intact)
+	hide(T.turf_flags & TURF_INTACT)
 
 /obj/machinery/navbeacon/Destroy()
 	glob_lists_deregister()
@@ -99,7 +99,7 @@
 
 /obj/machinery/navbeacon/attackby(obj/item/I, mob/user, params)
 	var/turf/T = loc
-	if(T.intact)
+	if(T.turf_flags & TURF_INTACT)
 		return		// prevent intraction when T-scanner revealed
 
 	if(I.tool_behaviour == TOOL_SCREWDRIVER)
@@ -132,7 +132,7 @@
 	. = ..()
 	var/ai = isAI(user)
 	var/turf/T = loc
-	if(T.intact)
+	if(T.turf_flags & TURF_INTACT)
 		return		// prevent intraction when T-scanner revealed
 
 	if(!open && !ai)	// can't alter controls if not open, unless you're an AI

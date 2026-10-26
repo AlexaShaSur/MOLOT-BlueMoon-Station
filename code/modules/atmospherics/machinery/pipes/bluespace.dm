@@ -55,12 +55,12 @@ GLOBAL_LIST_EMPTY(bluespace_pipe_networks)
 	var/turf/T = loc
 	if(isnull(T))
 		return
-	if(level == 2 || !T.intact)
+	if(level == 2 || !(T.turf_flags & TURF_INTACT))
 		showpipe = TRUE
-		plane = GAME_PLANE
+		SET_PLANE_IMPLICIT(src, GAME_PLANE)
 	else
 		showpipe = FALSE
-		plane = FLOOR_PLANE
+		SET_PLANE_IMPLICIT(src, FLOOR_PLANE)
 
 	if(!showpipe)
 		return //no need to update the pipes if they aren't showing

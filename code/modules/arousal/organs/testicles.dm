@@ -16,6 +16,7 @@
 	var/size_name = "average"
 	shape = DEF_BALLS_SHAPE
 	fluid_id = /datum/reagent/consumable/semen
+	fluid_max_volume = BALLS_VOLUME_BASE
 	masturbation_verb = "massage"
 	layer_index = TESTICLES_LAYER_INDEX
 
@@ -58,6 +59,12 @@
 			lovershape = "два семенника [size_name] размера."
 		if("sheath")
 			lovershape = "два семенника [size_name] размера и генитальные ножны повыше."
+		if("pede_plated")
+			lovershape = "два семенника [size_name] размера и ножны, прикрытые хитиновыми пластинами."
+		if("pede_plated_pair")
+			lovershape = "два семенника [size_name] размера в хитиновых пластинах."
+		if("pede_slit")
+			lovershape = "сомкнутую генитальную щель между хитиновыми пластинами, за которой угадываются два семенника [size_name] размера."
 		else
 			lovershape = "пустоту где вы могли ожидать Яйца"
 
@@ -93,6 +100,10 @@
 	size = D.features["balls_size"]
 	fluid_rate = D.features["balls_cum_rate"]
 	fluid_mult = D.features["balls_cum_mult"]
+	if(D.features["balls_cum_max"])
+		fluid_max_volume = D.features["balls_cum_max"]
+	else if(size)
+		fluid_max_volume = initial(fluid_max_volume) * size * (owner ? get_size(owner) : 1)
 	fluid_efficiency = D.features["balls_efficiency"]
 	toggle_visibility(D.features["balls_visibility"], FALSE)
 	if(D.features["balls_stuffing"])

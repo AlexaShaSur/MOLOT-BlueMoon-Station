@@ -72,8 +72,7 @@
 		playlewdinteractionsound(get_turf(src), pick('modular_sand/sound/interactions/bang4.ogg',
 							'modular_sand/sound/interactions/bang5.ogg',
 							'modular_sand/sound/interactions/bang6.ogg'), 70, 1, -1)
-		if(!HAS_TRAIT(user, TRAIT_LEWD_JOB))
-			new /obj/effect/temp_visual/heart(user.loc)
+		user.try_play_interaction_effect()
 
 
 	else if(user.a_intent == INTENT_HARM)
@@ -577,7 +576,7 @@
 														'modular_sand/sound/interactions/bang5.ogg',
 														'modular_sand/sound/interactions/bang6.ogg'), 70, 1, -1)
 				if(BODY_ZONE_PRECISE_MOUTH, BODY_ZONE_R_ARM, BODY_ZONE_L_ARM, BODY_ZONE_R_LEG, BODY_ZONE_L_LEG)
-					playlewdinteractionsound(get_turf(src), 'modular_sand/sound/interactions/champ_fingering.ogg', 50, 1, -1)
+					playlewdinteractionsound(get_turf(src), 'modular_sand/sound/lewd/champ_fingering.ogg', 50, 1, -1)
 
 			to_chat(portal_target, "<span class='lewd'>Кто-то использует сопряжённый <b>'[name]'</b>, этот кто-то [target_message].</span>")
 
@@ -662,7 +661,7 @@
 			// BLUEMOON EDIT END
 				portal_target.do_jitter_animation() //make your partner shake too!
 			// BLUEMOON ADD: Chain interactions - notify other connected fleshlights
-			if(portalunderwear?.portallight?.len > 1)
+			if(portalunderwear && portalunderwear.portallight.len > 1)
 				for(var/obj/item/portallight/other_fleshlight in portalunderwear.portallight)
 					if(other_fleshlight == src)
 						continue  // Skip self
@@ -982,7 +981,7 @@
 		deleted = loc
 	forceMove(get_turf(loc))
 	dropped(deleted) // Act like we've been dropped
-	plane = initial(plane)
+	RESET_PLANE_EXPLICIT(src, src)
 	layer = initial(layer)
 	update_portal()
 

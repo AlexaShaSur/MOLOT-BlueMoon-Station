@@ -41,12 +41,21 @@
 
 	WRITE_FILE(.["custom_verb_consent"], custom_verb_consent)
 
+	WRITE_FILE(.["show_heart_over_self"], show_heart_over_self)
+	WRITE_FILE(.["interaction_effect"], interaction_effect)
+	WRITE_FILE(.["block_partner_pixel_shift"], block_partner_pixel_shift)
+	WRITE_FILE(.["panel_tab_toggles"], panel_tab_toggles)
+	WRITE_FILE(.["dynamic_window_size"], dynamic_window_size)
+	WRITE_FILE(.["compact_custom_tab"], compact_custom_tab)
+
 	WRITE_FILE(.["use_arousal_multiplier"],	use_arousal_multiplier)
 	WRITE_FILE(.["arousal_multiplier"],		arousal_multiplier)
 	WRITE_FILE(.["use_moaning_multiplier"],	use_moaning_multiplier)
 	WRITE_FILE(.["moaning_multiplier"],		moaning_multiplier)
+	// Кастомные стоны сохраняются в слоте персонажа (character[slot]), см. bluemoon_character_pref_save.
 	// Bluemoon prefs root (must run last вЂ” СЃРј. modular_bluemoon/preferences_savefile.dm)
 	WRITE_FILE(.["favorite_tracks"], favorite_tracks)
+	WRITE_FILE(.["favorite_hair_styles"], favorite_hair_styles)
 	WRITE_FILE(.["playlists"], playlists)
 	WRITE_FILE(.["favorite_paintings_md5"], favorite_paintings_md5)
 	WRITE_FILE(.["metadollar_minute_pool"], metadollar_minute_pool)
@@ -67,7 +76,7 @@
 	favorite_interactions = SANITIZE_LIST(favorite_interactions)
 
 	for(var/interaction in favorite_interactions)
-		if(findtext(interaction, CUSTOM_INTERACTION_PREFIX) == 1)
+		if(findtext(interaction, CUSTOM_INTERACTION_PREFIX))
 			continue
 		var/datum/interaction/interaction_path = ispath(interaction) ? interaction : text2path(interaction)
 		if(!interaction_path)
@@ -80,12 +89,30 @@
 	.["custom_verb_consent"] >> custom_verb_consent
 	custom_verb_consent = sanitize_integer(custom_verb_consent, 0, 1, TRUE)
 
+	.["show_heart_over_self"] >> show_heart_over_self
+	show_heart_over_self = sanitize_integer(show_heart_over_self, 0, 1, initial(show_heart_over_self))
+
+	.["interaction_effect"] >> interaction_effect
+	if(!(interaction_effect in GLOB.interaction_effects_list))
+		interaction_effect = initial(interaction_effect)
+	.["block_partner_pixel_shift"] >> block_partner_pixel_shift
+	block_partner_pixel_shift = sanitize_integer(block_partner_pixel_shift, 0, 1, initial(block_partner_pixel_shift))
+
+	.["panel_tab_toggles"] >> panel_tab_toggles
+	panel_tab_toggles = sanitize_integer(panel_tab_toggles, 0, ALL_INTERACTION_MENU_TABS, initial(panel_tab_toggles))
+	.["dynamic_window_size"] >> dynamic_window_size
+	dynamic_window_size = sanitize_integer(dynamic_window_size, 0, 1, initial(dynamic_window_size))
+	.["compact_custom_tab"] >> compact_custom_tab
+	compact_custom_tab = sanitize_integer(compact_custom_tab, 0, 1, initial(compact_custom_tab))
+
 	use_arousal_multiplier = sanitize_integer(use_arousal_multiplier, 0, 1, initial(use_arousal_multiplier))
 	arousal_multiplier = sanitize_integer(arousal_multiplier, 0, 300, initial(arousal_multiplier))
 	use_moaning_multiplier = sanitize_integer(use_moaning_multiplier, 0, 1, initial(use_moaning_multiplier))
 	moaning_multiplier = sanitize_integer(moaning_multiplier, 0, 100, initial(moaning_multiplier))
 	.["favorite_tracks"] >> favorite_tracks
 	favorite_tracks = sanitize_jukebox_track_list(favorite_tracks)
+	.["favorite_hair_styles"] >> favorite_hair_styles
+	favorite_hair_styles = sanitize_hair_style_favorites(favorite_hair_styles)
 	.["favorite_paintings_md5"] >> favorite_paintings_md5
 	favorite_paintings_md5 = SANITIZE_LIST(favorite_paintings_md5)
 	.["playlists"] >> playlists

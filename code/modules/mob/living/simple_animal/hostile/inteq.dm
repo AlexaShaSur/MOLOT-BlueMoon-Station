@@ -12,6 +12,7 @@
 /mob/living/simple_animal/hostile/inteq
 	name = "InteQ Operative"
 	desc = "Смерть Nanotrasen и Синдикату!"
+	gold_core_spawnable = HOSTILE_SPAWN
 	icon = 'icons/mob/simple_human.dmi'
 	icon_state = "syndicate"
 	icon_living = "syndicate"
@@ -79,8 +80,17 @@
 	icon_state = "syndicate_knife"
 	icon_living = "syndicate_knife"
 	loot = list(/obj/effect/gibspawner/human)
-	attack_verb_continuous = "slashes"
-	attack_verb_simple = "slash"
+	random_loot = list(
+		/obj/item/inteq_sledgehammer = 1,
+		/obj/item/broken/inteq_sledgehammer = 44,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/suit/armor/inteq = 5,
+		/obj/item/clothing/head/helmet/swat/inteq = 5,
+		null = 40   // ничего не выпадает
+	)
+	attack_verb_continuous = "smashes"
+	attack_verb_simple = "smash"
 	attack_sound = 'modular_bluemoon/kovac_shitcode/sound/weapons/sledge.ogg'
 	status_flags = 0
 
@@ -94,6 +104,15 @@
 	minbodytemp = 0
 	speed = 1
 	spacewalk = TRUE
+	random_loot = list(
+		/obj/item/inteq_sledgehammer = 1,
+		/obj/item/broken/inteq_sledgehammer = 44,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/head/helmet/space/syndicate/inteq = 5,
+		/obj/item/clothing/suit/space/syndicate/inteq = 5,
+		null = 40   // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/melee/space/Initialize(mapload)
 	. = ..()
@@ -105,6 +124,15 @@
 	name = "InteQ Stormtrooper"
 	maxHealth = 250
 	health = 250
+	random_loot = list(
+		/obj/item/inteq_sledgehammer = 1,
+		/obj/item/broken/inteq_sledgehammer = 44,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/suit/space/hardsuit/syndi/elite/inteq = 5,
+		/obj/item/broken/inteq_elite = 35,
+		null = 10   // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/melee/sword
 	melee_damage_lower = 30
@@ -118,6 +146,16 @@
 	light_color = LIGHT_COLOR_RED
 	status_flags = 0
 	var/obj/effect/light_emitter/red_energy_sword/sord
+	random_loot = list(
+		/obj/item/broken/dualsaber = 15,
+		/obj/item/melee/transforming/energy/sword/saber = 5,
+		/obj/item/broken/energy_sword = 40,
+		/obj/item/clothing/under/inteq = 5,
+		/obj/item/clothing/mask/gas/inteq = 5,
+		/obj/item/clothing/suit/armor/inteq = 5,
+		/obj/item/clothing/head/helmet/swat/inteq = 5,
+		null = 20   // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/melee/sword/Initialize(mapload)
 	. = ..()
@@ -143,6 +181,16 @@
 	minbodytemp = 0
 	speed = 1
 	spacewalk = TRUE
+	random_loot = list(
+		/obj/item/broken/dualsaber = 15,
+		/obj/item/melee/transforming/energy/sword/saber = 5,
+		/obj/item/broken/energy_sword = 40,
+		/obj/item/clothing/under/inteq = 5,
+		/obj/item/clothing/mask/gas/inteq = 5,
+		/obj/item/clothing/head/helmet/space/syndicate/inteq = 5,
+		/obj/item/clothing/suit/space/syndicate/inteq = 5,
+		null = 20   // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/melee/sword/space/Initialize(mapload)
 	. = ..()
@@ -159,6 +207,16 @@
 	name = "InteQ Stormtrooper"
 	maxHealth = 250
 	health = 250
+	random_loot = list(
+		/obj/item/broken/dualsaber = 15,
+		/obj/item/melee/transforming/energy/sword/saber = 5,
+		/obj/item/broken/energy_sword = 20,
+		/obj/item/clothing/under/inteq = 5,
+		/obj/item/clothing/mask/gas/inteq = 5,
+		/obj/item/clothing/suit/space/hardsuit/syndi/elite/inteq = 5,
+		/obj/item/broken/inteq_elite = 35,
+		null = 10   // ничего не выпадает
+	)
 
 ///////////////Guns////////////
 
@@ -173,6 +231,16 @@
 	loot = list(/obj/effect/gibspawner/human)
 	dodging = FALSE
 	rapid_melee = 1
+	random_loot = list(
+		/obj/item/gun/ballistic/automatic/pistol = 5,
+		/obj/item/broken/makarov = 30,
+		/obj/item/ammo_box/magazine/m10mm = 10,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/suit/armor/inteq = 5,
+		/obj/item/clothing/head/helmet/swat/inteq = 5,
+		null = 30 // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/ranged/infiltrator //shuttle loan event / GateInteQ
 	projectilesound = 'sound/weapons/gunshot_silenced.ogg'
@@ -188,6 +256,16 @@
 	minbodytemp = 0
 	speed = 1
 	spacewalk = TRUE
+	random_loot = list(
+		/obj/item/gun/ballistic/automatic/pistol = 5,
+		/obj/item/broken/makarov = 30,
+		/obj/item/ammo_box/magazine/m10mm = 10,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/head/helmet/space/syndicate/inteq = 5,
+		/obj/item/clothing/suit/space/syndicate/inteq = 5,
+		null = 30 // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/ranged/space/Initialize(mapload)
 	. = ..()
@@ -199,6 +277,16 @@
 	name = "InteQ Stormtrooper"
 	maxHealth = 250
 	health = 250
+	random_loot = list(
+		/obj/item/gun/ballistic/automatic/pistol = 5,
+		/obj/item/broken/makarov = 10,
+		/obj/item/ammo_box/magazine/m10mm = 10,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/suit/space/hardsuit/syndi/elite/inteq = 5,
+		/obj/item/broken/inteq_elite = 35,
+		null = 10 // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/ranged/smg
 	rapid = 2
@@ -206,6 +294,16 @@
 	icon_living = "syndicate_smg"
 	casingtype = /obj/item/ammo_casing/c45/lethal
 	projectilesound = 'sound/weapons/gunshot_smg.ogg'
+	random_loot = list(
+		/obj/item/broken/c20r = 35,
+		/obj/item/ammo_box/magazine/smgm45 = 10,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/suit/armor/inteq = 5,
+		/obj/item/clothing/head/helmet/swat/inteq = 5,
+		null = 20 // ничего не выпадает
+	)
+
 
 /mob/living/simple_animal/hostile/inteq/ranged/smg/pilot
 	name = "InteQ Salvage Pilot"
@@ -221,6 +319,15 @@
 	minbodytemp = 0
 	speed = 1
 	spacewalk = TRUE
+	random_loot = list(
+		/obj/item/broken/c20r = 35,
+		/obj/item/ammo_box/magazine/smgm45 = 10,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/head/helmet/space/syndicate/inteq = 5,
+		/obj/item/clothing/suit/space/syndicate/inteq = 5,
+		null = 20 // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/ranged/smg/space/Initialize(mapload)
 	. = ..()
@@ -232,6 +339,15 @@
 	name = "InteQ Stormtrooper"
 	maxHealth = 250
 	health = 250
+	random_loot = list(
+		/obj/item/broken/c20r = 15,
+		/obj/item/ammo_box/magazine/smgm45 = 10,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/suit/space/hardsuit/syndi/elite/inteq = 5,
+		/obj/item/broken/inteq_elite = 35,
+		null = 10 // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/ranged/shotgun
 	rapid = 2
@@ -240,6 +356,15 @@
 	icon_state = "syndicate_shotgun"
 	icon_living = "syndicate_shotgun"
 	casingtype = /obj/item/ammo_casing/shotgun/buckshot //buckshot (up to 72.5 brute) fired in a two-round burst
+	random_loot = list(
+		/obj/item/broken/bulldog = 35,
+		/obj/item/ammo_box/magazine/m12g = 10,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/suit/armor/inteq = 5,
+		/obj/item/clothing/head/helmet/swat/inteq = 5,
+		null = 20 // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/ranged/shotgun/space
 	icon_state = "syndicate_space_shotgun"
@@ -251,6 +376,15 @@
 	minbodytemp = 0
 	speed = 1
 	spacewalk = TRUE
+	random_loot = list(
+		/obj/item/broken/bulldog = 35,
+		/obj/item/ammo_box/magazine/m12g = 10,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/head/helmet/space/syndicate/inteq = 5,
+		/obj/item/clothing/suit/space/syndicate/inteq = 5,
+		null = 20 // ничего не выпадает
+	)
 
 /mob/living/simple_animal/hostile/inteq/ranged/shotgun/space/Initialize(mapload)
 	. = ..()
@@ -262,6 +396,15 @@
 	name = "InteQ Stormtrooper"
 	maxHealth = 250
 	health = 250
+	random_loot = list(
+		/obj/item/broken/bulldog = 15,
+		/obj/item/ammo_box/magazine/m12g = 10,
+		/obj/item/clothing/under/inteq = 15,
+		/obj/item/clothing/mask/gas/inteq = 10,
+		/obj/item/clothing/suit/space/hardsuit/syndi/elite/inteq = 5,
+		/obj/item/broken/inteq_elite = 35,
+		null = 10 // ничего не выпадает
+	)
 
 ///////////////Misc////////////
 

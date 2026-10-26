@@ -6,7 +6,7 @@
 	icon_state = "chronohelmet"
 	item_state = "chronohelmet"
 	slowdown = 0
-	armor = list("melee" = 60, "bullet" = 60, "laser" = 60, "energy" = 60, "bomb" = 30, "bio" = 100, "rad" = 100, "fire" = 100, "acid" = 100)
+	armor_type = /datum/armor/head_helmet_space_spacesuit_chronos
 	resistance_flags = FIRE_PROOF | ACID_PROOF
 	var/obj/item/clothing/suit/space/chronos/suit = null
 
@@ -27,10 +27,11 @@
 	icon_state = "chronosuit"
 	item_state = "chronosuit"
 	actions_types = list(/datum/action/item_action/toggle)
-	armor = list("melee" = 60, "bullet" = 60, "laser" = 60, "energy" = 60, "bomb" = 30, "bio" = 100, "rad" = 100, "fire" = 100, "acid" = 1000)
+	armor_type = /datum/armor/suit_space_spacesuit_chronos
 	resistance_flags = FIRE_PROOF | ACID_PROOF
 	mutantrace_variation = STYLE_DIGITIGRADE
 	slowdown = 0
+	brc_mitigation_bonus = 20  // BLUEMOON ADD
 	var/list/chronosafe_items = list(/obj/item/chrono_eraser, /obj/item/gun/energy/chrono_gun)
 	var/obj/item/clothing/head/helmet/space/chronos/helmet = null
 	var/obj/effect/chronos_cam/camera = null
@@ -68,9 +69,20 @@
 		else
 			deactivate()
 
+/obj/item/clothing/suit/space/chronos/equipped(mob/user, slot)  // BLUEMOON ADD
+	. = ..()
+	if(slot == ITEM_SLOT_OCLOTHING && brc_mitigation_bonus > 0 && isliving(user))
+		user.brc_mitigation += brc_mitigation_bonus
+		brc_worn = TRUE
+
 /obj/item/clothing/suit/space/chronos/dropped(mob/user)
 	if(activated)
 		deactivate()
+	// BLUEMOON ADD START
+	if(brc_worn && isliving(user))
+		user.brc_mitigation = max(0, user.brc_mitigation - brc_mitigation_bonus)
+		brc_worn = FALSE
+	// BLUEMOON ADD END
 	..()
 
 /obj/item/clothing/suit/space/chronos/emp_act(severity)

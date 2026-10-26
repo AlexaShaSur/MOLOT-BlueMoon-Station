@@ -457,7 +457,7 @@
 		scanning = get_step(scanning, scandir)
 		if(!scanning)
 			break
-		if(scanning.opacity || scanning.has_opaque_atom)
+		if(scanning.opacity || (scanning.lighting_flags & TURF_HAS_OPAQUE_ATOM))
 			stop = TRUE
 		var/obj/effect/abstract/eye_lighting/L = LAZYACCESS(eye_lighting, i)
 		if(!L)
@@ -519,6 +519,15 @@
 	parent = loc
 	if(!istype(parent))
 		return INITIALIZE_HINT_QDEL
+
+/obj/effect/abstract/eye_lighting/Destroy()
+	if(parent)
+		if(parent.eye_lighting)
+			parent.eye_lighting -= src
+		if(parent.on_mob == src)
+			parent.on_mob = null
+		parent = null
+	return ..()
 
 /obj/item/organ/eyes/insect
 	name = "insect eyes"

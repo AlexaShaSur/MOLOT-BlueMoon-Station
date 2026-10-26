@@ -1,4 +1,6 @@
 #define LUNGS_MAX_HEALTH 300
+#define NITROUS_SLEEP_EXTENSION_THRESHOLD (20 SECONDS)
+#define NITROUS_SLEEP_EXTENSION_DURATION (10 SECONDS)
 
 /obj/item/organ/lungs
 	name = "lungs"
@@ -39,7 +41,7 @@
 	var/list/gas_max = list(
 		GAS_CO2 = 30, // Yes it's an arbitrary value who cares?
 		GAS_METHYL_BROMIDE = 1,
-		GAS_PLASMA = MOLES_GAS_VISIBLE
+		GAS_PLASMA = (MOLES_GAS_VISIBLE * 2)
 	)
 	var/list/gas_damage = list(
 		"default" = list(
@@ -274,10 +276,12 @@
 
 		var/SA_pp = PP(breath, GAS_NITROUS)
 		if(SA_pp > SA_para_min) // Enough to make us stunned for a bit
-			H.Unconscious(60) // 60 gives them one second to wake up and run away a bit!
+			H.Unconscious(6 SECONDS) // 60 gives them one second to wake up and run away a bit!
 			if(SA_pp > SA_sleep_min) // Enough to make us sleep as well
-				H.Sleeping(max(H.AmountSleeping() + 100, 400)) // BLUEMOON EDIT, WAS H.Sleeping(max(H.AmountSleeping() + 40, 400)) - сервак лагает и под анестезией просыпаются
-		else if(SA_pp > 0.01)	// There is sleeping gas in their lungs, but only a little, so give them a bit of a warning
+				H.voluntary_sleep_until = 0 // Наркоз заменяет добровольный сон.
+				if(H.AmountSleeping() <= NITROUS_SLEEP_EXTENSION_THRESHOLD)
+					H.AdjustSleeping(NITROUS_SLEEP_EXTENSION_DURATION)
+		else if(SA_pp > 0.25)	// There is sleeping gas in their lungs, but only a little, so give them a bit of a warning
 			if(prob(20))
 				H.emote(pick("giggle", "laugh"))
 				SEND_SIGNAL(owner, COMSIG_ADD_MOOD_EVENT, "chemical_euphoria", /datum/mood_event/chemical_euphoria)
@@ -298,16 +302,17 @@
 
 	// Nitryl
 		var/nitryl_pp = PP(breath,GAS_NITRYL)
-		if (prob(nitryl_pp))
-			to_chat(H, "<span class='alert'>Your mouth feels like it's burning!</span>")
-		if (nitryl_pp >40)
-			H.emote("gasp")
-			H.adjustFireLoss(10)
-			if (prob(nitryl_pp/2))
-				to_chat(H, "<span class='alert'>Your throat closes up!</span>")
-				H.silent = max(H.silent, 3)
-		else
-			H.adjustFireLoss(nitryl_pp/2)
+		if(nitryl_pp > 0.0001)
+			if (prob(nitryl_pp))
+				to_chat(H, "<span class='alert'>Your mouth feels like it's burning!</span>")
+			if (nitryl_pp >40)
+				H.emote("gasp")
+				H.adjustFireLoss(10)
+				if (prob(nitryl_pp/2))
+					to_chat(H, "<span class='alert'>Your throat closes up!</span>")
+					H.silent = max(H.silent, 3)
+			else
+				H.adjustFireLoss(nitryl_pp/2)
 		gas_breathed = breath.get_moles(GAS_NITRYL)
 		if (gas_breathed > gas_stimulation_min)
 			H.reagents.add_reagent(/datum/reagent/nitryl,1)
@@ -759,3 +764,5 @@
 
 #undef PP
 #undef PP_MOLES
+#undef NITROUS_SLEEP_EXTENSION_THRESHOLD
+#undef NITROUS_SLEEP_EXTENSION_DURATION

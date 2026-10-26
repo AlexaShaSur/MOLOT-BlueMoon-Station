@@ -13,8 +13,9 @@ multiple modular subtrees with behaviors
 */
 
 /datum/ai_controller
-	///The atom this controller is controlling
-	var/atom/pawn
+	///Движимый атом, которым управляет контроллер. Не /atom: пешкой бывает моб или предмет,
+	///но никогда турф - а ai_controller живёт на /atom/movable, чтобы не стоять в каждом турфе мира.
+	var/atom/movable/pawn
 	/**
 	 * This is a list of variables the AI uses and can be mutated by actions.
 	 *
@@ -121,6 +122,7 @@ multiple modular subtrees with behaviors
 		PossessPawn(new_pawn)
 
 /datum/ai_controller/Destroy(force)
+	GLOB.ai_tactical_cache_owners -= src
 	release_ai_target_reservation()
 	release_pack_focus()
 	UnpossessPawn(FALSE)
@@ -157,7 +159,7 @@ multiple modular subtrees with behaviors
 	var/mob/mob_pawn = pawn
 	if(islava(candidate))
 		return istype(mob_pawn) && ((mob_pawn.movement_type & (FLYING | FLOATING)) || HAS_TRAIT(mob_pawn, TRAIT_LAVA_IMMUNE))
-	if(istype(candidate, /turf/open/chasm) || istype(candidate, /turf/open/openspace))
+	if(istype(candidate, /turf/open/chasm) || isopenspaceturf(candidate))
 		return istype(mob_pawn) && (mob_pawn.movement_type & (FLYING | FLOATING))
 	return isspaceturf(candidate) && can_path_through_space()
 
@@ -235,7 +237,7 @@ multiple modular subtrees with behaviors
 	return clears_obstacles_cached
 
 ///Proc to move from one pawn to another, this will destroy the target's existing controller.
-/datum/ai_controller/proc/PossessPawn(atom/new_pawn)
+/datum/ai_controller/proc/PossessPawn(atom/movable/new_pawn)
 	SHOULD_CALL_PARENT(TRUE)
 	if(pawn) //Reset any old signals
 		UnpossessPawn(FALSE)
@@ -468,11 +470,12 @@ multiple modular subtrees with behaviors
 
 /datum/ai_controller/proc/setup_able_to_run()
 	//paused_until обрабатывается вручную в PauseAi()
+	RegisterSignal(pawn, SIGNAL_TRAIT(TRAIT_AI_PAUSED), PROC_REF(update_able_to_run))
 	RegisterSignal(pawn, SIGNAL_ADDTRAIT(TRAIT_AI_PAUSED), PROC_REF(update_able_to_run))
 	RegisterSignal(pawn, SIGNAL_REMOVETRAIT(TRAIT_AI_PAUSED), PROC_REF(update_able_to_run))
 
 /datum/ai_controller/proc/clear_able_to_run()
-	UnregisterSignal(pawn, list(SIGNAL_ADDTRAIT(TRAIT_AI_PAUSED), SIGNAL_REMOVETRAIT(TRAIT_AI_PAUSED)))
+	UnregisterSignal(pawn, list(SIGNAL_TRAIT(TRAIT_AI_PAUSED), SIGNAL_ADDTRAIT(TRAIT_AI_PAUSED), SIGNAL_REMOVETRAIT(TRAIT_AI_PAUSED)))
 
 /datum/ai_controller/proc/update_able_to_run()
 	SIGNAL_HANDLER
@@ -490,6 +493,14 @@ multiple modular subtrees with behaviors
 		return AI_UNABLE_TO_RUN
 	if(world.time < paused_until)
 		return AI_UNABLE_TO_RUN
+	//Труп не бегает. Без этого гарда любой форс статуса (легаси toggle_ai(AI_ON),
+	//которым таймстоп и прочие паузы снимают заморозку) поднимает мёртвого пауна
+	//обратно в бакет ON в обход проверки stat в get_expected_ai_status(); stat у
+	//трупа больше не меняется, так что планировщик гоняет его до конца раунда.
+	if(!(ai_traits & CAN_ACT_WHILE_DEAD) && isliving(pawn))
+		var/mob/living/living_pawn = pawn
+		if(living_pawn.stat == DEAD)
+			return AI_UNABLE_TO_RUN
 	return NONE
 
 ///Runs any actions that are currently running
@@ -850,8 +861,11 @@ multiple modular subtrees with behaviors
 ///Смена stat пауна: пересчитать статус и работоспособность
 /datum/ai_controller/proc/on_stat_changed(mob/living/source, new_stat)
 	SIGNAL_HANDLER
-	reset_ai_status()
+	//able_to_run пересчитываем ПЕРВЫМ: get_expected_ai_status() читает его как
+	//готовый флаг, и со старым значением воскрешённый паун сначала уходил в OFF
+	//лишним переходом, а свежий труп - наоборот, оставался able_to_run.
 	update_able_to_run()
+	reset_ai_status()
 
 /datum/ai_controller/proc/on_sentience_gained()
 	SIGNAL_HANDLER

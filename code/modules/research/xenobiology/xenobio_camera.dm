@@ -158,7 +158,7 @@
 	var/obj/machinery/computer/camera_advanced/xenobio/X = target
 
 	if(GLOB.cameranet.checkTurfVis(remote_eye.loc))
-		for(var/mob/living/simple_animal/slime/S in X.stored_slimes)
+		for(var/mob/living/simple_animal/slime/S in X.stored_slimes.Copy())
 			S.forceMove(remote_eye.loc)
 			S.visible_message("[S] warps in!")
 			X.stored_slimes -= S
@@ -331,6 +331,17 @@
 	SEND_SIGNAL(user, COMSIG_XENO_TURF_CLICK_CTRL, src)
 	..()
 
+//Платформа лифта забирает клик у пола под собой
+/obj/structure/transport/linear/ShiftClick(mob/user)
+	if(isopenturf(loc))
+		SEND_SIGNAL(user, COMSIG_XENO_TURF_CLICK_SHIFT, loc)
+	..()
+
+/obj/structure/transport/linear/CtrlClick(mob/user)
+	if(isopenturf(loc))
+		SEND_SIGNAL(user, COMSIG_XENO_TURF_CLICK_CTRL, loc)
+	..()
+
 //Pick up monkey
 /mob/living/carbon/monkey/CtrlClick(mob/user)
 	SEND_SIGNAL(user, COMSIG_XENO_MONKEY_CLICK_CTRL, src)
@@ -394,7 +405,7 @@
 	var/obj/machinery/computer/camera_advanced/xenobio/X = E.origin
 	var/area/turfarea = get_area(T)
 	if(turfarea.name == E.allowed_area || turfarea.xenobiology_compatible)
-		for(var/mob/living/simple_animal/slime/S in X.stored_slimes)
+		for(var/mob/living/simple_animal/slime/S in X.stored_slimes.Copy())
 			S.forceMove(T)
 			S.visible_message("[S] warps in!")
 			X.stored_slimes -= S

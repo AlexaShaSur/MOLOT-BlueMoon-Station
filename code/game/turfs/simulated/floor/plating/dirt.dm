@@ -13,7 +13,7 @@
 	barefootstep = FOOTSTEP_SAND
 	clawfootstep = FOOTSTEP_SAND
 	heavyfootstep = FOOTSTEP_GENERIC_HEAVY
-	tiled_dirt = FALSE
+	turf_flags = TURF_FLAGS_FLOOR & ~(TURF_INTACT | TURF_TILED_DIRT)
 
 /turf/open/floor/plating/dirt/dark
 	icon_state = "greenerdirt"
@@ -29,3 +29,9 @@
 
 /turf/open/floor/plating/dirt/space/airless
 	initial_gas_mix = AIRLESS_ATMOS
+
+/turf/open/floor/plating/dirt/station
+	baseturfs = /turf/open/floor/plating
+	initial_gas_mix = OPENTURF_DEFAULT_ATMOS
+	planetary_atmos = FALSE
+	desc = "Upon closer examination there's plating beneath the dirt."

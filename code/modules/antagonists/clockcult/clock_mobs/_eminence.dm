@@ -49,7 +49,7 @@
 		forceMove(T)
 		Moved(OldLoc, direct)
 
-/mob/camera/eminence/Process_Spacemove(movement_dir = 0, continuous_move = FALSE)
+/mob/camera/eminence/Process_Spacemove(movement_dir = 0)
 	return TRUE
 
 /mob/camera/eminence/Login()
@@ -93,6 +93,8 @@
 	message = "<span class='big brass'><b>[GLOB.ratvar_awakens ? "Сияние" : "Епископ"]:</b> \"[message]\"</span>"
 	for(var/mob/M in servants_and_ghosts())
 		if(isobserver(M))
+			if(!antag_training_observer_hears(M, src))
+				continue
 			var/link = FOLLOW_LINK(M, src)
 			to_chat(M, "[link] [message]")
 		else

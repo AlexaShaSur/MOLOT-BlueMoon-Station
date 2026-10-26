@@ -47,6 +47,9 @@ interface CharacterProfileContext {
   extreme_tag: string;
   very_extreme_tag: string;
   tattoo_tag: string;
+  antag_opt_in: string;
+  antag_opt_in_color: string;
+  antag_opt_in_desc: string;
 }
 
 export const CharacterProfile = (props) => {
@@ -75,43 +78,43 @@ export const CharacterProfile = (props) => {
           </Flex.Item>
           <Flex.Item pl="10px" grow>
             <Collapsible title="Описание Персонажа" open>
-              <Section style={{ whiteSpace: "pre-line" }}>
-                {data.flavortext || "———"}
+              <Section>
+                <Box dangerouslySetInnerHTML={{ __html: data.flavortext || "———" }} />
               </Section>
             </Collapsible>
 
             {data.flavortext_naked ? (
                <Collapsible title="Описание Голого Тела Персонажа" open>
-                <Section style={{ whiteSpace: "pre-line" }}>
-                  {data.flavortext_naked || "———"}
+                <Section>
+                  <Box dangerouslySetInnerHTML={{ __html: data.flavortext_naked || "———" }} />
                 </Section>
                </Collapsible>
             ) : (<Box />)}
 
             {data.security_records ? (
               <Collapsible title="База Данных Службы Безопасности" open>
-                <Section style={{ whiteSpace: "pre-line" }}>
-                  {data.security_records || "———"}
+                <Section>
+                  <Box dangerouslySetInnerHTML={{ __html: data.security_records || "———" }} />
                 </Section>
               </Collapsible>
             ) : (<Box />)}
 
             {data.medical_records ? (
               <Collapsible title="База Данных Медицинского Отдела" open>
-                <Section style={{ whiteSpace: "pre-line" }}>
-                  {data.medical_records || "———"}
+                <Section>
+                  <Box dangerouslySetInnerHTML={{ __html: data.medical_records || "———" }} />
                 </Section>
               </Collapsible>
             ) : (<Box />)}
 
             <Collapsible title={`Раса - ${data.species_name}`} open>
-              <Section style={{ whiteSpace: "pre-line" }}>
-                {data.custom_species_lore || "———"}
+              <Section>
+                <Box dangerouslySetInnerHTML={{ __html: data.custom_species_lore || "———" }} />
               </Section>
             </Collapsible>
             <Collapsible title="Внеигровые заметки" open>
-              <Section style={{ whiteSpace: "pre-line" }}>
-                {data.oocnotes || "———"}
+              <Section>
+                <Box dangerouslySetInnerHTML={{ __html: data.oocnotes || "———" }} />
               </Section>
             </Collapsible>
             <Section title="Предпочтения персонажа" width="100%">
@@ -124,6 +127,11 @@ export const CharacterProfile = (props) => {
                     <Tooltip content={tag.name}>{tag.value}</Tooltip>
                   </LabeledList.Item>
                 ))}
+                <LabeledList.Item
+                  color={data.antag_opt_in_color}
+                  label="Задания антагов">
+                  <Tooltip content={data.antag_opt_in_desc}>{data.antag_opt_in}</Tooltip>
+                </LabeledList.Item>
               </LabeledList>
             </Section>
           </Flex.Item>

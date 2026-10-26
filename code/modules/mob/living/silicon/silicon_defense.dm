@@ -115,6 +115,7 @@
 	flash_act(affect_silicon = 1)
 
 /mob/living/silicon/bullet_act(obj/item/projectile/P, def_zone, piercing_hit = FALSE)
+	SEND_SIGNAL(src, COMSIG_ATOM_BULLET_ACT, P, def_zone)
 	var/totaldamage = P.damage
 	if(P.original != src || P.firer != src) //try to block or reflect the bullet, can't do so when shooting oneself
 		var/list/returnlist = list()
@@ -138,6 +139,6 @@
 	P.on_hit(src, 0, def_zone, 0, piercing_hit)
 	return BULLET_ACT_HIT
 
-/mob/living/silicon/flash_act(intensity = 1, override_blindness_check = 0, affect_silicon = 0, visual = 0, type = /atom/movable/screen/fullscreen/tiled/flash/static)
+/mob/living/silicon/flash_act(intensity = 1, override_blindness_check = 0, affect_silicon = 0, visual = 0, type = /atom/movable/screen/fullscreen/tiled/flash/static, override_protection = 0, duration = 25)
 	if(affect_silicon)
 		return ..()

@@ -203,6 +203,8 @@
 	return TRUE
 
 /datum/component/personal_crafting/proc/construct_item(atom/a, datum/crafting_recipe/R)
+	if(!ispath(R?.result))
+		return ", invalid recipe."
 	var/list/contents = get_surroundings(a)
 	var/send_feedback = 1
 	if(check_contents(a, R, contents))
@@ -497,7 +499,7 @@
 
 				if (istype(result, /obj/item/grenade/iedcasing) || istype(result, /obj/item/reagent_containers/food/drinks/bottle/molotov))
 					var/client/client = user.client
-					if (CONFIG_GET(flag/use_exp_tracking) && client && client.get_exp_living(TRUE) < 480) // Player with less than 8 hours playtime is making an IED or molotov cocktail. АХАХААХА
+					if (CONFIG_GET(flag/use_exp_tracking) && client && client.get_exp_living(TRUE) < 480 && !is_antag_training_atom(user)) // Player with less than 8 hours playtime is making an IED or molotov cocktail. АХАХААХА
 						if(client.next_ied_grief_warning < world.time)
 							var/turf/T = get_turf(user)
 							client.next_ied_grief_warning = world.time + 15 MINUTES // Wait 15 minutes before alerting admins again

@@ -134,6 +134,10 @@
 
 #define FIREDOOR_OPEN 1
 #define FIREDOOR_CLOSED 2
+// Ручное открытие сохраняет свой приоритет и после текущей анимации.
+#define FIREDOOR_OPEN_MANUAL 3
+// Ручное закрытие обходит блокировку автоматики и после текущей анимации.
+#define FIREDOOR_CLOSED_MANUAL 4
 
 
 
@@ -199,3 +203,6 @@
 #define CONVEYOR_BACKWARDS -1
 #define CONVEYOR_OFF 0
 #define CONVEYOR_FORWARD 1
+
+#define STATUS_DISPLAY_LIGHT_RANGE 1.4
+#define STATUS_DISPLAY_LIGHT_POWER 0.7

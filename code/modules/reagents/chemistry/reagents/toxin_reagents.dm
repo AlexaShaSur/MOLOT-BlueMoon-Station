@@ -93,7 +93,7 @@
 /datum/reagent/toxin/plasma/reaction_turf(turf/open/T, reac_volume)
 	if(istype(T))
 		var/temp = holder ? holder.chem_temp : T20C
-		T.atmos_spawn_air("plasma=[reac_volume];TEMP=[temp]")
+		T.atmos_spawn_air("plasma=[reac_volume/2];TEMP=[temp]")
 	return
 
 /datum/reagent/toxin/plasma/reaction_mob(mob/living/M, method=TOUCH, reac_volume, affected_bodypart)//Splashing people with plasma is stronger than fuel!
@@ -536,7 +536,7 @@
 	color = "#64916E"
 	metabolization_rate = 0.5 * REAGENTS_METABOLISM
 	toxpwr = 0
-	overdose_threshold = 5
+	overdose_threshold = 6
 	var/static/list/overdose_phrases = list(
 		"Я не могу дышать",
 		"Они убьют меня. Они убьют меня",
@@ -828,15 +828,17 @@
 
 			var/rotation = min(round(current_cycle/20), 89) // By this point the player is probably puking and quitting anyway
 			for(var/key in pm_controller.controlled_planes)
-				animate(pm_controller.controlled_planes[key], transform = matrix(rotation, MATRIX_ROTATE), time = 5, easing = QUAD_EASING, loop = -1)
-				animate(transform = matrix(-rotation, MATRIX_ROTATE), time = 5, easing = QUAD_EASING)
+				var/atom/movable/screen/plane_master/plane = pm_controller.controlled_planes[key]
+				animate(plane, transform = plane.compose_transform(matrix(rotation, MATRIX_ROTATE)), time = 5, easing = QUAD_EASING, loop = -1)
+				animate(transform = plane.compose_transform(matrix(-rotation, MATRIX_ROTATE)), time = 5, easing = QUAD_EASING)
 	return ..()
 
 /datum/reagent/toxin/rotatium/on_mob_end_metabolize(mob/living/M)
 	if(M?.hud_used)
 		var/atom/movable/plane_master_controller/pm_controller = M.hud_used.plane_master_controllers[PLANE_MASTERS_GAME]
 		for(var/key in pm_controller.controlled_planes)
-			animate(pm_controller.controlled_planes[key], transform = matrix(), time = 5, easing = QUAD_EASING)
+			var/atom/movable/screen/plane_master/plane = pm_controller.controlled_planes[key]
+			animate(plane, transform = plane.compose_transform(matrix()), time = 5, easing = QUAD_EASING)
 	..()
 
 /datum/reagent/toxin/skewium
@@ -873,7 +875,7 @@
 
 /datum/reagent/toxin/skewium/on_mob_end_metabolize(mob/living/M)
 	if(M && M.hud_used)
-		var/list/screens = list(M.hud_used.plane_masters["[FLOOR_PLANE]"], M.hud_used.plane_masters["[GAME_PLANE]"], M.hud_used.plane_masters["[LIGHTING_PLANE]"])
+		var/list/screens = list(M.hud_used.get_game_screen_plate())
 		for(var/whole_screen in screens)
 			animate(whole_screen, transform = matrix(), time = 5, easing = QUAD_EASING)
 	..()

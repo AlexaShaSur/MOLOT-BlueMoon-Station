@@ -6,7 +6,6 @@
 	req_access = list(ACCESS_BAR)
 	max_integrity = 500
 	integrity_failure = 0.5
-	armor = list(MELEE = 20, BULLET = 20, LASER = 20, ENERGY = 100, BOMB = 0, BIO = 0, RAD = 0, FIRE = 50, ACID = 50)
 	buildable_sign = 0
 	var/list/barsigns=list()
 	var/panel_open = FALSE
@@ -125,6 +124,21 @@
 	if(!picked_name)
 		return
 	set_sign(picked_name)
+
+/obj/structure/sign/barsign/syndicate
+	desc = "A bar sign. Made in Syndicate."
+
+/obj/structure/sign/barsign/syndicate/Initialize(mapload)
+	. = ..()
+	var/datum/barsign/hiddensigns/syndibarsign/syndie_sign = locate() in barsigns
+	if(!syndie_sign)
+		syndie_sign = new
+		barsigns += syndie_sign
+	var/datum/barsign/cindikate/cindisign = locate() in barsigns
+	if(!cindisign)
+		cindisign = new
+		barsigns += cindisign
+	set_sign(pick(syndie_sign, cindisign))
 
 //Code below is to define useless variables for datums. It errors without these
 

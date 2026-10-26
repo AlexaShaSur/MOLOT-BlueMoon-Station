@@ -16,14 +16,26 @@
 
 	// Config actually from the JSON - should default to Box
 	var/map_name = "Box Station"
-	var/map_path = "map_files/BoxStation"
+	var/map_path = "map_files/BoxStations"
 	var/map_file = "BoxStation.dmm"
 	/// Persistence key: Defaults to ckey(map_name). If set to "NO_PERSIST", this map will have NO persistence.
 	var/persistence_key
 
 	var/traits = null
-	var/space_ruin_levels = 7
+	/// Сколько z-уровней отводится под космические руины. Сам по себе пустой уровень 255x255
+	/// стоит недорого - замерено 9-13 МБ адресного пространства, а не 68, как считалось раньше:
+	/// нетронутый космический турф весит единицы байт, потому что BYOND платит только за
+	/// ЗАПИСАННЫЕ переменные инстанса, а /turf/open/space/basic вообще пропускает Initialize.
+	/// Деньги лежат не в уровнях, а в их СОДЕРЖИМОМ: 50 руин при SPACE_BUDGET = 50 стоят
+	/// около 280 МБ (5.6 МБ за руину). При этом снижение самого space_ruin_levels бюджет руин
+	/// НЕ уменьшает - в отличие от tg, seedRuins берёт SPACE_BUDGET как есть, и руины просто
+	/// плотнее укладываются на оставшиеся уровни. Рабочий рычаг здесь ровно один - SPACE_BUDGET.
+	/// У 32-битного DreamDaemon потолок около 4090 МБ, раунд стартует с 65-86% от него в
+	/// зависимости от карты. Карта может переопределить ключом space_ruin_levels в своём JSON.
+	var/space_ruin_levels = 5
 	var/space_empty_levels = 1
+	/// Имя набора объявленных секторов космоса (sector_set у /datum/space_sector). null - космос целиком случайный.
+	var/space_sector_set = null
 	// BLUEMOON EDIT START: Invalid Space Turfs
 	/// Boolean that tells us if this is a planetary station. (like IceBoxStation)
 	var/planetary = FALSE
@@ -35,6 +47,8 @@
 	var/maptype = MAP_TYPE_STATION //This should be used to adjust ingame behavior depending on the specific type of map being played. For instance, if an overmap were added, it'd be appropriate for it to only generate with a MAP_TYPE_SHIP
 
 	var/allow_custom_shuttles = TRUE
+	/// Коробки выживания экипажа получают аварийный крюк: карта из нескольких станционных этажей с провалами между ними.
+	var/give_players_hooks = FALSE
 	var/shuttles = list(
 		"cargo" = "cargo_box",
 		"ferry" = "ferry_fancy",
@@ -43,6 +57,9 @@
 		"emergency" = "emergency_box")
 
 	var/year_offset = 540 //The offset of ingame year from the actual IRL year. You know you want to make a map that takes place in the 90's. Don't lie.
+
+	/// Лист для вариаций карты, если у нас есть несколько вариантов, BoxStation/SyndicateBoxStation как пример, для чтения по JSON
+	var/list/map_variants
 
 	// "fun things"
 	/// Orientation to load in by default.
@@ -105,6 +122,18 @@
 
 	map_file = json["map_file"]
 
+	if("map_variants" in json)
+		if(!islist(json["map_variants"])) // очень важно, чтобы варианты были списком из нескольких вариантов, иначе смысла в этой переменной нет
+			log_world("map_variants is not a list!") // в т.ч. нам не нужно, чтобы карта хранила саму себя в списке вариантов, если она одна
+			return
+
+		map_variants = list()
+		for(var/variant_path in json["map_variants"])
+			if(!istext(variant_path) || !fexists(variant_path))
+				log_world("Map variant does not exist: [variant_path]")
+				return
+			map_variants += variant_path
+
 	persistence_key = ckey(map_name)
 
 	var/json_persistence_key = json["persistence_key"]
@@ -165,6 +194,13 @@
 		log_world("map_config space_empty_levels is not a number!")
 		return
 
+	temp = json["space_sectors"]
+	if (istext(temp))
+		space_sector_set = temp
+	else if (!isnull(temp))
+		log_world("map_config space_sectors is not a text!")
+		return
+
 	if("station_ruin_budget" in json)
 		station_ruin_budget = json["station_ruin_budget"]
 
@@ -192,6 +228,7 @@
 			orientation = SOUTH
 
 	allow_custom_shuttles = json["allow_custom_shuttles"] != FALSE
+	give_players_hooks = json["give_players_hooks"] == TRUE
 
 	if("job_whitelist" in json)
 		job_whitelist = list()
@@ -280,6 +317,7 @@
 	jsonlist["shuttles"] = shuttles
 	jsonlist["traits"] = traits
 	jsonlist["space_ruin_levels"] = space_ruin_levels
+	jsonlist["space_sectors"] = space_sector_set
 	jsonlist["year_offset"] = year_offset
 	jsonlist["minetype"] = minetype
 	jsonlist["maptype"] = maptype

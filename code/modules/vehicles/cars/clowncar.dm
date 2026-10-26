@@ -3,7 +3,7 @@
 	desc = "How someone could even fit in there is byond me."
 	icon_state = "clowncar"
 	max_integrity = 150
-	armor = list(MELEE = 70, BULLET = 40, LASER = 40, ENERGY = 0, BOMB = 30, BIO = 0, RAD = 0, FIRE = 80, ACID = 80)
+	armor_type = /datum/armor/clowncar
 	enter_delay = 20
 	max_occupants = 50
 	movedelay = 0.6
@@ -155,6 +155,7 @@
 			var/datum/effect_system/foam_spread/foam = new
 			foam.set_up(200, loc, randomchems)
 			foam.start()
+			qdel(randomchems)
 		if(3)
 			visible_message(span_danger("[user] presses one of the colorful buttons on [src], and the clown car turns on its singularity disguise system."))
 			icon = 'icons/obj/singularity.dmi'
@@ -169,6 +170,7 @@
 			smoke.set_up(funnychems, 4)
 			smoke.attach(src)
 			smoke.start()
+			qdel(funnychems)
 		if(5)
 			visible_message(span_danger("[user] presses one of the colorful buttons on [src], and the clown car starts dropping an oil trail."))
 			RegisterSignal(src, COMSIG_MOVABLE_MOVED, PROC_REF(cover_in_oil))

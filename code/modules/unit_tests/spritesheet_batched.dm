@@ -12,6 +12,21 @@
 	load_immediately = TRUE
 	sprites_per_shard = 2
 	var/static/list/items = list(/obj/item/binoculars, /obj/item/camera, /obj/item/clothing/under/color/black)
+	/// Сколько шардов ушло в rust.
+	var/shards_generated = 0
+	/// Сколько раз лист собрался отдать кэш иконок и сколько раз чистка дошла до rust.
+	var/cache_releases = 0
+	var/cache_cleared = 0
+
+/datum/asset/spritesheet_batched/test_batched/generate_shard(shard_index, list/shard_entries, list/generated_cache_shards, yield)
+	shards_generated++
+	return ..()
+
+/datum/asset/spritesheet_batched/test_batched/release_icon_cache()
+	. = ..()
+	cache_releases++
+	if(.)
+		cache_cleared++
 
 /datum/asset/spritesheet_batched/test_batched/create_spritesheets()
 	for(var/atom/item as anything in items)
@@ -46,11 +61,15 @@
 	cache_sheet_files_data = null
 	cache_png_hashes_data = null
 	cache_shards_data = null
+	cache_mismatch_reason = null
 	generation_in_progress = FALSE
 	generation_error = null
 	fully_generated = FALSE
 	unread_dmi_paths = list()
 	unread_retries_left = initial(unread_retries_left)
+	shards_generated = 0
+	cache_releases = 0
+	cache_cleared = 0
 
 /**
  * Сносит с диска всё, что оставил после себя лист: шарды, метаданные и css.
@@ -202,6 +221,7 @@
  * Под UNIT_TESTS отложенная сборка выключена (DO_NOT_DEFER_ASSETS), поэтому после
  * SSassets готовы все листы. Тест ловит лист, который молча не зарегистрировался или
  * не собрался: в логе такое не видно, а на проде это пустая витрина у интерфейса.
+ * В hermetic-профиле SSassets листы не собирает, поэтому тест собирает их сам.
  */
 /datum/unit_test/spritesheet_batched_all_generated
 
@@ -210,6 +230,9 @@
 		var/datum/asset/spritesheet_batched/sheet = sheet_type
 		if(sheet_type == initial(sheet._abstract))
 			continue
+		#ifdef UNIT_TEST_PROFILE_HERMETIC
+		get_asset_datum(sheet_type)
+		#endif
 		var/datum/asset/spritesheet_batched/loaded = GLOB.asset_datums[sheet_type]
 		// Через TEST_FAIL, а не TEST_ASSERT: assert выходит из Run() на первом же
 		// битом листе, а знать надо про все сразу - иначе чинить их придётся по одному
@@ -420,6 +443,176 @@
 	TEST_ASSERT(!("transient" in sheet.sprites), "спрайт из несуществующего DMI мистическим образом собрался")
 	TEST_ASSERT_EQUAL(length(sheet.unread_dmi_paths), 1, "непрочитанный DMI не попал в диагностику: [json_encode(sheet.unread_dmi_paths)]")
 	TEST_ASSERT_NULL(sheet.retry_timer_id, "лист без попыток взвёл таймер пересборки")
+	// Дырявый лист не имеет права записать кэш: в его dmi_hashes не хватает записей,
+	// rust отвечает на такой кэш "more DMIs exist than DMI hashes provided", и лист
+	// пересобирается КАЖДЫЙ следующий раунд. На панели спавна это 400-670 МБ за раунд.
+	TEST_ASSERT(!fexists(sheet.cache_meta_path()), "лист с непрочитанными DMI записал кэш, который заведомо не сойдётся")
+
+/**
+ * Промах кэша из-за нечитаемого файла - это гонка деплоя, а не изменение контента.
+ *
+ * Прод 25.08: сторож поднимает мир по появлению dmb, пока деплой ещё копирует дерево
+ * иконок. rustg_iconforge_cache_valid не может открыть очередной DMI, отдаёт
+ * "Error while hashing dmi_path ... No such file or directory", и лист уходит в полную
+ * пересборку - хотя ни один спрайт не изменился и через полминуты файл уже на месте.
+ * Промахи этого класса были в пяти раундах из шести.
+ */
+/datum/unit_test/spritesheet_batched_cache_miss_defers
+
+/datum/unit_test/spritesheet_batched_cache_miss_defers/Run()
+	var/datum/asset/spritesheet_batched/test_batched/transient/sheet = new()
+	var/transient_path = sheet.transient_dmi_path()
+	var/obj/item/binoculars/donor = /obj/item/binoculars
+	sheet.reset_state()
+	drop_spritesheet_artifacts(sheet)
+	fdel(transient_path)
+	rustg_iconforge_cleanup()
+
+	// Сначала честный кэш: файл на месте, лист собирается и пишет метаданные.
+	fcopy(initial(donor.icon), transient_path)
+	sheet.create_spritesheets()
+	sheet.realize_spritesheets(yield = TRUE)
+	TEST_ASSERT(sheet.fully_generated, "лист не собрался на существующем DMI")
+	TEST_ASSERT(fexists(sheet.cache_meta_path()), "полный лист не записал кэш")
+
+	// А теперь тот же лист на "недоехавшем" диске: файла нет, значит проверка кэша
+	// падает на чтении. Пересобирать по такой причине нельзя.
+	sheet.reset_state()
+	fdel(transient_path)
+	rustg_iconforge_cleanup()
+	sheet.create_spritesheets()
+	sheet.realize_spritesheets(yield = TRUE)
+	var/timer_was_armed = !isnull(sheet.retry_timer_id)
+	deltimer(sheet.retry_timer_id)
+	sheet.retry_timer_id = null
+
+	TEST_ASSERT(!sheet.fully_generated, "лист пересобрался, хотя кэш промахнулся только из-за нечитаемого файла")
+	TEST_ASSERT(timer_was_armed, "перепроверка кэша не запланирована")
+	TEST_ASSERT_EQUAL(sheet.unread_retries_left, initial(sheet.unread_retries_left) - 1, "попытка не списалась")
+	TEST_ASSERT(fexists(sheet.cache_meta_path()), "кэш снесли, хотя он валиден - файл просто не читался")
+	TEST_ASSERT_NULL(sheet.cache_result, "результат проверки кэша не сброшен, повтор увидел бы устаревший вердикт")
+
+	// Файл доехал - следующий заход обязан поднять лист ИЗ КЭША, а не собирать заново.
+	fcopy(initial(donor.icon), transient_path)
+	sheet.realize_spritesheets(yield = TRUE)
+	TEST_ASSERT(sheet.fully_generated, "лист не поднялся после того, как DMI появился")
+	TEST_ASSERT_EQUAL(sheet.cache_result, FALSE, "лист собрался заново вместо подъёма из кэша (cache_result: [sheet.cache_result])")
+
+	drop_spritesheet_artifacts(sheet)
+	fdel(transient_path)
+	rustg_iconforge_cleanup()
+
+/**
+ * Кэш разобранных DMI уходит обратно в rust после КАЖДОГО шарда.
+ *
+ * Пик этого кэша за одну сборку - адресное пространство, которое аллокатор уже не
+ * отдаёт ОС. Держать в нём весь лист незачем: записи режутся на шарды по порядку, и
+ * между соседними шардами перечитывается в худшем случае один DMI.
+ */
+/datum/unit_test/spritesheet_batched_shard_cache_release
+	requires_full_map = FALSE
+
+/datum/unit_test/spritesheet_batched_shard_cache_release/Run()
+	var/datum/asset/spritesheet_batched/test_batched/sheet = new()
+	sheet.reset_state()
+	drop_spritesheet_artifacts(sheet)
+	sheet.create_spritesheets()
+	sheet.realize_spritesheets(yield = TRUE)
+
+	TEST_ASSERT(sheet.fully_generated, "лист не собрался")
+	TEST_ASSERT(sheet.shards_generated > 1, "лист не нарезался на шарды - проверять нечего")
+	TEST_ASSERT_EQUAL(sheet.cache_releases, sheet.shards_generated, "кэш иконок отдан не после каждого шарда")
+	TEST_ASSERT_EQUAL(sheet.cache_cleared, sheet.shards_generated, "чистка кэша не дошла до rust")
+
+	// Кэш общий на процесс, и сосед по очереди SSasset_loading считает свой лист в тот
+	// же момент - вычистить кэш из-под него значит заставить его перечитать все DMI.
+	sheet.reset_state()
+	drop_spritesheet_artifacts(sheet)
+	sheet.create_spritesheets()
+	SSasset_loading.sheets_realizing++
+	sheet.realize_spritesheets(yield = TRUE)
+	SSasset_loading.sheets_realizing--
+
+	TEST_ASSERT(sheet.fully_generated, "лист не собрался рядом с чужой сборкой")
+	TEST_ASSERT(sheet.cache_releases > 1, "цикл шардов не дошёл до чистки кэша")
+	TEST_ASSERT_EQUAL(sheet.cache_cleared, 0, "кэш иконок вычищен из-под чужой сборки")
+
+/// Имя листа и "доезжающий" DMI свои: соседний тест оставляет свой лист
+/// зарегистрированным в транспорте, и одноимённые png разъехались бы по содержимому.
+/datum/asset/spritesheet_batched/test_batched/transient/no_partial
+	_abstract = /datum/asset/spritesheet_batched/test_batched/transient/no_partial
+	name = "test_batched_no_partial"
+
+/datum/asset/spritesheet_batched/test_batched/transient/no_partial/transient_dmi_path()
+	return "[SPRITESHEET_CACHE_DIR]test_no_partial.dmi"
+
+/**
+ * Пока хоть один DMI листа не читается, в rust не уходит ни один шард.
+ *
+ * Частичная сборка на недоехавшем дереве иконок всё равно уедет в пересборку, а её пик
+ * кэша остаётся в адресном пространстве процесса до конца раунда.
+ */
+/datum/unit_test/spritesheet_batched_no_partial_build
+	requires_full_map = FALSE
+
+/datum/unit_test/spritesheet_batched_no_partial_build/Run()
+	var/datum/asset/spritesheet_batched/test_batched/transient/no_partial/sheet = new()
+	var/transient_path = sheet.transient_dmi_path()
+	var/obj/item/binoculars/donor = /obj/item/binoculars
+	sheet.reset_state()
+	drop_spritesheet_artifacts(sheet)
+	fdel(transient_path)
+	rustg_iconforge_cleanup()
+
+	sheet.create_spritesheets()
+	sheet.realize_spritesheets(yield = TRUE)
+	// Таймер снимаем до ассертов: упавший ассерт выходит из Run(), и повтор позвал бы
+	// queue_asset посреди чужого теста.
+	var/timer_was_armed = !isnull(sheet.retry_timer_id)
+	deltimer(sheet.retry_timer_id)
+	sheet.retry_timer_id = null
+
+	TEST_ASSERT(!sheet.fully_generated, "лист собрался, хотя один из его DMI не существует")
+	TEST_ASSERT(timer_was_armed, "пересборка не запланирована")
+	TEST_ASSERT_EQUAL(sheet.shards_generated, 0, "в rust ушло [sheet.shards_generated] шардов, хотя DMI листа ещё нет на диске")
+	TEST_ASSERT_EQUAL(sheet.unread_retries_left, initial(sheet.unread_retries_left) - 1, "попытка пересборки не списалась")
+	TEST_ASSERT_EQUAL(length(sheet.unread_dmi_paths), 1, "в непрочитанных ожидался ровно один DMI: [json_encode(sheet.unread_dmi_paths)]")
+	TEST_ASSERT_EQUAL(sheet.unread_dmi_paths[1], transient_path, "в непрочитанные попал не тот путь")
+
+	// Файл доехал - лист обязан собраться той же попыткой, без потери спрайтов.
+	fcopy(initial(donor.icon), transient_path)
+	sheet.realize_spritesheets(yield = TRUE)
+	TEST_ASSERT(sheet.fully_generated, "лист не собрался после того, как DMI появился на диске")
+	TEST_ASSERT(sheet.shards_generated > 0, "лист объявлен собранным, не отдав в rust ни одного шарда")
+	TEST_ASSERT("transient" in sheet.sprites, "спрайт из доехавшего DMI не попал в лист")
+
+	drop_spritesheet_artifacts(sheet)
+	fdel(transient_path)
+	rustg_iconforge_cleanup()
+
+/// Классификатор причин промаха и рост паузы между попытками - чистая арифметика,
+/// но именно она решает, платим мы за лист сотни мегабайт или нет.
+/datum/unit_test/spritesheet_batched_retry_policy
+	requires_full_map = FALSE
+
+/datum/unit_test/spritesheet_batched_retry_policy/Run()
+	var/datum/asset/spritesheet_batched/test_batched/sheet = new()
+
+	TEST_ASSERT(sheet.looks_like_deploy_race("шард 1 - ERROR: Error while hashing dmi_path 'icons/obj/pda.dmi': No such file or directory (os error 2)"), "ошибка чтения DMI не опознана как гонка деплоя")
+	TEST_ASSERT(sheet.looks_like_deploy_race("шард 3 - more DMIs exist than DMI hashes provided"), "нехватка хэшей на шард не опознана как гонка деплоя")
+	TEST_ASSERT(!sheet.looks_like_deploy_race("шард 1 - Input hash did not match"), "изменение набора спрайтов принято за гонку деплоя - лист завис бы на устаревшей раскладке")
+	TEST_ASSERT(!sheet.looks_like_deploy_race("шард 2 - Input hash matched, but dmi_hash was invalid DMI: dmi_path (stored hash: aaa, new hash: bbb)"), "изменение содержимого DMI принято за гонку деплоя")
+	TEST_ASSERT(!sheet.looks_like_deploy_race(null), "null принят за гонку деплоя")
+
+	// Пауза удваивается с каждой списанной попыткой и упирается в потолок.
+	var/previous = 0
+	for(var/attempts_left = sheet.unread_retries_left - 1, attempts_left >= 0, attempts_left--)
+		sheet.unread_retries_left = attempts_left
+		var/delay = sheet.retry_delay()
+		TEST_ASSERT(delay >= previous, "пауза перед повтором не растёт: [previous] -> [delay]")
+		TEST_ASSERT(delay <= 2 MINUTES, "пауза перед повтором превысила потолок: [delay]")
+		previous = delay
+	TEST_ASSERT(previous > 15 SECONDS, "пауза так и не выросла выше базовой")
 
 /// Меню крафта не имеет права возить иконки внутри нагрузки. На инлайновом base64
 /// статика меню весила 3.03 МБ (2.71 МБ из них - картинки), и каждое открытие просило

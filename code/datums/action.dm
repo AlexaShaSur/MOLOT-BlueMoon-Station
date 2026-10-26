@@ -4,8 +4,8 @@
 #define AB_CHECK_CONSCIOUS 8
 #define AB_CHECK_ALIVE 16
 
-/datum/action
 	/// The name of the action
+/datum/action
 	var/name = "Generic Action"
 	/// The description of what the action does, shown in button tooltips
 	var/desc = null
@@ -44,6 +44,8 @@
 	/// This is the icon state for the icon that appears on the button
 	var/button_icon_state = "default"
 	var/button_overlay_state
+	/// При наведении на кнопу, блокирует открытие контестного меню ПКМ
+	var/button_block_right_click_context_menu = FALSE
 
 /datum/action/New(Target)
 	link_to(Target)
@@ -86,9 +88,13 @@
 	if(grant_to == owner)
 		return // We already have it
 	var/mob/previous_owner = owner
-	owner = grant_to
+	// Сначала снимаем всё с прежнего владельца и только потом перезаписываем owner:
+	// Remove() отписывает сигналы по owner, и при обратном порядке она отписывала
+	// уже нового владельца, а подписки старого утекали - следующий Grant на того же
+	// моба ловил "mob_statchange overridden. Use override = TRUE..." (маска в руки).
 	if(!isnull(previous_owner))
 		Remove(previous_owner)
+	owner = grant_to
 	RegisterSignal(owner, COMSIG_PARENT_QDELETING, PROC_REF(clear_ref), override = TRUE)
 
 	// Register some signals based on our check_flags
@@ -134,7 +140,7 @@
 
 /// Actually triggers the effects of the action.
 /// Called when the on-screen button is clicked, for example.
-/datum/action/proc/Trigger()
+/datum/action/proc/Trigger(trigger_flags)
 	if(!IsAvailable())
 		return FALSE
 	if(SEND_SIGNAL(src, COMSIG_ACTION_TRIGGER, target, owner) & COMPONENT_ACTION_BLOCK_TRIGGER)
@@ -176,6 +182,9 @@
 	if(SEND_SIGNAL(src, COMSIG_ACTION_ISAVAILABLE, target, owner, silent) & COMPONENT_ACTION_NOT_AVAILABLE)
 		return FALSE
 	return TRUE
+
+/datum/action/proc/format_tooltip(mob/viewer, base_description)
+	return base_description
 
 /datum/action/proc/UpdateButtons(status_only, force)
 	for(var/datum/hud/hud in viewers)
@@ -284,6 +293,8 @@
 	button.actiontooltipstyle = buttontooltipstyle
 	if(desc)
 		button.desc = desc
+	if(button_block_right_click_context_menu)
+		TOGGLE_BITFIELD(button.flags_1, PREVENT_RIGHT_CLICK_CONTEXT_MENU_1)
 	return button
 
 /datum/action/proc/SetId(atom/movable/screen/movable/action_button/our_button, mob/owner)
@@ -618,18 +629,10 @@
 /datum/action/item_action/change
 	name = "Change"
 
+// Само действие обрабатывает /obj/item/picket_sign/ui_action_click - собственный Trigger()
+// здесь только уводил бы нас мимо IsAvailable() и держал вторую ссылку на плакат.
 /datum/action/item_action/nano_picket_sign
 	name = "Retext Nano Picket Sign"
-	var/obj/item/picket_sign/S
-
-/datum/action/item_action/nano_picket_sign/New(Target)
-	..()
-	if(istype(Target, /obj/item/picket_sign))
-		S = Target
-
-/datum/action/item_action/nano_picket_sign/Trigger()
-	if(istype(S))
-		S.retext(owner)
 
 /datum/action/item_action/adjust // Требует чтобы в .dmi было в конце нужной вам модельки окончание _up (Пример sechailer_up)
 
@@ -693,15 +696,15 @@
 	if(IsAvailable())
 		active = !active
 		if(active)
-			owner.research_scanner++
+			ADD_TRAIT(owner, TRAIT_RESEARCH_SCANNER, CLOTHING_TRAIT)
 		else
-			owner.research_scanner--
-		to_chat(owner, "<span class='notice'>[target] research scanner has been [active ? "activated" : "deactivated"].</span>")
+			REMOVE_TRAIT(owner, TRAIT_RESEARCH_SCANNER, CLOTHING_TRAIT)
+		to_chat(owner, span_notice("Научный сканер [target] был [active ? "активирован" : "деактивирован"]."))
 		return TRUE
 
 /datum/action/item_action/toggle_research_scanner/Remove(mob/M)
 	if(owner && active)
-		owner.research_scanner--
+		REMOVE_TRAIT(owner, TRAIT_RESEARCH_SCANNER, CLOTHING_TRAIT)
 		active = FALSE
 	..()
 

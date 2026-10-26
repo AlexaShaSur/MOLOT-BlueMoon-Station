@@ -253,6 +253,10 @@
 #define SLIDE_ICE			 (1<<4)
 #define SLIP_WHEN_CRAWLING	 (1<<5)	// clown planet ruin amongst others
 #define SLIP_WHEN_JOGGING	 (1<<6)	// slips prevented by walking are also dodged if the mob is nor sprinting or fatigued... unless this flag is on.
+// BLUEMOON ADD - скольжение не глохнет на 4 тайлах: жертва улетает, пока не во что-то не врежется
+#define SLIDE_INTO_SPACE	 (1<<7)
+/// На сколько тайлов вперёд планирует траекторию скольжение с SLIDE_INTO_SPACE
+#define SLIDE_INTO_SPACE_RANGE 14
 
 
 #define MAX_CHICKENS 50
@@ -367,6 +371,15 @@
 // / If you examine the same atom twice in this timeframe, we call examine_more() instead of examine()
 #define EXAMINE_MORE_TIME	1 SECONDS
 
+/// Maximum range a player can use the deregulated glow-examine verb to inspect a glowing (emissive)
+/// character in total darkness, even beyond normal see_in_dark / view() range.
+#define EXAMINE_GLOW_MAX_RANGE	10
+
+/// How far into darkness a character with active emissive (body-part) glow can see, so that distant
+/// glowing characters are delivered to the client and their emissive pixels render at any radius.
+/// Matches the client view radius (15x15 -> 7), plus margin so the whole on-screen glow shows.
+#define EMISSIVE_DARKSIGHT_RANGE	8
+
 #define SILENCE_RANGED_MESSAGE	(1<<0)
 
 // Body position defines.
@@ -431,3 +444,18 @@
 #define PAIN_LOW 1 // TRAIT_BLUEMOON_HIGH_PAIN_THRESHOLD
 #define PAIN_MEDIUM 2 // drunkenness
 #define PAIN_FULL 3
+
+// Уровни искажения речи (текста) в проценте если рот прикрыт
+#define MUFFLE_NONE 0 // Нет искажений
+#define MUFFLE_LOW 30 // Речь разборчивая, но приглушенная
+#define MUFFLE_MEDIUM 60 // Явно невнятная, слова узнаваемы
+#define MUFFLE_HIGH 75 // Почти не разборчиво
+
+// Специальная константа для полной немоты
+#define MUFFLE_MUTE 255 // Запрещает издавать любые звуки
+
+// Уровни сенсорной депривации слуха
+#define HEARING_DEPRIV_NONE 0
+#define HEARING_DEPRIV_LOW 25 // Стандарт для виспера
+#define HEARING_DEPRIV_MEDIUM 50
+#define HEARING_DEPRIV_HIGH 75

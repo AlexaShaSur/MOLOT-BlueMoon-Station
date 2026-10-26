@@ -11,6 +11,7 @@ import './styles/themes/disclaimer.scss';
 import './styles/themes/hotpink.scss';
 import './styles/themes/cardtable.scss';
 import './styles/themes/hackerman.scss';
+import './styles/themes/heretic.scss';
 import './styles/themes/malfunction.scss';
 import './styles/themes/neutral.scss';
 import './styles/themes/ntos.scss';
@@ -26,6 +27,7 @@ import './styles/themes/wizard.scss';
 import './styles/themes/clockcult.scss';
 import './styles/themes/inteq.scss';
 import './styles/themes/pact.scss';
+import './styles/themes/departments.scss';
 
 import { perf } from 'common/perf';
 import { setupHotReloading } from 'tgui-dev-server/link/client.cjs';

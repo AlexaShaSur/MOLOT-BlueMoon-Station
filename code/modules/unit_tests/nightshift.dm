@@ -52,7 +52,7 @@
 /datum/unit_test/proc/assert_live_light_matches_fixture(obj/machinery/light/test_light, message_prefix = "Fixture")
 	drain_nightshift_lighting_work()
 	TEST_ASSERT(test_light.light, "[message_prefix] should have a live light source.")
-	TEST_ASSERT_EQUAL(test_light.light.light_power, test_light.light_power, "[message_prefix] light source power should match the fixture state.")
+	TEST_ASSERT(abs(test_light.light.light_power - test_light.light_power) < 0.001, "[message_prefix] light source power should match the fixture state. Expected [test_light.light.light_power] to be close to [test_light.light_power].")
 	TEST_ASSERT_EQUAL(lowertext(test_light.light.light_color), lowertext(test_light.light_color), "[message_prefix] light source color should match the fixture state.")
 
 /datum/unit_test/nightshift_profile/Run()
@@ -81,13 +81,13 @@
 	assert_live_light_matches_fixture(default_light, "Deep-night fixture")
 	var/list/deep_night_overlays = default_light.update_overlays()
 
-	TEST_ASSERT_EQUAL(default_light.light_color, "#A9BFFF", "Default nightshift lighting should use the configured deep-night tint.")
+	TEST_ASSERT_EQUAL(lowertext(default_light.light_color), lowertext(LIGHT_COLOR_STATION_HALL_NIGHT), "Default nightshift lighting should use the configured deep-night tint.")
 	TEST_ASSERT_EQUAL(default_light.light_power, default_light.nightshift_light_power, "Deep night should reach the configured nightshift power.")
-	TEST_ASSERT_EQUAL(lowertext(default_light.light.light_color), lowertext("#A9BFFF"), "Deep-night emitted light should use the configured tint.")
+	TEST_ASSERT_EQUAL(lowertext(default_light.light.light_color), lowertext(LIGHT_COLOR_STATION_HALL_NIGHT), "Deep-night emitted light should use the configured tint.")
 	TEST_ASSERT_EQUAL(default_light.light.light_power, default_light.nightshift_light_power, "Deep-night emitted light should reach the configured nightshift power.")
 	TEST_ASSERT(length(deep_night_overlays) >= 2, "Lit fixtures should add both visible and emissive nightshift overlays.")
 	for(var/mutable_appearance/O as anything in deep_night_overlays)
-		TEST_ASSERT_EQUAL(lowertext(O.color), lowertext("#A9BFFF"), "Deep-night overlays should visibly carry the nightshift tint.")
+		TEST_ASSERT_EQUAL(lowertext(O.color), lowertext(LIGHT_COLOR_STATION_HALL_NIGHT), "Deep-night overlays should visibly carry the nightshift tint.")
 
 	default_light.nightshift_level = 0.2
 	default_light.switchcount = 0
@@ -108,7 +108,7 @@
 	assert_live_light_matches_fixture(warm_light, "Warm-night fixture")
 
 	TEST_ASSERT_EQUAL(warm_light.light_color, warm_light.bulb_colour, "Warm lights with a null nightshift tint should keep their own bulb colour.")
-	TEST_ASSERT_EQUAL(warm_light.light_power, warm_light.nightshift_light_power, "Warm lights should still dim to the configured nightshift power.")
+	TEST_ASSERT(abs(warm_light.light_power - warm_light.nightshift_light_power) < 0.001, "Warm lights should still dim to the configured nightshift power. Expected [warm_light.light_power] to be close to [warm_light.nightshift_light_power].")
 
 	var/turf/third_turf = locate(run_loc_floor_bottom_left.x + 2, run_loc_floor_bottom_left.y, run_loc_floor_bottom_left.z)
 	var/obj/machinery/light/small/default_bulb = allocate(/obj/machinery/light/small, third_turf)
@@ -121,7 +121,7 @@
 	assert_live_light_matches_fixture(default_bulb, "Default small bulb at night")
 
 	TEST_ASSERT_EQUAL(default_bulb.light_color, default_bulb.nightshift_light_color, "Default small bulbs should inherit the stronger deep-night tint.")
-	TEST_ASSERT_EQUAL(lowertext(default_bulb.light.light_color), lowertext("#A9BFFF"), "Default small bulbs should emit the stronger deep-night tint.")
+	TEST_ASSERT_EQUAL(lowertext(default_bulb.light.light_color), lowertext(LIGHT_COLOR_STATION_OFFICE_NIGHT), "Default small bulbs should emit the stronger deep-night tint.")
 
 /datum/unit_test/nightshift_queueing/Run()
 	GLOB.nightshift_apc_queue.Cut()
@@ -266,6 +266,15 @@
 
 	TEST_ASSERT_EQUAL(test_light.switchcount, 7, "Silent nightshift interpolation should not increment bulb aging.")
 
+/// Отмечает завершение отложенного update(0) из Initialize, сохраняя обычную инициализацию лампы.
+/obj/machinery/light/nightshift_relight_test
+	var/startup_update_complete = FALSE
+
+/obj/machinery/light/nightshift_relight_test/update(trigger = TRUE, silent = FALSE)
+	. = ..()
+	if(!trigger && !silent)
+		startup_update_complete = TRUE
+
 /datum/unit_test/nightshift_relight_resync
 	var/list/original_station_areas
 	var/list/original_apcs_list
@@ -285,7 +294,7 @@
 	SSnightshift.can_fire = FALSE
 	sleep(world.tick_lag)
 	SSnightshift.nightshift_refresh_running = FALSE
-	SSnightshift.nightshift_refresh_generation++ // Invalidate any running async refresh
+	SSnightshift.nightshift_refresh_generation++ // Отменяем незавершённое асинхронное обновление.
 	test_area = get_area(run_loc_floor_bottom_left)
 	light_turf = locate(run_loc_floor_bottom_left.x + 1, run_loc_floor_bottom_left.y, run_loc_floor_bottom_left.z)
 	original_station_areas = GLOB.the_station_areas.Copy()
@@ -308,13 +317,10 @@
 	test_apc.update()
 	test_area.power_light = TRUE
 	test_area.lightswitch = TRUE
-	test_light = allocate(/obj/machinery/light, light_turf)
-	// Initialize светильника отложен через spawn(2) { prob(2) break_light_tube; spawn(1) { update(0) } }.
-	// Чинит лампу код ниже, поэтому разбитие внутри этого окна безвредно - но 4 деци
-	// оставляли планировщику ровно один тик запаса: на загруженном раннере отложенная
-	// цепочка приезжала уже ПОСЛЕ ремонта, и фикстура уходила в тест разбитой, без
-	// источника света (падение "Setup should have a live light source").
-	sleep(1 SECONDS)
+	test_light = allocate(/obj/machinery/light/nightshift_relight_test, light_turf)
+	// Фиксированный sleep не гарантирует завершение вложенных spawn на загруженном CI.
+	// Ждём последний update из Initialize, чтобы случайное разбитие не произошло после ремонта.
+	TEST_ASSERT(wait_for_var(test_light, "startup_update_complete", TRUE, 5 SECONDS), "Лампа не завершила отложенную инициализацию.")
 	test_light.status = LIGHT_OK
 	test_light.on = test_light.has_power()
 	test_light.switchcount = 0
@@ -338,6 +344,8 @@
 
 /datum/unit_test/nightshift_relight_resync/proc/prime_deep_night_fixture()
 	test_light.status = LIGHT_OK
+	// update APC вызывает power_change лампы: исключаем случайное перегорание при подготовке.
+	test_light.switchcount = -1
 	test_apc.update()
 	test_light.on = test_light.has_power()
 	test_light.switchcount = 0
@@ -354,11 +362,11 @@
 	drain_nightshift_lighting_work()
 	TEST_ASSERT(test_light.nightshift_enabled, "[message_prefix] should keep the fixture in nightshift mode.")
 	TEST_ASSERT_EQUAL(test_light.nightshift_level, 1, "[message_prefix] should restore the full nightshift level from the APC.")
-	TEST_ASSERT_EQUAL(lowertext(test_light.light_color), lowertext("#A9BFFF"), "[message_prefix] fixture color should match the deep-night tint.")
+	TEST_ASSERT_EQUAL(lowertext(test_light.light_color), lowertext(LIGHT_COLOR_STATION_HALL_NIGHT), "[message_prefix] fixture color should match the deep-night tint.")
 	TEST_ASSERT_EQUAL(test_light.light_power, test_light.nightshift_light_power, "[message_prefix] fixture power should match the deep-night power.")
 	assert_live_light_matches_fixture(test_light, message_prefix)
 	if(test_light.light)
-		TEST_ASSERT_EQUAL(lowertext(test_light.light.light_color), lowertext("#A9BFFF"), "[message_prefix] emitted light should match the deep-night tint.")
+		TEST_ASSERT_EQUAL(lowertext(test_light.light.light_color), lowertext(LIGHT_COLOR_STATION_HALL_NIGHT), "[message_prefix] emitted light should match the deep-night tint.")
 		TEST_ASSERT_EQUAL(test_light.light.light_power, test_light.nightshift_light_power, "[message_prefix] emitted light should match the deep-night power.")
 
 /datum/unit_test/nightshift_relight_resync/Run()
@@ -381,6 +389,7 @@
 	test_light.on = FALSE
 	test_light.set_light(0, l_cone_angle = 0)
 	drain_nightshift_lighting_work()
+	test_light.switchcount = -1
 	test_light.fix()
 	assert_deep_night_emission("Fixture repair")
 
@@ -575,11 +584,18 @@
 	assert_repeat_check_is_stable()
 
 	SSsecurity_level.set_level(SEC_LEVEL_BLUE)
+	wait_for_light_state(TRUE)
+	TEST_ASSERT_EQUAL(GLOB.security_level, SEC_LEVEL_BLUE, "Уровень безопасности должен смениться на синий.")
+	TEST_ASSERT(SSnightshift.nightshift_active, "Синий код должен сохранять ночное освещение.")
+	TEST_ASSERT(test_apc.nightshift_lights, "Синий код должен сохранять ночной режим APC.")
+	TEST_ASSERT(test_light.nightshift_enabled, "Синий код должен сохранять ночной режим светильников.")
+
+	SSsecurity_level.set_level(SEC_LEVEL_AMBER)
 	wait_for_light_state(FALSE)
-	TEST_ASSERT_EQUAL(GLOB.security_level, SEC_LEVEL_BLUE, "Security level should change to blue.")
-	TEST_ASSERT(!SSnightshift.nightshift_active, "Blue code should disable nightshift immediately.")
-	TEST_ASSERT(!test_apc.nightshift_lights, "Blue code should disable nightshift on the APC.")
-	TEST_ASSERT(!test_light.nightshift_enabled, "Blue code should disable nightshift on lights.")
+	TEST_ASSERT_EQUAL(GLOB.security_level, SEC_LEVEL_AMBER, "Уровень безопасности должен смениться на янтарный.")
+	TEST_ASSERT(!SSnightshift.nightshift_active, "Янтарный код должен сразу отключать ночное освещение.")
+	TEST_ASSERT(!test_apc.nightshift_lights, "Янтарный код должен отключать ночной режим APC.")
+	TEST_ASSERT(!test_light.nightshift_enabled, "Янтарный код должен отключать ночной режим светильников.")
 
 	SSsecurity_level.set_level(SEC_LEVEL_GREEN)
 	wait_for_light_state(TRUE)

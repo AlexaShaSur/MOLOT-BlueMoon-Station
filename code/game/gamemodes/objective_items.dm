@@ -35,11 +35,25 @@
 	difficulty = 8
 	excludefromjob = list("Captain")
 
+// Эти предметы для кражи могут появляться только в стартовой экипировке определённой профессии.
+// Проверяем при выдаче цели, чтобы учитывать предметы прибывших позже персонажей.
+/datum/objective_item/steal/traitor/ExtraCheck()
+	for(var/obj/item/candidate in world)
+		if(!istype(candidate, targetitem) || QDELETED(candidate))
+			continue
+		var/turf/item_turf = get_turf(candidate)
+		// На ЦК и в руинах есть запасы снаряжения, которое ещё не попало на станцию.
+		if(!item_turf || !is_station_level(item_turf.z))
+			continue
+		if(check_special_completion(candidate))
+			return TRUE
+	return FALSE
+
 /datum/objective_item/steal/traitor/fireaxe
 	name = "пожарный топор."
 	targetitem = /obj/item/fireaxe
 	difficulty = 3
-	excludefromjob = list("Chief Engineer", "Station Engineer", "Atmospheric Technician", "Captain", "Head of Personnel", "Head Of Security", "Quartermaster", "Research Director", "Chief Medical Officer")
+	excludefromjob = list("Chief Engineer", "Station Engineer", "Atmospheric Technician", "Captain", "Head of Personnel", "Head of Security", "Quartermaster", "Research Director", "Chief Medical Officer")
 
 /datum/objective_item/steal/traitor/nullrod
 	name = "жезл священника."
@@ -63,7 +77,7 @@
 	name = "телескопическую дубинку главы отдела."
 	targetitem = /obj/item/melee/classic_baton/telescopic
 	difficulty = 3
-	excludefromjob = list("Captain", "Head of Personnel", "Head Of Security", "Chief Engineer", "Chief Medical Officer", "Quartermaster", "Research Director")
+	excludefromjob = list("Captain", "Head of Personnel", "Head of Security", "Chief Engineer", "Chief Medical Officer", "Quartermaster", "Research Director")
 
 /datum/objective_item/steal/traitor/telebaton/check_special_completion(obj/item/thing)
 	return !istype(thing, /obj/item/melee/classic_baton/telescopic/contractor_baton)
@@ -144,7 +158,7 @@
 	name = "личное вооружение Синего Щита или Главы Службы Безопасности."
 	targetitem = /obj/item/gun/energy/e_gun/hos
 	difficulty = 8
-	excludefromjob = list("Head Of Security")
+	excludefromjob = list("Head of Security")
 	altitems = list(/obj/item/gun/ballistic/revolver/mws, /obj/item/choice_beacon/hosgun, /obj/item/gun/ballistic/automatic/pistol/g22, /obj/item/gun/ballistic/shotgun/automatic/rsh12) //We now look for either the alt verson of the hos gun or the beacon picker.
 
 /datum/objective_item/steal/handtele
@@ -162,6 +176,12 @@
 /datum/objective_item/steal/magboots
 	name = "усовершенствованные Магнитные Ботинки Главного Инженера."
 	targetitem =  /obj/item/clothing/shoes/magboots/advance
+	difficulty = 5
+	excludefromjob = list("Chief Engineer", "Station Engineer", "Atmospheric Technician")
+
+/datum/objective_item/steal/mod_constructor
+	name = "усовершенствованный модуль строительства из МОД костюма Главного Инженера."
+	targetitem =  /obj/item/mod/module/constructor
 	difficulty = 5
 	excludefromjob = list("Chief Engineer", "Station Engineer", "Atmospheric Technician")
 
@@ -308,7 +328,8 @@
 			break
 	if(!istype(capt)) // если капитана уже нету в игре еще до выдачи цельки, то искать трусы не особо интересно
 		return FALSE
-	if(capt.get_item_by_slot(ITEM_SLOT_UNDERWEAR))
+	var/obj/item/clothing/underwear/briefs/worn_briefs = capt.get_item_by_slot(ITEM_SLOT_UNDERWEAR)
+	if(istype(worn_briefs) && worn_briefs.worn_by_captain)
 		return TRUE
 	for(var/obj/item/clothing/underwear/briefs/B in world)
 		if(B.worn_by_captain)

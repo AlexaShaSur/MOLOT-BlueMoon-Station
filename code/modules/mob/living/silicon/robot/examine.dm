@@ -1,5 +1,8 @@
 /mob/living/silicon/robot/examine(mob/user)
-	. = list("<span class='info'>Это [icon2html(src, user)] \a <EM>[src]</EM>, [chameleon_module() ? "инженерный" : vocabulary_to_ru(GLOB.borgmodule_ru_adjective, src.module.name)] юнит!")
+	var/display_name = src.name
+	if(isliving(user) && user.stat == UNCONSCIOUS && user != src)
+		display_name = "неизвестный киборг"
+	. = list("<span class='info'>Это [icon2html(src, user)] \a <EM>[display_name]</EM>, [chameleon_module() ? "инженерный" : vocabulary_to_ru(GLOB.borgmodule_ru_adjective, src.module.name)] юнит!")
 	if(desc)
 		. += "[desc]"
 
@@ -28,9 +31,9 @@
 		. += "<span class='warning'>Он покрыт чем-то горючим.</span>\n"
 
 	if(opened)
-		. += "<span class='warning'>Люк техобслуживания открыт, [cell ? "вы видите [icon2html(cell, user)] [cell] внутри " : "батарея отсутствует"].\n</span>"
+		. += "<span class='warning'>Панель техобслуживания открыта, [cell ? "вы видите [icon2html(cell, user)] [cell] внутри " : "батарея отсутствует"].\n</span>"
 	else
-		. += "Люк техобслуживания закрыт[locked ? "" : ", однако разблокирован"].\n"
+		. += "Панель техобслуживания закрыта[locked ? "" : ", однако разблокирована"].\n"
 
 	if(cell && cell.charge <= 0)
 		. += "<span class='warning'>Индикатор батареи горит красным!</span>\n"

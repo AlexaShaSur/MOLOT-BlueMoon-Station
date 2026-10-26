@@ -81,17 +81,18 @@
 	. = ..()
 	var/mob/living/mob_occupant = occupant
 	. += span_notice("<i>Связующее</i> устройство может быть <i>отсканировано</i> мультитулом.</span>")
-	if(mess)
+	if(mess && in_range(user, src))
 		. += "Наполнено кровю и потрохами. Вы покляться можете, что оно двинулось..."
-	if(in_range(user, src) || isobserver(user))
-		. += span_notice("Статус-дисплей сообщает: \n\
-		- Скорость клонирования: <b>[speed_coeff*50]%</b> \n\
-		- Ожидаемые клеточные травмы: <b>[100-heal_level]%</b>.")
-		if(efficiency > 5)
-			to_chat(user, span_notice("Капсула улучшена и поддерживает автообработку."))
 	if(is_operational() && mob_occupant)
 		if(mob_occupant.stat != DEAD)
 			. += "Текущий цикл клонирования завершён на [round(get_completion())]%"
+
+/obj/machinery/clonepod/examine_display_content(mob/user)
+	. += "\
+	– Скорость клонирования: <b>[speed_coeff*50]%</b> \n\
+	– Ожидаемые клеточные травмы: <b>[100-heal_level]%</b>."
+	if(efficiency > 5)
+		. += "\nКапсула улучшена и поддерживает автообработку."
 
 /obj/machinery/clonepod/return_air()
 	// We want to simulate the clone not being in contact with
@@ -275,15 +276,23 @@
 				SPEAK("Цикл клонирования завершён.")
 
 			// If the cloner is upgraded to debugging high levels, sometimes
-			// organs and limbs can be missing.
-			for(var/i in unattached_flesh)
-				if(isorgan(i))
-					var/obj/item/organ/O = i
+			// organs and limbs can be missing. Идём по снимку списка: если один
+			// вид-специфичный орган (например, у тешари) не встаёт, он
+			// снимается один - остальные конечности/органы всё равно
+			// пришиваются, и клон выходит целым.
+			var/list/leftover_flesh = unattached_flesh.Copy()
+			for(var/obj/item/I in leftover_flesh)
+				unattached_flesh -= I
+				if(isorgan(I))
+					var/obj/item/organ/O = I
 					O.organ_flags &= ~ORGAN_FROZEN
-					O.Insert(mob_occupant)
-				else if(isbodypart(i))
-					var/obj/item/bodypart/BP = i
+					if(!O.Insert(mob_occupant))
+						qdel(I)
+				else if(isbodypart(I))
+					var/obj/item/bodypart/BP = I
 					BP.attach_limb(mob_occupant)
+				else
+					qdel(I)
 
 			go_out()
 			mob_occupant.copy_from_prefs_vr()

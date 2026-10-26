@@ -24,7 +24,7 @@
 		processing_list += thing.contents
 		lim = processing_list.len
 
-/proc/radiation_pulse(mob/source, intensity, range_modifier, log=FALSE, can_contaminate=TRUE)
+/proc/radiation_pulse(mob/source, intensity, range_modifier, log=FALSE, can_contaminate=TRUE, from_contamination=FALSE)
 	if(!SSradiation.can_fire || !source)
 		return
 	// Дефолт из /datum/radiation_wave/New() не спасал: аргумент ПЕРЕДАЁТСЯ (пусть и нулём),
@@ -35,9 +35,8 @@
 	if(isnull(range_modifier))
 		range_modifier = RAD_DISTANCE_COEFFICIENT
 	var/turf/open/pool/PL = get_turf(source)
-	if(istype(PL))
-		if(PL.filled == TRUE)
-			intensity *= 0.15
+	if(istype(PL) && PL.liquids)
+		intensity *= 0.15
 	if(intensity <= RAD_BACKGROUND_RADIATION)
 		return
 	var/area/A = get_area(source)
@@ -48,7 +47,7 @@
 			spawn_waves = FALSE
 			break
 		nested_loc = nested_loc.loc
-	if(spawn_waves && intensity >= RAD_MINIMUM_CONTAMINATION && SSradiation.processing.len < RAD_MAX_PROCESSING)
+	if(spawn_waves && intensity >= RAD_MINIMUM_CONTAMINATION && (!from_contamination || SSradiation.active_waves < RAD_MAX_PROCESSING))
 		for(var/dir in GLOB.cardinals)
 			new /datum/radiation_wave(source, dir, intensity, range_modifier, can_contaminate)
 

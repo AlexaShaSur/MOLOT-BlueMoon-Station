@@ -6,7 +6,6 @@
 	gender = PLURAL //"That's some lava."
 	baseturfs = /turf/open/lava //lava all the way down
 	slowdown = 2
-	dirt_buildup_allowed = FALSE
 
 	light_range = 2
 	light_power = 0.75
@@ -69,7 +68,7 @@
 /turf/open/lava/rcd_act(mob/user, obj/item/construction/rcd/the_rcd, passed_mode)
 	switch(passed_mode)
 		if(RCD_FLOORWALL)
-			to_chat(user, "<span class='notice'>You build a floor.</span>")
+			to_chat(user, span_notice("Вы строите пол."))
 			PlaceOnTop(/turf/open/floor/plating, flags = CHANGETURF_INHERIT_AIR)
 			return TRUE
 	return FALSE

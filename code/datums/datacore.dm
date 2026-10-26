@@ -1,3 +1,10 @@
+/// Потолок ожидания чужого кадра и слота съёмки.
+#define RECORD_PHOTO_INFLIGHT_TIMEOUT (10 SECONDS)
+#define RECORD_PHOTO_MAX_IN_FLIGHT 2
+
+/// Источники, чьи кадры строятся прямо сейчас: источник -> время старта съёмки.
+GLOBAL_LIST_EMPTY(record_photos_in_flight)
+
 //TODO: someone please get rid of this shit
 /datum/datacore
 	var/list/medical = list()
@@ -17,82 +24,100 @@
 	var/list/security_by_id = list()
 	var/list/general_by_id = list()
 	var/list/locked_by_id = list()
-	/// Очередь отложенной генерации фото манифеста: list(weakref моба, prefs, роль, general-запись, locked-запись).
-	/// Фото - второй полный билд персонажа + два getFlatIcon, ему не место в синхронном тике латеджойна.
-	var/list/pending_photo_jobs = list()
-	/// TRUE, пока дренаж очереди фото уже запущен (один воркер, дренаж с CHECK_TICK)
-	var/photo_queue_running = FALSE
 
-/// Ставит генерацию фото манифеста в очередь и будит воркера. Сама генерация - это
-/// второй полный билд персонажа (copy_to + экипировка джоба на манекене + два
-/// getFlatIcon), ей не место в синхронном тике латеджойна.
-/datum/datacore/proc/enqueue_manifest_photo(mob/living/carbon/human/H, datum/preferences/prefs, assigned_role, datum/data/record/general_record, datum/data/record/locked_record)
-	pending_photo_jobs += list(list(WEAKREF(H), prefs, assigned_role, general_record, locked_record))
-	if(photo_queue_running)
-		return
-	photo_queue_running = TRUE
-	addtimer(CALLBACK(src, PROC_REF(process_manifest_photo_queue)), 0)
+/// Ленивый источник фотографии записи: в манифесте лежит только снапшот внешности,
+/// кадр строится при первом обращении и кэшируется. Один на general- и locked-запись.
+/datum/record_photo_source
+	/// Снапшот внешности; сам моб тут держать нельзя, запись живёт весь раунд.
+	var/frozen_appearance
+	/// Роль для запасного пути через манекен, если снапшота нет.
+	var/assigned_role
+	var/datum/weakref/prefs_ref
+	var/icon/cached_icon
+	/// Взводится перед съёмкой: неудачный кадр кэшируется наравне с удачным.
+	var/generated = FALSE
+	/// TRUE, пока съёмка идёт. Отдельный флаг от generated нужен потому, что съёмка спит
+	/// гарантированно, и читатель в этом окне иначе прочёл бы пустой кэш как готовый.
+	var/generating = FALSE
+	/// Потолок ожидания чужого кадра и слота съёмки; переменная, чтобы тест мог её укоротить.
+	var/inflight_timeout = RECORD_PHOTO_INFLIGHT_TIMEOUT
 
-/// Дренаж очереди фото: по одной работе с CHECK_TICK между ними. Воркер один -
-/// манекен манифеста общий, параллельные генерации всё равно сериализовались бы на in_use.
-/datum/datacore/proc/process_manifest_photo_queue()
-	photo_queue_running = TRUE
-	while(length(pending_photo_jobs))
-		var/list/job = pending_photo_jobs[1]
-		pending_photo_jobs.Cut(1, 2)
-		var/datum/weakref/mob_ref = job[1]
-		var/mob/living/carbon/human/H = mob_ref?.resolve()
-		if(QDELETED(H))
+/datum/record_photo_source/New(mob/living/carbon/human/subject, assigned_role, datum/preferences/prefs)
+	. = ..()
+	src.assigned_role = assigned_role
+	if(prefs)
+		prefs_ref = WEAKREF(prefs)
+	snapshot_appearance(subject)
+
+/// Снимает снапшот внешности, пока кадр ещё не строился; латеджойн зовёт повторно.
+/datum/record_photo_source/proc/snapshot_appearance(mob/living/carbon/human/subject)
+	if(generated || QDELETED(subject))
+		return FALSE
+	if(subject.body_position != STANDING_UP || subject.alpha < 255)
+		return FALSE
+	frozen_appearance = subject.appearance
+	return TRUE
+
+/// Первый вызов снимает кадр, последующие отдают кэш. Проверка generating идёт перед
+/// generated: флаги взводятся вместе, и читатель в окне съёмки иначе уходит с null.
+/datum/record_photo_source/proc/get_photo_icon()
+	if(generating)
+		var/wait_deadline = world.time + inflight_timeout
+		UNTIL(!generating || world.time > wait_deadline)
+		if(generating)
+			generating = FALSE
+			log_world("## DATACORE: съёмка кадра записи не завершилась за [inflight_timeout / (1 SECONDS)] с, флаг снят принудительно")
+		return cached_icon
+	if(generated)
+		return cached_icon
+	generated = TRUE
+	generating = TRUE
+	var/slot_deadline = world.time + inflight_timeout
+	UNTIL(length(GLOB.record_photos_in_flight) < RECORD_PHOTO_MAX_IN_FLIGHT || world.time > slot_deadline)
+	if(length(GLOB.record_photos_in_flight) >= RECORD_PHOTO_MAX_IN_FLIGHT)
+		evict_stuck_photo_builds()
+	GLOB.record_photos_in_flight[src] = world.time
+	try
+		cached_icon = build_photo_icon()
+	catch(var/exception/photo_error)
+		cached_icon = null
+		stack_trace("record_photo_source: съёмка кадра сорвалась ([photo_error])")
+	// Снятие по ключу: уже вычищенная как зависшая съёмка не трогает чужие слоты.
+	GLOB.record_photos_in_flight -= src
+	frozen_appearance = null
+	generating = FALSE
+	return cached_icon
+
+/// Выбрасывает из слотов съёмки только те, что идут дольше таймаута: живые снимут себя сами.
+/datum/record_photo_source/proc/evict_stuck_photo_builds()
+	for(var/datum/record_photo_source/other as anything in GLOB.record_photos_in_flight)
+		if(world.time - GLOB.record_photos_in_flight[other] < inflight_timeout)
 			continue
-		generate_manifest_photo(H, job[2], job[3], job[4], job[5])
-		CHECK_TICK
-	photo_queue_running = FALSE
+		GLOB.record_photos_in_flight -= other
+		log_world("## DATACORE: съёмка кадра записи идёт дольше [inflight_timeout / (1 SECONDS)] с, слот освобождён")
 
-/// Снимает кадр для записей персонала. К моменту вызова настоящий моб уже полностью
-/// экипирован: и на роундстарте (equip_characters отрабатывает до manifest()), и на
-/// латеджойне (SSjob.EquipRank стоит до manifest_inject). Поэтому кадр снимается
-/// прямо с моба, а не с манекена: постройка манекена - это второй полный билд
-/// персонажа (copy_to с пересборкой конечностей и органов плюс экипировка аутфита
-/// джоба), в проде это 120-220 мс синхронно на каждое фото.
-///
-/// Манекен остаётся запасным путём: если моб лежит или невидим, снимать с него
-/// нечего, и лучше показать канонический аутфит должности, чем пустой кадр.
-/datum/datacore/proc/capture_record_photo(mob/living/carbon/human/H, assigned_role, datum/preferences/prefs, list/show_directions)
+/// Собственно съёмка; вынесена отдельным проком, чтобы тест считал реальные генерации.
+/datum/record_photo_source/proc/build_photo_icon()
+	var/static/list/show_directions = list(SOUTH, WEST)
 	// no_anim: фотография в записи статична, а без флага getFlatIcon тянет все кадры
 	// анимации каждого оверлея - это самая дорогая часть съёмки.
-	if(!QDELETED(H) && H.body_position == STANDING_UP && H.alpha >= 255)
-		return build_flat_multidir_icon(H, show_directions, no_anim = TRUE, force_dir = TRUE)
+	if(frozen_appearance)
+		return build_flat_multidir_icon(null, show_directions, no_anim = TRUE, snapshot_appearance = frozen_appearance)
+	var/datum/preferences/prefs = prefs_ref?.resolve()
+	if(!assigned_role && !prefs)
+		return icon('icons/effects/effects.dmi', "nothing")
 	var/datum/job/photo_job = assigned_role ? SSjob.GetJob(assigned_role) : null
 	return get_flat_human_icon(null, photo_job, prefs, DUMMY_HUMAN_SLOT_MANIFEST, show_directions, no_anim = TRUE)
 
-/// Собственно генерация фото: съёмка кадра с подменой плейсхолдеров в записях
-/// (general: два /obj/item/photo, locked: сырая иконка).
-/datum/datacore/proc/generate_manifest_photo(mob/living/carbon/human/H, datum/preferences/prefs, assigned_role, datum/data/record/general_record, datum/data/record/locked_record)
-	var/static/list/show_directions = list(SOUTH, WEST)
-	var/icon/photo_icon = capture_record_photo(H, assigned_role, prefs, show_directions)
-	if(!photo_icon)
-		return
-	if(!QDELETED(general_record))
-		var/datum/picture/picture_front = new
-		picture_front.picture_name = "[H]"
-		picture_front.picture_desc = "This is [H]."
-		picture_front.picture_image = icon(photo_icon, dir = SOUTH)
-		var/datum/picture/picture_side = new
-		picture_side.picture_name = "[H]"
-		picture_side.picture_desc = "This is [H]."
-		picture_side.picture_image = icon(photo_icon, dir = WEST)
-		var/obj/item/photo/photo_front = general_record.fields["photo_front"]
-		if(istype(photo_front))
-			photo_front.set_picture(picture_front, TRUE, TRUE)
-		else
-			general_record.fields["photo_front"] = new /obj/item/photo(null, picture_front)
-		var/obj/item/photo/photo_side = general_record.fields["photo_side"]
-		if(istype(photo_side))
-			photo_side.set_picture(picture_side, TRUE, TRUE)
-		else
-			general_record.fields["photo_side"] = new /obj/item/photo(null, picture_side)
-	if(!QDELETED(locked_record))
-		locked_record.fields["image"] = photo_icon
+/// Обновляет снапшот внешности в записи после того, как моба дообули на латеджойне.
+/datum/datacore/proc/refresh_manifest_photo_source(mob/living/carbon/human/subject)
+	if(QDELETED(subject))
+		return FALSE
+	var/datum/data/record/general_record = general_by_name[subject.real_name]
+	var/datum/record_photo_source/source = general_record?.photo_source
+	if(!source)
+		return FALSE
+	return source.snapshot_appearance(subject)
 
 /// Registers a record in the appropriate index lists. Call after adding to medical/security/general lists.
 /datum/datacore/proc/register_record(datum/data/record/R, record_type)
@@ -150,18 +175,19 @@
 		if(R in security)
 			security_by_id[new_id] = R
 
-/// Removes all records (medical, security, general, locked) for a given name. Returns the rank from general record if found.
+/// Removes a person's records except permanent warrants. Returns the general record's rank if found.
 /datum/datacore/proc/remove_records_by_name(target_name)
 	var/announce_rank = null
 	var/datum/data/record/gen = general_by_name[target_name]
 	if(gen)
 		announce_rank = gen.fields["rank"]
-		qdel(gen)
+		if(!gen.locked_security_reason)
+			qdel(gen)
 	var/datum/data/record/med = medical_by_name[target_name]
 	if(med)
 		qdel(med)
 	var/datum/data/record/sec = security_by_name[target_name]
-	if(sec)
+	if(sec && !sec.locked_security_reason)
 		qdel(sec)
 	// Locked-записи индексируются по id, не по имени - ищем перебором.
 	// Без этого GLOB.data_core.locked бесконечно копит записи ушедших в крио,
@@ -177,16 +203,161 @@
 /datum/data/record
 	name = "record"
 	var/list/fields = list()
+	/// A permanent warrant protects the arrest status and its general/security records.
+	var/locked_security_reason
+	/// Ленивый источник фотографии, общий у general- и locked-записи; пуст у записей с консоли.
+	var/datum/record_photo_source/photo_source
+
+/// All gameplay status changes must preserve permanent arrest warrants.
+/datum/data/record/proc/set_security_status(status)
+	if(locked_security_reason && status != SEC_RECORD_STATUS_ARREST)
+		return FALSE
+	fields["criminal"] = status
+	return TRUE
+
+/// Off-station personnel may not have a manifest entry until a warrant is issued.
+/datum/datacore/proc/issue_permanent_arrest(datum/mind/subject, crime_name, reason, issuing_authority)
+	var/subject_name = subject.current?.real_name || subject.name
+	var/datum/data/record/general_record = general_by_name[subject_name]
+	var/datum/data/record/security_record = security_by_name[subject_name]
+	if(!general_record)
+		var/record_id = security_record?.fields["id"]
+		if(!record_id)
+			do
+				record_id = num2hex(rand(1, 16777215), 6)
+			while(general_by_id[record_id] || security_by_id[record_id])
+		general_record = new
+		general_record.fields = list(
+			"id" = record_id,
+			"name" = subject_name,
+			"rank" = subject.assigned_role || "Unknown",
+			"real_rank" = subject.assigned_role || "Unknown",
+			"gender" = "Unknown",
+			"age" = "Unknown",
+			"species" = "Unknown",
+			"fingerprint" = "Unknown",
+			"p_stat" = "Active",
+			"m_stat" = "Stable",
+		)
+		if(ishuman(subject.current))
+			var/mob/living/carbon/human/person = subject.current
+			general_record.fields["gender"] = person.gender
+			general_record.fields["age"] = person.age
+			general_record.fields["species"] = person.dna.species.name
+			general_record.fields["fingerprint"] = md5(person.dna.uni_identity)
+			general_record.photo_source = new(person, subject.assigned_role)
+		general += general_record
+		register_record(general_record, "general")
+	if(!security_record)
+		security_record = new
+		security_record.fields = list(
+			"id" = general_record.fields["id"],
+			"name" = subject_name,
+			"rank" = general_record.fields["rank"],
+			"criminal" = SEC_RECORD_STATUS_NONE,
+			"mi_crim" = list(),
+			"ma_crim" = list(),
+			"fines" = list(),
+			"comments" = list(),
+			"actions_logs" = list(),
+			"notes" = "No notes.",
+		)
+		security += security_record
+		register_record(security_record, "security")
+	if(security_record.locked_security_reason)
+		return security_record
+	var/datum/data/crime/charge = createCrimeEntry(crime_name, reason, issuing_authority, STATION_TIME_TIMESTAMP("hh:mm:ss", world.time), TRUE)
+	charge.permanent = TRUE
+	LAZYADD(security_record.fields["ma_crim"], charge)
+	set_criminal_status(null, security_record, SEC_RECORD_STATUS_ARREST, reason, issuing_authority, user_name = issuing_authority)
+	security_record.locked_security_reason = reason
+	general_record.locked_security_reason = reason
+	return security_record
+
+/// Единственная дверь к полям photo_front/photo_side: первое обращение снимает кадр и
+/// раскладывает по обоим полям. generate = FALSE - только заглянуть, для списков в ui_data.
+/datum/data/record/proc/get_record_photo(photo_field = "photo_front", generate = TRUE)
+	var/obj/item/photo/existing = fields[photo_field]
+	if(istype(existing))
+		return existing
+	// В поле бывает сырая /icon (запись с консоли, последствия ЭМИ) - её вызывающий читает сам.
+	if(!generate || !photo_source || isicon(fields[photo_field]))
+		return null
+	var/icon/photo_icon = photo_source.get_photo_icon()
+	if(!photo_icon)
+		return null
+	// Съёмка спит: за это окно запись могли стереть с консоли.
+	if(QDELETED(src))
+		return null
+	// На том же сне поле мог заполнить другой читатель этой записи.
+	existing = fields[photo_field]
+	if(istype(existing))
+		return existing
+	try
+		apply_record_photo_icon(photo_icon)
+	catch(var/exception/photo_apply_error)
+		stack_trace("get_record_photo: раскладка кадра по записи сорвалась ([photo_apply_error])")
+		return null
+	existing = fields[photo_field]
+	return istype(existing) ? existing : null
+
+/// base64 фотографии записи для ui_data консолей: только чтение готового. Съёмки здесь
+/// нет намеренно - ui_data гоняет SStgui, усыплять его нельзя.
+/datum/data/record/proc/get_record_photo_base64(photo_field = "photo_front")
+	var/obj/item/photo/photo = get_record_photo(photo_field, generate = FALSE)
+	if(photo)
+		return photo.picture?.get_base64()
+	var/existing = fields[photo_field]
+	if(isicon(existing))
+		return icon2base64(existing)
+	return null
+
+/// Раскладывает снятый кадр по полям general-записи: анфас - юг, профиль - запад.
+/datum/data/record/proc/apply_record_photo_icon(icon/photo_icon)
+	var/record_name = fields["name"] || "Unknown"
+	var/datum/picture/picture_front = new
+	picture_front.picture_name = record_name
+	picture_front.picture_desc = "This is [record_name]."
+	picture_front.picture_image = icon(photo_icon, dir = SOUTH)
+	var/datum/picture/picture_side = new
+	picture_side.picture_name = record_name
+	picture_side.picture_desc = "This is [record_name]."
+	picture_side.picture_image = icon(photo_icon, dir = WEST)
+	// Чужое значение не перетираем: его мог положить upd_photo за время сна съёмки.
+	if(isnull(fields["photo_front"]))
+		fields["photo_front"] = new /obj/item/photo(null, picture_front)
+	if(isnull(fields["photo_side"]))
+		fields["photo_side"] = new /obj/item/photo(null, picture_side)
+
+/// То же самое для locked-записи, где фото лежит сырой иконкой (голограмма ИИ).
+/datum/data/record/proc/get_record_image(generate = TRUE)
+	var/icon/existing = fields["image"]
+	if(isicon(existing))
+		return existing
+	if(!generate || !photo_source || !isnull(existing))
+		return null
+	var/icon/photo_icon = photo_source.get_photo_icon()
+	if(!photo_icon)
+		return null
+	if(QDELETED(src))
+		return null
+	existing = fields["image"]
+	if(isicon(existing))
+		return existing
+	// Копия, а не общий cached_icon: правка на месте (Blend, Scale) видна всем читателям.
+	photo_icon = icon(photo_icon)
+	fields["image"] = photo_icon
+	return photo_icon
 
 /datum/data/record/Destroy()
 	// Консоли кэшируют выбранную запись в active1/active2 и обнуляют их только в
 	// собственном Destroy - удалённая запись иначе висит на консоли вечно.
-	for(var/obj/machinery/computer/secure_data/sec_console in GLOB.machines)
+	for(var/obj/machinery/computer/secure_data/sec_console as anything in SSmachines.get_machines_by_type_and_subtypes(/obj/machinery/computer/secure_data))
 		if(sec_console.active1 == src)
 			sec_console.active1 = null
 		if(sec_console.active2 == src)
 			sec_console.active2 = null
-	for(var/obj/machinery/computer/med_data/med_console in GLOB.machines)
+	for(var/obj/machinery/computer/med_data/med_console as anything in SSmachines.get_machines_by_type_and_subtypes(/obj/machinery/computer/med_data))
 		if(med_console.active1 == src)
 			med_console.active1 = null
 		if(med_console.active2 == src)
@@ -218,13 +389,23 @@
 			GLOB.data_core.general_by_id -= record_id
 		if(GLOB.data_core.locked_by_id[record_id] == src)
 			GLOB.data_core.locked_by_id -= record_id
+	var/list/fines = fields["fines"]
+	if(islist(fines))
+		for(var/datum/data/crime/f as anything in fines)
+			if(f.fine_timer_id)
+				deltimer(f.fine_timer_id)
+				f.fine_timer_id = null
 	GLOB.data_core.medical -= src
 	GLOB.data_core.security -= src
 	GLOB.data_core.general -= src
 	GLOB.data_core.locked -= src
+	// Источник общий с парной записью: обнуляем только свою ссылку.
+	photo_source = null
 	. = ..()
 
 /datum/data/crime
+	/// Permanent charges cannot be removed or marked as served through record tools.
+	var/permanent = FALSE
 	name = "crime"
 	var/crimeName = ""
 	var/crimeDetails = ""
@@ -235,6 +416,67 @@
 	var/centcom_enforced = FALSE // Создана ли данная запись сотрудниками ЦК
 	var/penalties_incurred = FALSE // Понёс ли субъект наказание за свои преступления
 	// BLUEMOON ADD END
+	var/fine = 0
+	var/paid = 0
+	var/fine_deadline = 0
+	var/fine_duration = 0
+	var/fine_timer_id = null
+	var/fine_issued_by = ""
+
+/datum/data/crime/proc/alert_fine_owner(mob/sender, atom/source, target_name, message)
+	message = replacetext(message, "—", "-")
+	var/list/datum/computer_file/program/messenger/target_messengers = list()
+	for(var/obj/item/modular_computer/pda/pda_device in GLOB.PDAs)
+		if(pda_device.hidden || pda_device.toff)
+			continue
+		if(lowertext(trim(pda_device.saved_identification)) != lowertext(trim(target_name)))
+			continue
+		var/datum/computer_file/program/messenger/messenger = locate(/datum/computer_file/program/messenger) in pda_device.get_all_files()
+		if(!messenger || messenger.invisible)
+			continue
+		target_messengers += messenger
+	if(!length(target_messengers))
+		for(var/datum/computer_file/program/messenger/messenger as anything in GLOB.pda_messengers_by_name)
+			if(lowertext(trim(messenger.computer?.saved_identification)) != lowertext(trim(target_name)))
+				continue
+			if(messenger.invisible)
+				continue
+			target_messengers += messenger
+			break
+	if(!length(target_messengers))
+		for(var/messenger_ref in GLOB.pda_messengers)
+			var/datum/computer_file/program/messenger/messenger = GLOB.pda_messengers[messenger_ref]
+			if(messenger.invisible)
+				continue
+			if(lowertext(trim(messenger.computer?.saved_identification)) != lowertext(trim(target_name)))
+				continue
+			target_messengers += messenger
+			break
+	if(!length(target_messengers))
+		if(sender)
+			to_chat(sender, span_warning("ПДА адресата [target_name] не найден - сообщение не доставлено."))
+		return FALSE
+	var/msg_text = message
+	var/datum/signal/subspace/messaging/tablet_message/signal = new(source, list(
+		"ref" = null,
+		"message" = msg_text,
+		"targets" = target_messengers,
+		"rigged" = FALSE,
+		"everyone" = FALSE,
+		"photo" = null,
+		"automated" = TRUE,
+		"fakename" = "Служба Безопасности",
+		"fakejob" = "Штрафной Сервер",
+	))
+	signal.data["done"] = FALSE
+	signal.data["reject"] = FALSE
+	signal.send_to_receivers()
+	if(!signal.data["done"])
+		signal.broadcast()
+		signal.mark_done()
+	if(sender)
+		sender.log_message("(PDA: Штрафной Сервер) sent \"[message]\" to [signal.format_target()]", LOG_PDA)
+	return TRUE
 
 /datum/datacore/proc/createCrimeEntry(cname = "", cdetails = "", author = "", time = "", centcom_enforced = FALSE) // BLUEMOON EDIT - авторизация ЦК
 	var/datum/data/crime/c = new /datum/data/crime
@@ -259,7 +501,7 @@
 			var/list/crimes = R.fields["mi_crim"]
 			for(var/datum/data/crime/crime in crimes)
 				if(crime.dataId == text2num(cDataId))
-					if(crime.centcom_enforced && !centcom_authority) // BLUEMOON EDIT - авторизация ЦК
+					if(crime.permanent || (crime.centcom_enforced && !centcom_authority))
 						return
 					crimes -= crime
 					return
@@ -270,7 +512,7 @@
 			var/list/crimes = R.fields["ma_crim"]
 			for(var/datum/data/crime/crime in crimes)
 				if(crime.dataId == text2num(cDataId))
-					if(crime.centcom_enforced && !centcom_authority) // BLUEMOON EDIT - авторизация ЦК
+					if(crime.permanent || (crime.centcom_enforced && !centcom_authority))
 						return
 					crimes -= crime
 					return
@@ -282,6 +524,119 @@
 			crimes |= crime
 			return
 
+#define FINE_MAX_AMOUNT 10000
+#define FINE_PRESET_15 (15 MINUTES)
+#define FINE_PRESET_20 (20 MINUTES)
+#define FINE_PRESET_25 (25 MINUTES)
+#define FINE_PRESET_30 (30 MINUTES)
+#define FINE_PRESETS list(FINE_PRESET_15, FINE_PRESET_20, FINE_PRESET_25, FINE_PRESET_30)
+
+/datum/datacore/proc/createFineEntry(cname = "", cdetails = "", author = "", time = "", fine_amount = 0, duration = FINE_PRESET_15)
+	var/datum/data/crime/c = new /datum/data/crime
+	c.crimeName = cname
+	c.crimeDetails = cdetails
+	c.author = author
+	c.time = time
+	c.dataId = ++securityCrimeCounter
+	c.fine = fine_amount
+	c.paid = 0
+	c.fine_duration = duration
+	c.fine_deadline = world.time + duration
+	c.fine_issued_by = author
+	return c
+
+/datum/datacore/proc/addFine(id = "", datum/data/crime/fine_datum)
+	for(var/datum/data/record/R in security)
+		if(R.fields["id"] == id)
+			var/list/fines = R.fields["fines"]
+			if(!islist(fines))
+				fines = list()
+				R.fields["fines"] = fines
+			fines |= fine_datum
+			var/dur = fine_datum.fine_duration
+			if(dur > 0)
+				fine_datum.fine_timer_id = addtimer(CALLBACK(src, PROC_REF(on_fine_expire), id, fine_datum.dataId), dur, TIMER_STOPPABLE)
+			return TRUE
+	return FALSE
+
+/datum/datacore/proc/removeFine(id, cDataId)
+	for(var/datum/data/record/R in security)
+		if(R.fields["id"] == id)
+			var/list/fines = R.fields["fines"]
+			if(!islist(fines))
+				return FALSE
+			for(var/datum/data/crime/crime in fines)
+				if(crime.dataId == text2num("[cDataId]"))
+					if(crime.fine_timer_id)
+						deltimer(crime.fine_timer_id)
+						crime.fine_timer_id = null
+					fines -= crime
+					qdel(crime)
+					return TRUE
+	return FALSE
+
+/datum/datacore/proc/payFine(id, cDataId, amount)
+	for(var/datum/data/record/R in security)
+		if(R.fields["id"] == id)
+			var/list/fines = R.fields["fines"]
+			if(!islist(fines))
+				return FALSE
+			for(var/datum/data/crime/crime in fines)
+				if(crime.dataId == text2num("[cDataId]"))
+					if(crime.fine <= 0)
+						return FALSE
+					amount = clamp(amount, 1, crime.fine)
+					crime.paid += amount
+					crime.fine -= amount
+					if(crime.fine < 0)
+						crime.fine = 0
+					if(crime.fine == 0)
+						// полностью оплачен - снимаем таймер
+						if(crime.fine_timer_id)
+							deltimer(crime.fine_timer_id)
+							crime.fine_timer_id = null
+						crime.fine_deadline = 0
+					return amount
+	return FALSE
+
+/datum/datacore/proc/getFine(id, cDataId)
+	for(var/datum/data/record/R in security)
+		if(R.fields["id"] == id)
+			var/list/fines = R.fields["fines"]
+			if(!islist(fines))
+				return null
+			for(var/datum/data/crime/crime in fines)
+				if(crime.dataId == text2num("[cDataId]"))
+					return crime
+	return null
+
+/datum/datacore/proc/on_fine_expire(id, cDataId)
+	var/datum/data/crime/fine = getFine(id, cDataId)
+	if(!fine)
+		return
+	if(fine.fine <= 0)
+		return
+	var/datum/data/record/R = null
+	for(var/datum/data/record/S in security)
+		if(S.fields["id"] == id)
+			R = S
+			break
+	if(!R)
+		return
+	fine.fine_timer_id = null
+	var/datum/data/crime/c303 = createCrimeEntry("303 - Неуплата установленного штрафа в срок", "Субъект не уплатил штраф \"[fine.crimeName]\" ([fine.paid]/[fine.paid + fine.fine] кр. уплачено) в установленный срок. Первоначальная статья: [fine.crimeName] - [fine.crimeDetails]. Выдавший штраф: [fine.fine_issued_by].", "Система", STATION_TIME_TIMESTAMP("hh:mm:ss", world.time))
+	GLOB.data_core.addMajorCrime(id, c303)
+	var/cur = R.fields["criminal"]
+	if(cur != SEC_RECORD_STATUS_ARREST && cur != SEC_RECORD_STATUS_EXECUTE)
+		R.fields["criminal"] = SEC_RECORD_STATUS_ARREST
+		update_all_mob_security_hud()
+	GLOB.data_core.append_sec_logs(id, "%%GEN_AUTH%% автоматически выдал статью 303 (неуплата штрафа \"[fine.crimeName]\" от [fine.fine_issued_by]) и установил статус *Арестовать* (просрочка [DisplayTimeText(fine.fine_duration)] )", "Система", "Автоматика штрафов")
+	log_game("Fine [fine.crimeName] ([fine.dataId]) for ID [id] expired unpaid. Added 303 and set ARREST.")
+	for(var/datum/mind/M as anything in SSticker.minds)
+		if(M.name == R.fields["name"])
+			SSdirector.bump_antag_activity(M, DIRECTOR_ACTIVITY_WANTED)
+			break
+
 // BLUEMOON ADD START - возможность пометить правонарушение как обработанное | Логи
 /datum/datacore/proc/switch_incur(id, cDataId)
 	for(var/datum/data/record/R in security)
@@ -289,6 +644,8 @@
 			var/list/crimes = R.fields["mi_crim"] + R.fields["ma_crim"]
 			for(var/datum/data/crime/crime in crimes)
 				if(crime.dataId == text2num(cDataId))
+					if(crime.permanent)
+						return
 					crime.penalties_incurred = !crime.penalties_incurred
 					return
 
@@ -348,15 +705,15 @@
 /datum/datacore/proc/get_manifest()
 	var/list/manifest_out = list()
 	var/list/departments = list(
-		"Command" = GLOB.command_positions,
-		"Security" = GLOB.security_positions,
-		"Engineering" = GLOB.engineering_positions,
-		"Medical" = GLOB.medical_positions,
-		"Science" = GLOB.science_positions,
-		"Supply" = GLOB.supply_positions,
-		"Service" = GLOB.civilian_positions,
-		"Law" = GLOB.law_positions,
-		"Silicon" = GLOB.nonhuman_positions
+		DEPARTMENT_COMMAND		= GLOB.command_positions,
+		DEPARTMENT_SECURITY		= GLOB.security_positions,
+		DEPARTMENT_ENGINEERING	= GLOB.engineering_positions,
+		DEPARTMENT_MEDICAL		= GLOB.medical_positions,
+		DEPARTMENT_SCIENCE		= GLOB.science_positions,
+		DEPARTMENT_SUPPLY		= GLOB.supply_positions,
+		DEPARTMENT_SERVICE		= GLOB.civilian_positions,
+		DEPARTMENT_LAW			= GLOB.law_positions,
+		DEPARTMENT_SILICON		= GLOB.nonhuman_positions
 	)
 	for(var/datum/data/record/t in GLOB.data_core.general)
 		var/name = t.fields["name"]
@@ -369,7 +726,7 @@
 				if(!manifest_out[department])
 					manifest_out[department] = list()
 				// Append to beginning of list if captain or department head
-				if (department_check == "Captain" || (department != "Command" && (rank in GLOB.command_positions)))
+				if (department_check == "Captain" || (department != DEPARTMENT_COMMAND && (rank in GLOB.command_positions)))
 					manifest_out[department] = list(list(
 						"name" = name,
 						"rank" = rank,
@@ -538,21 +895,7 @@
 		var/id = num2hex(record_id_num++,6)
 		if(!C)
 			C = H.client
-		// Фото - самая дорогая часть латеджойна (второй полный билд персонажа + два
-		// getFlatIcon, 100-200мс синхронно): записи создаются сразу с плейсхолдером,
-		// настоящие фото доклеит отложенная очередь (enqueue в конце прока).
-		var/icon/placeholder_icon = icon('icons/effects/effects.dmi', "nothing")
-		var/image = placeholder_icon
-		var/datum/picture/pf = new
-		var/datum/picture/ps = new
-		pf.picture_name = "[H]"
-		ps.picture_name = "[H]"
-		pf.picture_desc = "This is [H]."
-		ps.picture_desc = "This is [H]."
-		pf.picture_image = icon(placeholder_icon, dir = SOUTH)
-		ps.picture_image = icon(placeholder_icon, dir = WEST)
-		var/obj/item/photo/photo_front = new(null, pf)
-		var/obj/item/photo/photo_side = new(null, ps)
+		var/datum/record_photo_source/photo_source = new(H, H.mind.assigned_role, C?.prefs || prefs)
 
 		//These records should ~really~ be merged or something
 		//General Record
@@ -572,8 +915,7 @@
 			G.fields["gender"]  = "Female"
 		else
 			G.fields["gender"]  = "Other"
-		G.fields["photo_front"]	= photo_front
-		G.fields["photo_side"]	= photo_side
+		G.photo_source			= photo_source
 		general += G
 		general_by_name[H.real_name] = G
 		general_by_id[id] = G
@@ -611,6 +953,7 @@
 		S.fields["mi_crim_d"]	= list()
 		S.fields["ma_crim"]		= list()
 		S.fields["ma_crim_d"]	= "No major crime convictions."
+		S.fields["fines"] = list() // CATCRINGE ADD - штрафы
 		S.fields["notes"]		= prefs.security_records || "No notes."
 		// BLUEMOON ADD START - логи
 		S.fields["actions_logs"] = list(
@@ -644,16 +987,8 @@
 		L.fields["identity"]	= H.dna.uni_identity
 		L.fields["species"]		= H.dna.species.type
 		L.fields["features"]	= H.dna.features
-		L.fields["image"]		= image
 		L.fields["mindref"]		= H.mind
+		L.photo_source			= photo_source
 		locked += L
 		locked_by_id[L.fields["id"]] = L
-		enqueue_manifest_photo(H, C?.prefs || prefs, H.mind.assigned_role, G, L)
 	return
-
-/datum/datacore/proc/get_id_photo(mob/living/carbon/human/H, client/C, show_directions = list(SOUTH))
-	if(!istype(H) || QDELETED(H) || !H.mind)
-		return icon('icons/effects/effects.dmi', "nothing")
-	if(!C)
-		C = H.client
-	return capture_record_photo(H, H.mind.assigned_role, C?.prefs, show_directions)

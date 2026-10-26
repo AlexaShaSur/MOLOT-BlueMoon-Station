@@ -9,7 +9,6 @@
 	canSmoothWith = list(/turf/open/floor/fakepit, /turf/open/chasm)
 	density = TRUE //This will prevent hostile mobs from pathing into chasms, while the canpass override will still let it function like an open turf
 	bullet_bounce_sound = null //abandon all hope ye who enter
-	dirt_buildup_allowed = FALSE
 
 /turf/open/chasm/Initialize(mapload)
 	. = ..()
@@ -38,7 +37,7 @@
 /turf/open/chasm/rcd_act(mob/user, obj/item/construction/rcd/the_rcd, passed_mode)
 	switch(passed_mode)
 		if(RCD_FLOORWALL)
-			to_chat(user, "<span class='notice'>You build a floor.</span>")
+			to_chat(user, span_notice("Вы строите пол."))
 			PlaceOnTop(/turf/open/floor/plating, flags = CHANGETURF_INHERIT_AIR)
 			return TRUE
 	return FALSE
@@ -54,6 +53,9 @@
 		var/obj/item/stack/rods/R = C
 		var/obj/structure/lattice/L = locate(/obj/structure/lattice, src)
 		if(!L)
+			if(!HasAdjacentSupport())
+				user.balloon_alert(user, "Не за что крепить! Нужна опора!")
+				return
 			if(R.use(1))
 				to_chat(user, "<span class='notice'>You construct a lattice.</span>")
 				playsound(src, 'sound/weapons/genhit.ogg', 50, 1)

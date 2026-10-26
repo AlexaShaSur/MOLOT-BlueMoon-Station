@@ -62,13 +62,16 @@
 	var/list/jani_upgrades = list()
 
 /mob/living/simple_animal/bot/cleanbot/proc/deputize(obj/item/stab_tool, mob/user)
-	if(in_range(src, user))
-		to_chat(user, "<span class='notice'>Вы прикрепили \the [stab_tool] к \the [src].</span>")
-		user.transferItemToLoc(stab_tool, src)
-		weapon = stab_tool
-		weapon_orig_force = weapon.force
-		if(!emagged)
-			weapon.force = weapon.force / 2
+	if(!in_range(src, user))
+		return
+	if(!user.transferItemToLoc(stab_tool, src))
+		to_chat(user, span_warning("Вам не удалось прикрепить \the [stab_tool] к \the [src]."))
+		return
+	to_chat(user, span_notice("Вы прикрепили \the [stab_tool] к \the [src]."))
+	weapon = stab_tool
+	weapon_orig_force = weapon.force
+	if(!emagged)
+		weapon.force = weapon.force / 2
 	add_overlay(weapon.build_worn_icon(default_layer = layer + 1, default_icon_file = weapon.lefthand_file, isinhands = TRUE))
 
 /mob/living/simple_animal/bot/cleanbot/proc/update_titles()
@@ -351,6 +354,10 @@
 				priority = 3
 			else if(istype(candidate, /obj/effect/decal/remains))
 				priority = 4
+			else if(istype(candidate, /obj/effect/abstract/liquid_turf))
+				var/obj/effect/abstract/liquid_turf/liquid_candidate = candidate
+				if(liquid_candidate.liquid_state == LIQUID_STATE_PUDDLE)
+					priority = 3
 			else if(trash && istype(candidate, /obj/item/trash))
 				priority = 5
 		if(!priority || candidates[priority] || ignore_list[REF(candidate)])
@@ -472,13 +479,15 @@
 		/obj/effect/decal/cleanable/semendrip,
 		/obj/effect/decal/cleanable/semen/femcum,
 		/obj/effect/decal/cleanable/generic,
-		/obj/effect/decal/cleanable/glass,,
+		/obj/effect/decal/cleanable/glass,
 		/obj/effect/decal/cleanable/cobweb,
 		/obj/effect/decal/cleanable/plant_smudge,
 		/obj/effect/decal/cleanable/chem_pile,
 		/obj/effect/decal/cleanable/shreds,
+		/obj/effect/decal/cleanable/wrapping,
 		/obj/effect/decal/cleanable/glitter,
-		/obj/effect/decal/remains
+		/obj/effect/decal/remains,
+		/obj/effect/abstract/liquid_turf
 		)
 
 	if(blood)
@@ -519,6 +528,32 @@
 					if(istype(AM, /obj/effect/decal/cleanable))
 						for(var/obj/effect/decal/cleanable/C in A.loc)
 							qdel(C)
+
+				anchored = FALSE
+				target = null
+			mode = BOT_IDLE
+			if(base_icon == "servoskull")
+				icon_state = "servoskull[on]"
+			else
+				icon_state = "cleanbot[on]"
+	else if(istype(A, /obj/effect/abstract/liquid_turf))
+		var/obj/effect/abstract/liquid_turf/liquid = A
+		if(liquid.immutable || liquid.liquid_state != LIQUID_STATE_PUDDLE)
+			target = null
+			return
+		anchored = TRUE
+		if(base_icon == "servoskull")
+			icon_state = "servoskull-c"
+		else
+			icon_state = "cleanbot-c"
+		visible_message("<span class='notice'>[src] начинает отмывать [A].</span>")
+		mode = BOT_CLEANING
+		spawn(clean_time)
+			if(mode == BOT_CLEANING)
+				if(A && isturf(A.loc))
+					var/obj/effect/abstract/liquid_turf/L = A
+					if(!QDELETED(L) && !L.immutable && L.liquid_state == LIQUID_STATE_PUDDLE)
+						L.liquid_simple_delete_flat(L.total_reagents)
 
 				anchored = FALSE
 				target = null

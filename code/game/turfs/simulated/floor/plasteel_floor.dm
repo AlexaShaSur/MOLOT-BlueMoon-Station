@@ -15,12 +15,6 @@
 	return setDir(turn(dir, -90))
 // BLUEMOON ADD END
 
-/turf/open/floor/plasteel/rust_heretic_act()
-	if(prob(70))
-		new /obj/effect/temp_visual/glowing_rune(src)
-	var/turf/after = ChangeTurf(/turf/open/floor/plating/rust)
-	after?.AddElement(/datum/element/heretic_rust)
-
 /turf/open/floor/plasteel/update_icon_state()			//sandstorm change - tile floofing
 	if(broken || burnt)									//included - tile floofing
 		return											//included - tile floofing
@@ -88,7 +82,7 @@
 
 /turf/open/floor/plasteel/grimy
 	icon_state = "grimy"
-	tiled_dirt = FALSE
+	turf_flags = TURF_FLAGS_FLOOR & ~TURF_TILED_DIRT
 
 /turf/open/floor/plasteel/cafeteria
 	icon_state = "cafeteria"
@@ -109,7 +103,7 @@
 	icon_state = "plaque"
 	name = "commemorative plaque"
 	desc = "\"This is a plaque in honour of our comrades on the G4407 Stations. Hopefully TG4407 model can live up to your fame and fortune.\" Scratched in beneath that is a crude image of a meteor and a spaceman. The spaceman is laughing. The meteor is exploding."
-	tiled_dirt = FALSE
+	turf_flags = TURF_FLAGS_FLOOR & ~TURF_TILED_DIRT
 */
 
 /turf/open/floor/plasteel/cult/narsie_act()
@@ -117,7 +111,7 @@
 
 /turf/open/floor/plasteel/stairs
 	icon_state = "stairs"
-	tiled_dirt = FALSE
+	turf_flags = TURF_FLAGS_FLOOR & ~TURF_TILED_DIRT
 /turf/open/floor/plasteel/stairs/left
 	icon_state = "stairs-l"
 /turf/open/floor/plasteel/stairs/medium
